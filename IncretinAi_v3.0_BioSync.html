@@ -1,0 +1,1058 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IncretinA i Pro v3.0 — Bio-Sync Edition</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800;900&family=JetBrains+Mono:wght@500;700&display=swap');
+
+        :root {
+            /* Day Mode */
+            --bg: #f0f4f8;
+            --surface: #ffffff;
+            --surface-alt: #f7f9fc;
+            --text: #0f172a;
+            --text-sub: #64748b;
+            --primary: #2563eb;
+            --primary-glow: rgba(37, 99, 235, 0.15);
+            --success: #10b981;
+            --success-glow: rgba(16, 185, 129, 0.15);
+            --danger: #ef4444;
+            --danger-glow: rgba(239, 68, 68, 0.1);
+            --accent: #f59e0b;
+            --accent-glow: rgba(245, 158, 11, 0.15);
+            --border: #e2e8f0;
+            --shadow: 0 8px 32px rgba(15, 23, 42, 0.06);
+            --shadow-lg: 0 16px 48px rgba(15, 23, 42, 0.1);
+            --golden-gradient: linear-gradient(135deg, #f59e0b, #ef4444);
+            --card-radius: 24px;
+            --transition: 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        [data-theme="night"] {
+            --bg: #0c1222;
+            --surface: #1a2236;
+            --surface-alt: #151d30;
+            --text: #e2e8f0;
+            --text-sub: #94a3b8;
+            --primary: #60a5fa;
+            --primary-glow: rgba(96, 165, 250, 0.12);
+            --success: #34d399;
+            --success-glow: rgba(52, 211, 153, 0.12);
+            --danger: #f87171;
+            --danger-glow: rgba(248, 113, 113, 0.1);
+            --accent: #fbbf24;
+            --accent-glow: rgba(251, 191, 36, 0.12);
+            --border: #2a3548;
+            --shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.4);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transition: background var(--transition), color var(--transition);
+            min-height: 100vh;
+        }
+
+        .container { max-width: 820px; width: 100%; }
+
+        /* ===== HEADER ===== */
+        header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 20px; width: 100%;
+        }
+        .logo { display: flex; align-items: center; gap: 12px; }
+        .logo-icon {
+            width: 44px; height: 44px; border-radius: 14px;
+            background: linear-gradient(135deg, var(--primary), #7c3aed);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.3rem; box-shadow: 0 4px 16px rgba(37, 99, 235, 0.3);
+        }
+        .logo-text h1 { font-size: 1.25rem; font-weight: 900; color: var(--text); line-height: 1.2; }
+        .logo-text span { font-size: 0.65rem; font-weight: 600; color: var(--text-sub); letter-spacing: 1px; }
+
+        .header-actions { display: flex; gap: 8px; }
+        .icon-btn {
+            width: 42px; height: 42px; border-radius: 14px; border: 1px solid var(--border);
+            background: var(--surface); cursor: pointer; display: flex; align-items: center; justify-content: center;
+            font-size: 1.1rem; transition: 0.2s; color: var(--text);
+        }
+        .icon-btn:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
+
+        /* ===== BIO-SYNC TIMER ===== */
+        .biosync-card {
+            background: var(--surface);
+            border-radius: var(--card-radius);
+            padding: 28px;
+            margin-bottom: 20px;
+            border: 2px solid var(--border);
+            box-shadow: var(--shadow);
+            position: relative;
+            overflow: hidden;
+            width: 100%;
+            transition: border-color var(--transition), background var(--transition);
+        }
+        .biosync-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 4px;
+            background: var(--golden-gradient);
+            transition: opacity var(--transition);
+        }
+        [data-theme="night"] .biosync-card { border-color: #2a3548; }
+        [data-theme="night"] .biosync-card::before { background: linear-gradient(135deg, #3b82f6, #6366f1); }
+
+        .biosync-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
+        .biosync-mode {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 6px 14px; border-radius: 20px; font-size: 0.72rem; font-weight: 800;
+            letter-spacing: 0.5px;
+        }
+        .mode-day { background: #fef3c7; color: #92400e; }
+        .mode-night { background: #1e1b4b; color: #a5b4fc; }
+        .biosync-location { font-size: 0.7rem; color: var(--text-sub); font-weight: 600; }
+
+        .golden-time-display {
+            display: flex; align-items: center; gap: 24px;
+            margin-bottom: 20px;
+        }
+        .countdown-ring {
+            width: 110px; height: 110px; position: relative; flex-shrink: 0;
+        }
+        .countdown-ring svg { transform: rotate(-90deg); }
+        .countdown-ring .ring-bg { fill: none; stroke: var(--border); stroke-width: 6; }
+        .countdown-ring .ring-progress { fill: none; stroke-width: 6; stroke-linecap: round; transition: stroke-dashoffset 1s linear, stroke 0.5s; }
+        .countdown-center {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            text-align: center;
+        }
+        .countdown-time { font-family: 'JetBrains Mono', monospace; font-size: 1.4rem; font-weight: 700; color: var(--text); display: block; }
+        .countdown-label { font-size: 0.55rem; font-weight: 700; color: var(--text-sub); letter-spacing: 1px; text-transform: uppercase; }
+
+        .golden-info { flex: 1; }
+        .golden-info .gi-title { font-size: 0.95rem; font-weight: 800; color: var(--text); margin-bottom: 6px; }
+        .golden-info .gi-sub { font-size: 0.78rem; color: var(--text-sub); line-height: 1.5; }
+        .sun-times {
+            display: flex; gap: 16px; margin-top: 10px;
+        }
+        .sun-time {
+            display: flex; align-items: center; gap: 5px;
+            font-size: 0.72rem; font-weight: 700; color: var(--text-sub);
+        }
+        .sun-time span { font-family: 'JetBrains Mono', monospace; color: var(--text); }
+
+        .biosync-progress {
+            background: var(--surface-alt); border-radius: 12px; padding: 12px 16px;
+            display: flex; align-items: center; gap: 12px;
+        }
+        .progress-bar-wrap { flex: 1; height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; }
+        .progress-bar-fill { height: 100%; border-radius: 4px; transition: width 1s ease, background 0.5s; }
+        .progress-pct { font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; font-weight: 700; min-width: 42px; text-align: right; }
+
+        /* ===== STAT GRID ===== */
+        .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px; width: 100%; }
+        .stat-item {
+            background: var(--surface); padding: 16px 12px; border-radius: 18px; text-align: center;
+            border: 1px solid var(--border); box-shadow: var(--shadow);
+            transition: background var(--transition), border-color var(--transition);
+        }
+        .stat-val { display: block; font-family: 'JetBrains Mono', monospace; font-size: 1.2rem; font-weight: 700; color: var(--primary); }
+        .stat-lbl { font-size: 0.6rem; font-weight: 700; color: var(--text-sub); margin-bottom: 4px; display: block; letter-spacing: 0.5px; text-transform: uppercase; }
+
+        /* ===== IMEM DASHBOARD ===== */
+        .imem-card {
+            background: var(--surface); border-radius: var(--card-radius); padding: 24px;
+            margin-bottom: 20px; border: 1px solid var(--border); box-shadow: var(--shadow); width: 100%;
+            transition: background var(--transition), border-color var(--transition);
+        }
+        .imem-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+        .imem-title { font-size: 0.75rem; font-weight: 800; color: var(--text-sub); letter-spacing: 1px; text-transform: uppercase; }
+        .imem-coefficients { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
+        .coeff-item {
+            background: var(--surface-alt); border-radius: 14px; padding: 14px; text-align: center;
+            border: 1px solid var(--border);
+        }
+        .coeff-symbol { font-family: 'JetBrains Mono', monospace; font-size: 1.1rem; font-weight: 700; display: block; margin-bottom: 2px; }
+        .coeff-value { font-family: 'JetBrains Mono', monospace; font-size: 1.3rem; font-weight: 700; display: block; }
+        .coeff-label { font-size: 0.6rem; font-weight: 700; color: var(--text-sub); letter-spacing: 0.5px; }
+
+        /* ===== AI NUDGE ===== */
+        .ai-card {
+            background: var(--surface); border-radius: var(--card-radius); padding: 24px;
+            margin-bottom: 20px; border: 2px solid var(--primary); box-shadow: 0 8px 32px var(--primary-glow);
+            width: 100%; transition: background var(--transition), border-color var(--transition);
+        }
+        .ai-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+        .ai-title { font-weight: 800; color: var(--primary); font-size: 0.9rem; display: flex; align-items: center; gap: 8px; }
+        .ai-persona-select {
+            border: 1px solid var(--border); border-radius: 10px; padding: 5px 10px;
+            font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 0.72rem;
+            background: var(--surface-alt); color: var(--text); cursor: pointer;
+        }
+        .ai-content {
+            background: var(--surface-alt); padding: 16px; border-radius: 14px;
+            font-size: 0.88rem; line-height: 1.7; border-left: 4px solid var(--primary);
+            color: var(--text-sub); font-weight: 500;
+        }
+
+        /* ===== CHARTS ===== */
+        .dashboard-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; width: 100%; }
+        .chart-card {
+            background: var(--surface); border-radius: var(--card-radius); padding: 20px;
+            border: 1px solid var(--border); box-shadow: var(--shadow);
+            transition: background var(--transition), border-color var(--transition);
+        }
+        .chart-title { font-size: 0.7rem; font-weight: 800; margin-bottom: 10px; display: block; color: var(--text-sub); letter-spacing: 0.5px; text-transform: uppercase; }
+
+        /* ===== GLASS CARD ===== */
+        .glass-card {
+            background: var(--surface); border-radius: var(--card-radius); padding: 24px;
+            box-shadow: var(--shadow); margin-bottom: 20px; width: 100%;
+            border: 1px solid var(--border);
+            transition: background var(--transition), border-color var(--transition);
+        }
+        .section-label {
+            font-size: 0.7rem; font-weight: 800; color: var(--text-sub);
+            letter-spacing: 1px; text-transform: uppercase; margin-bottom: 14px; display: block;
+        }
+        .profile-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-bottom: 18px; }
+        .input-group label { font-size: 0.65rem; font-weight: 700; color: var(--text-sub); display: block; margin-bottom: 5px; }
+        input, select {
+            width: 100%; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--border);
+            font-family: 'Outfit', sans-serif; font-weight: 600; font-size: 0.85rem;
+            background: var(--surface-alt); color: var(--text); transition: border-color 0.2s;
+        }
+        input:focus, select:focus { outline: none; border-color: var(--primary); }
+
+        /* ===== ROUTINE LIST ===== */
+        .routine-date-bar {
+            display: flex; gap: 10px; align-items: flex-end; margin-bottom: 16px;
+        }
+        .routine-date-bar > div { flex: 1; }
+
+        .item {
+            background: var(--surface); border-radius: 18px; padding: 16px 18px; margin-bottom: 10px;
+            display: flex; gap: 14px; align-items: center;
+            border-left: 5px solid var(--border); cursor: pointer;
+            transition: all 0.25s ease; position: relative;
+        }
+        .item:hover { transform: translateX(4px); }
+        .item.checked { background: var(--success-glow); border-left-color: var(--success); }
+        .item.critical { border-left-color: var(--danger); }
+        .item.critical.checked { border-left-color: var(--success); }
+
+        .item-icon {
+            width: 38px; height: 38px; border-radius: 12px; display: flex; align-items: center; justify-content: center;
+            font-size: 1.1rem; background: var(--surface-alt); flex-shrink: 0;
+        }
+        .item.checked .item-icon { background: var(--success); }
+        .item-body { flex: 1; min-width: 0; }
+        .item-time { font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; font-weight: 700; color: var(--primary); }
+        .item-title { font-size: 0.9rem; font-weight: 800; color: var(--text); margin: 2px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .item-action { font-size: 0.72rem; color: var(--text-sub); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+        .score-badge {
+            background: var(--surface-alt); padding: 4px 10px; border-radius: 10px;
+            font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; font-weight: 700;
+            color: var(--text-sub); flex-shrink: 0;
+        }
+        .item.checked .score-badge { background: var(--success); color: white; }
+
+        /* Night mode fasting overlay */
+        .fasting-overlay {
+            display: none; background: var(--surface-alt); border-radius: 18px; padding: 28px;
+            text-align: center; margin-bottom: 20px; border: 1px dashed var(--border);
+        }
+        .fasting-overlay.active { display: block; }
+        .fasting-overlay .fo-icon { font-size: 2.5rem; margin-bottom: 10px; }
+        .fasting-overlay .fo-title { font-size: 1rem; font-weight: 800; color: var(--text); margin-bottom: 6px; }
+        .fasting-overlay .fo-sub { font-size: 0.8rem; color: var(--text-sub); line-height: 1.6; }
+
+        /* ===== BUTTONS ===== */
+        .btn {
+            padding: 14px 20px; border-radius: 14px; border: none; font-family: 'Outfit', sans-serif;
+            font-weight: 800; font-size: 0.85rem; cursor: pointer; color: white; text-align: center;
+            transition: transform 0.2s, box-shadow 0.2s; display: block; width: 100%;
+        }
+        .btn:hover { transform: translateY(-2px); }
+        .btn-primary { background: var(--primary); box-shadow: 0 4px 16px var(--primary-glow); }
+        .btn-success { background: var(--success); box-shadow: 0 4px 16px var(--success-glow); }
+
+        /* ===== MODAL ===== */
+        .modal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6); backdrop-filter: blur(8px);
+            z-index: 2000; justify-content: center; align-items: center;
+        }
+        .modal-content {
+            background: var(--surface); width: 95%; max-width: 680px; padding: 32px;
+            border-radius: 28px; max-height: 85vh; overflow-y: auto; box-shadow: var(--shadow-lg);
+        }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+        .modal-header h2 { font-size: 1.2rem; font-weight: 900; color: var(--primary); }
+        .modal-close { background: var(--surface-alt); border: none; width: 36px; height: 36px; border-radius: 10px; font-size: 1.2rem; cursor: pointer; color: var(--text); }
+
+        .guide-step { margin-bottom: 22px; padding-bottom: 18px; border-bottom: 1px solid var(--border); }
+        .guide-step:last-child { border-bottom: none; }
+        .guide-time { font-family: 'JetBrains Mono', monospace; color: var(--primary); font-weight: 700; font-size: 0.85rem; }
+        .guide-title { font-size: 1rem; font-weight: 800; color: var(--text); margin: 4px 0 10px; display: block; }
+        .guide-box { background: var(--surface-alt); padding: 14px; border-radius: 14px; border-left: 4px solid var(--accent); }
+        .guide-label { font-size: 0.65rem; font-weight: 800; color: var(--text-sub); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; display: block; }
+        .guide-text { font-size: 0.82rem; line-height: 1.65; color: var(--text-sub); }
+        .guide-text b { color: var(--text); }
+
+        @media (max-width: 600px) {
+            .stat-grid { grid-template-columns: repeat(2, 1fr); }
+            .dashboard-grid { grid-template-columns: 1fr; }
+            .imem-coefficients { grid-template-columns: repeat(3, 1fr); }
+            .golden-time-display { flex-direction: column; align-items: flex-start; gap: 14px; }
+            .countdown-ring { align-self: center; }
+        }
+
+        @media print { .no-print { display: none !important; } }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <!-- HEADER -->
+    <header>
+        <div class="logo">
+            <div class="logo-icon">🧬</div>
+            <div class="logo-text">
+                <h1>IncretinA i Pro</h1>
+                <span>v3.0 BIO-SYNC EDITION</span>
+            </div>
+        </div>
+        <div class="header-actions no-print">
+            <button class="icon-btn" onclick="toggleThemeManual()" id="theme-toggle" title="Day/Night 수동 전환">☀️</button>
+            <button class="icon-btn" onclick="toggleModal('help-modal')" title="24h 정밀 가이드">💡</button>
+        </div>
+    </header>
+
+    <!-- BIO-SYNC TIMER -->
+    <div class="biosync-card" id="biosync-card">
+        <div class="biosync-header">
+            <div class="biosync-mode mode-day" id="mode-badge">☀️ DAY MODE — GOLDEN TIME</div>
+            <div class="biosync-location" id="location-label">📍 서울 (37.5°N)</div>
+        </div>
+
+        <div class="golden-time-display">
+            <div class="countdown-ring">
+                <svg width="110" height="110" viewBox="0 0 110 110">
+                    <circle class="ring-bg" cx="55" cy="55" r="48"/>
+                    <circle class="ring-progress" id="countdown-ring" cx="55" cy="55" r="48"
+                        stroke-dasharray="301.6" stroke-dashoffset="0" stroke="var(--accent)"/>
+                </svg>
+                <div class="countdown-center">
+                    <span class="countdown-time" id="countdown-time">--:--</span>
+                    <span class="countdown-label" id="countdown-label">남은 시간</span>
+                </div>
+            </div>
+            <div class="golden-info">
+                <div class="gi-title" id="golden-title">🌅 골든타임 진행 중</div>
+                <div class="gi-sub" id="golden-sub">인크레틴 호르몬 분비가 활발한 시간입니다. 이 시간 안에 식사를 마무리하세요.</div>
+                <div class="sun-times">
+                    <div class="sun-time">🌅 일출 <span id="sunrise-time">--:--</span></div>
+                    <div class="sun-time">🌇 일몰 <span id="sunset-time">--:--</span></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="biosync-progress">
+            <span style="font-size:0.7rem; font-weight:700; color:var(--text-sub);">골든타임</span>
+            <div class="progress-bar-wrap">
+                <div class="progress-bar-fill" id="golden-progress" style="width:0%; background: var(--golden-gradient);"></div>
+            </div>
+            <span class="progress-pct" id="golden-pct">0%</span>
+        </div>
+    </div>
+
+    <!-- STAT GRID -->
+    <div class="stat-grid no-print">
+        <div class="stat-item"><span class="stat-lbl">현재 BMI</span><span class="stat-val" id="bmi-v">0.0</span></div>
+        <div class="stat-item"><span class="stat-lbl">목표 달성률</span><span class="stat-val" id="ach-v" style="color:var(--danger);">0%</span></div>
+        <div class="stat-item"><span class="stat-lbl">오늘 점수</span><span class="stat-val" id="today-score">0</span></div>
+        <div class="stat-item"><span class="stat-lbl">지방연소 가속</span><span class="stat-val" id="burn-rate" style="color:var(--success);">0%</span></div>
+    </div>
+
+    <!-- IMEM COEFFICIENTS -->
+    <div class="imem-card">
+        <div class="imem-header">
+            <span class="imem-title">📐 IMEM 실시간 계수</span>
+        </div>
+        <div class="imem-coefficients">
+            <div class="coeff-item">
+                <span class="coeff-symbol" style="color:var(--accent);">α</span>
+                <span class="coeff-value" id="alpha-val" style="color:var(--accent);">1.00</span>
+                <span class="coeff-label">Timing</span>
+            </div>
+            <div class="coeff-item">
+                <span class="coeff-symbol" style="color:var(--primary);">β</span>
+                <span class="coeff-value" id="beta-val" style="color:var(--primary);">1.00</span>
+                <span class="coeff-label">Sequence</span>
+            </div>
+            <div class="coeff-item">
+                <span class="coeff-symbol" style="color:var(--success);">γ</span>
+                <span class="coeff-value" id="gamma-val" style="color:var(--success);">1.00</span>
+                <span class="coeff-label">Sensitivity</span>
+            </div>
+        </div>
+        <div style="background:var(--surface-alt); border-radius:12px; padding:12px 16px; font-size:0.75rem; color:var(--text-sub); font-family:'JetBrains Mono',monospace; text-align:center;">
+            ΔWeight = f(BMR) × [<span style="color:var(--accent); font-weight:700;">α</span> × <span style="color:var(--primary); font-weight:700;">β</span> × <span style="color:var(--success); font-weight:700;">γ</span>] × Compliance
+        </div>
+    </div>
+
+    <!-- AI NUDGE -->
+    <div class="ai-card">
+        <div class="ai-top">
+            <div class="ai-title">🧠 AI 넛지</div>
+            <select class="ai-persona-select" id="ai-persona" onchange="updateAIStatus()">
+                <option value="clinical">🔬 임상 전문가</option>
+                <option value="driver">🔥 결과 지향</option>
+                <option value="empathetic">🤝 공감 파트너</option>
+            </select>
+        </div>
+        <div id="ai-nudge" class="ai-content">데이터 분석을 위해 루틴을 기록해 주세요.</div>
+    </div>
+
+    <!-- CHARTS -->
+    <div class="dashboard-grid no-print">
+        <div class="chart-card" id="sim-view" style="display:none;"><span class="chart-title">📉 IMEM 4주 예측</span><canvas id="simChart" height="200"></canvas></div>
+        <div class="chart-card" id="trend-view" style="display:none;"><span class="chart-title">📈 실제 체중 추이</span><canvas id="trendChart" height="200"></canvas></div>
+    </div>
+
+    <!-- PROFILE -->
+    <div class="glass-card">
+        <span class="section-label">👤 프로필 및 분석 설정</span>
+        <div class="profile-grid no-print">
+            <div class="input-group"><label>챌린지 시작일</label><input type="date" id="p-start"></div>
+            <div class="input-group"><label>당뇨 유무</label><select id="p-diabetic"><option value="no">비당뇨인</option><option value="pre">전당뇨</option><option value="yes">당뇨(제2형)</option></select></div>
+            <div class="input-group"><label>키 (cm)</label><input type="number" id="p-h" value="175"></div>
+            <div class="input-group"><label>시작 체중(kg)</label><input type="number" id="p-sw" step="0.1" value="80"></div>
+            <div class="input-group"><label>현재 체중(kg)</label><input type="number" id="p-cw" step="0.1" value="78.5"></div>
+            <div class="input-group"><label>목표 체중(kg)</label><input type="number" id="p-gw" step="0.1" value="70"></div>
+            <div class="input-group"><label>주간 근력운동(회)</label><input type="number" id="p-exercise" value="3" min="0" max="7"></div>
+            <div class="input-group"><label>위도 (자동)</label><input type="number" id="p-lat" step="0.1" value="37.5"></div>
+        </div>
+        <button class="btn btn-primary no-print" onclick="runComprehensiveAnalysis()">🔬 분석 실행 및 데이터 갱신</button>
+    </div>
+
+    <!-- FASTING OVERLAY (Night Mode) -->
+    <div class="fasting-overlay" id="fasting-overlay">
+        <div class="fo-icon">🌙</div>
+        <div class="fo-title">대사 휴식 모드 (Metabolic Rest)</div>
+        <div class="fo-sub">골든타임이 종료되었습니다. 지금 당신의 몸은 저장 모드에서 지방 연소 모드로 전환 중입니다.<br>야간 공복을 유지하면 내일 아침 인크레틴 감수성이 극대화됩니다. 🔥</div>
+    </div>
+
+    <!-- DAILY ROUTINE -->
+    <div class="glass-card no-print" id="routine-section">
+        <span class="section-label">📋 오늘의 인크레틴 루틴</span>
+        <div class="routine-date-bar">
+            <div><label style="font-size:0.65rem; font-weight:700; color:var(--text-sub);">기록 날짜</label><input type="date" id="target-date"></div>
+            <div><label style="font-size:0.65rem; font-weight:700; color:var(--text-sub);">오늘 체중(kg)</label><input type="number" id="daily-weight" step="0.1" placeholder="00.0"></div>
+        </div>
+        <div id="routine-list"></div>
+        <button class="btn btn-success" style="margin-top:16px;" onclick="exportToExcel()">📊 임상 데이터 Excel 추출</button>
+    </div>
+</div>
+
+<!-- HELP MODAL -->
+<div id="help-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>🔬 24h 정밀 대사 가이드</h2>
+            <button class="modal-close" onclick="toggleModal('help-modal')">&times;</button>
+        </div>
+        <div id="modal-guide-body"></div>
+    </div>
+</div>
+
+<script>
+// ============================================================
+// DATA
+// ============================================================
+const routine = [
+    { t:"07:00", title:"생체 리듬 리셋", icon:"🌅", pts:8, imem:"α", action:"기상 10분 내 직사광선 5분 + 물 300ml", detail:"망막으로 유입된 햇빛은 멜라토닌을 차단하고 세로토닌 합성을 유도하여 뇌의 생체 시계를 동기화합니다. 이는 오전 인슐린 감수성을 높이고 GLP-1 분비 효율을 결정하는 기초 공사입니다." },
+    { t:"08:30", title:"커피 대사 부스트", icon:"☕", pts:5, imem:"α", action:"업무 시작 전 무가당 블랙커피 1잔", detail:"커피의 클로로겐산은 소장 하부 L-세포를 자극해 내인성 GLP-1 분비를 예열합니다. 카페인은 교감신경을 자극해 갈색지방의 열 발생(Thermogenesis)을 유도합니다." },
+    { t:"09:00", title:"14h 단식 해제", icon:"🍳", pts:7, imem:"α", action:"첫 음식 섭취 + 14시간 공복 달성", detail:"14시간 공복 후 인슐린 감수성이 정점일 때 첫 식사를 하면 AMPK 효소가 강력하게 활성화되어 세포의 에너지 센서를 켜고 인슐린 저항성을 개선합니다." },
+    { t:"11:00", title:"호르몬 프리로드", icon:"🥜", pts:12, crit:true, imem:"β_pre", action:"점심 30분 전 단백질 15g + 식이섬유 5g", detail:"식이섬유와 단백질이 소장에 먼저 도착하면 GLP-1이 선제 분비됩니다. 식사가 시작될 때 혈당 스파이크를 막는 '호르몬 방파제'를 구축하여 식곤증과 폭식을 원천 차단합니다." },
+    { t:"12:00", title:"인크레틴 시퀀스", icon:"🥗", pts:13, crit:true, imem:"β_seq", action:"채소 → 단백질 → 탄수화물 순서 고수", detail:"영양소 입력 순서를 바꾸는 것만으로도 위 배출 속도가 물리적으로 지연됩니다. 탄수화물이 가장 마지막에 흡수되어 인슐린 스파이크를 최소화하고 인크레틴 효율을 극대화합니다." },
+    { t:"12:50", title:"글루코스 클리어런스", icon:"🚶", pts:13, crit:true, imem:"β_seq", action:"식후 40분 이내 빠른 걷기 30~40분", detail:"인슐린의 도움 없이도 근육의 GLUT4 수용체를 강제 활성화하여 혈액 속 포도당을 직접 연소시키는 마법의 골든타임입니다." },
+    { t:"19:00", title:"저녁 마감 (Metabolic Switch)", icon:"⏰", pts:17, crit:true, imem:"α", action:"19시 이전 마지막 식사 완료 후 단식", detail:"인슐린 농도를 기저 수준으로 낮추어 신체를 '저장 모드'에서 '지방 연소 모드'로 강제 전환시킵니다. 야간 14시간 단식은 체지방 감소율을 결정하는 가장 핵심 변수입니다." },
+    { t:"20:30", title:"근육 방어 보호막", icon:"💪", pts:10, imem:"γ", action:"스쿼트 등 대근육 중심 근력운동 30분", detail:"단식 진입 초기 단계에서의 근력 운동은 마이오카인을 분비시켜 전신의 인크레틴 감수성(γ)을 높입니다. 감량 중 기초대사량 저하를 막는 방패입니다." },
+    { t:"22:00", title:"멜라토닌 세이프가드", icon:"🌙", pts:8, imem:"α", action:"블루라이트 차단 및 실내 조도 낮추기", detail:"블루라이트 차단은 인크레틴 분비 주기를 조절하는 멜라토닌 합성을 돕습니다. 밤사이 호르몬 재생 효율을 높여 내일 아침의 대사 유연성을 준비합니다." },
+    { t:"23:00", title:"심층 대사 복구", icon:"😴", pts:7, imem:"α", action:"완전 암막 환경에서 7~8시간 숙면", detail:"수면 중에는 식욕 조절 호르몬 렙틴이 정상화되고 코르티솔이 낮아집니다. 부족한 잠은 다음 날 인크레틴 민감도를 대폭 하락시켜 비정상적 허기를 유발합니다." }
+];
+
+const nudges = {
+    clinical: {
+        master: "최적의 인크레틴 효율(α={a}, β={b})이 달성되었습니다. AMPK 활성화 경로가 지방 연소를 주도하고 있으며, 현재 γ={g}로 근육 방어도 안정적입니다.",
+        achiever: "안정적 궤도입니다. 현재 α={a}인데, 골든타임 내 식사를 완료하면 α=1.10으로 상향 가능합니다. 시퀀스 식사와 산책으로 GLP-1 분비 지속 시간을 연장하세요.",
+        reset: "대사 스위치가 정체 상태입니다(α={a}). 19:00 저녁 마감을 통해 인슐린 기저치를 하향시키고, 프리로드를 수행하여 β를 개선하십시오."
+    },
+    driver: {
+        master: "완벽합니다! α={a} × β={b} × γ={g} = {total}. 이 순응도면 예측 모델보다 빨리 목표에 도달합니다. 계속 밀어붙이세요!",
+        achiever: "나쁘지 않지만, Master 등급까지 조금 남았습니다. 식후 산책(+13점)과 프리로드(+12점)를 타협하지 마십시오.",
+        reset: "경고: 현재 종합 효율이 {total}입니다. 지금 즉시 야간 단식 모드에 진입하여 인슐린 스파이크를 막으세요!"
+    },
+    empathetic: {
+        master: "오늘 정말 고생 많으셨어요! 대표님의 노력이 세포 하나하나를 깨우고 있습니다. 편안하게 숙면하세요. 😊",
+        achiever: "차근차근 잘하고 계세요. 점심 전 프리로드 하나만 더해도 몸이 훨씬 가벼워지는 걸 느끼실 거예요. 화이팅!",
+        reset: "오늘 조금 힘든 하루였나요? 괜찮습니다. 내일 아침 햇빛 리셋부터 다시 시작해 봐요. 저희가 함께할게요. 💪"
+    }
+};
+
+// ============================================================
+// BIO-SYNC TIMER ENGINE
+// ============================================================
+let currentSunrise, currentSunset, isNightMode = false, themeManualOverride = false;
+let bioSyncInterval;
+
+function calculateSunTimes(lat, date) {
+    // Simplified sunrise/sunset calculation based on latitude and day of year
+    const d = date || new Date();
+    const dayOfYear = Math.floor((d - new Date(d.getFullYear(), 0, 0)) / 86400000);
+    const declination = 23.45 * Math.sin((2 * Math.PI / 365) * (dayOfYear - 81));
+    const latRad = lat * Math.PI / 180;
+    const declRad = declination * Math.PI / 180;
+    
+    let hourAngle = Math.acos(-Math.tan(latRad) * Math.tan(declRad));
+    hourAngle = hourAngle * 180 / Math.PI / 15; // Convert to hours
+    
+    const solarNoon = 12.0; // Simplified: actual would use longitude
+    const sunriseHour = solarNoon - hourAngle;
+    const sunsetHour = solarNoon + hourAngle;
+    
+    return {
+        sunrise: { h: Math.floor(sunriseHour), m: Math.round((sunriseHour % 1) * 60) },
+        sunset: { h: Math.floor(sunsetHour), m: Math.round((sunsetHour % 1) * 60) }
+    };
+}
+
+function timeToMinutes(h, m) { return h * 60 + m; }
+function minutesToStr(mins) {
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+}
+
+function updateBioSyncTimer() {
+    const lat = parseFloat(document.getElementById('p-lat').value) || 37.5;
+    const sun = calculateSunTimes(lat);
+    currentSunrise = sun.sunrise;
+    currentSunset = sun.sunset;
+    
+    const srStr = minutesToStr(timeToMinutes(sun.sunrise.h, sun.sunrise.m));
+    const ssStr = minutesToStr(timeToMinutes(sun.sunset.h, sun.sunset.m));
+    document.getElementById('sunrise-time').textContent = srStr;
+    document.getElementById('sunset-time').textContent = ssStr;
+    
+    const now = new Date();
+    const nowMins = timeToMinutes(now.getHours(), now.getMinutes());
+    const sunriseMins = timeToMinutes(sun.sunrise.h, sun.sunrise.m);
+    const sunsetMins = timeToMinutes(sun.sunset.h, sun.sunset.m);
+    const goldenTotal = sunsetMins - sunriseMins;
+    
+    const modeBadge = document.getElementById('mode-badge');
+    const goldenTitle = document.getElementById('golden-title');
+    const goldenSub = document.getElementById('golden-sub');
+    const countdownTime = document.getElementById('countdown-time');
+    const countdownLabel = document.getElementById('countdown-label');
+    const ring = document.getElementById('countdown-ring');
+    const circumference = 2 * Math.PI * 48; // 301.6
+    const progressBar = document.getElementById('golden-progress');
+    const progressPct = document.getElementById('golden-pct');
+    const overlay = document.getElementById('fasting-overlay');
+    const themeToggle = document.getElementById('theme-toggle');
+    
+    if (nowMins >= sunriseMins && nowMins < sunsetMins) {
+        // DAY MODE - Golden Time Active
+        const elapsed = nowMins - sunriseMins;
+        const remaining = sunsetMins - nowMins;
+        const pct = Math.round((elapsed / goldenTotal) * 100);
+        
+        modeBadge.className = 'biosync-mode mode-day';
+        modeBadge.innerHTML = '☀️ DAY MODE — GOLDEN TIME';
+        goldenTitle.textContent = '🌅 골든타임 진행 중';
+        
+        if (remaining <= 30) {
+            goldenSub.textContent = '⚠️ 라스트콜! 골든타임이 곧 종료됩니다. 마지막 식사를 지금 마무리하세요!';
+            goldenSub.style.color = 'var(--danger)';
+            ring.style.stroke = 'var(--danger)';
+        } else if (remaining <= 60) {
+            goldenSub.textContent = '🔶 골든타임 종료 1시간 전입니다. 저녁 식사를 서둘러 마무리하세요.';
+            goldenSub.style.color = 'var(--accent)';
+            ring.style.stroke = 'var(--accent)';
+        } else {
+            goldenSub.textContent = '인크레틴 호르몬 분비가 활발한 시간입니다. 이 시간 안에 모든 식사를 마무리하세요.';
+            goldenSub.style.color = 'var(--text-sub)';
+            ring.style.stroke = 'var(--success)';
+        }
+        
+        const rh = Math.floor(remaining / 60);
+        const rm = remaining % 60;
+        countdownTime.textContent = `${rh}h ${String(rm).padStart(2,'0')}m`;
+        countdownLabel.textContent = '남은 시간';
+        
+        const dashOffset = circumference * (1 - remaining / goldenTotal);
+        ring.style.strokeDashoffset = dashOffset;
+        
+        progressBar.style.width = pct + '%';
+        progressPct.textContent = pct + '%';
+        
+        if (!themeManualOverride) {
+            setTheme('day');
+            overlay.classList.remove('active');
+        }
+        isNightMode = false;
+        
+    } else {
+        // NIGHT MODE
+        modeBadge.className = 'biosync-mode mode-night';
+        modeBadge.innerHTML = '🌙 NIGHT MODE — 대사 휴식';
+        goldenTitle.textContent = '🌙 대사 휴식 모드';
+        goldenSub.textContent = '야간 공복을 유지하면 내일 아침 인크레틴 감수성이 극대화됩니다. 지방 연소 모드 가동 중!';
+        goldenSub.style.color = 'var(--text-sub)';
+        ring.style.stroke = '#6366f1';
+        
+        // Countdown to next sunrise
+        let toSunrise;
+        if (nowMins >= sunsetMins) {
+            toSunrise = (24 * 60 - nowMins) + sunriseMins;
+        } else {
+            toSunrise = sunriseMins - nowMins;
+        }
+        const rh = Math.floor(toSunrise / 60);
+        const rm = toSunrise % 60;
+        countdownTime.textContent = `${rh}h ${String(rm).padStart(2,'0')}m`;
+        countdownLabel.textContent = '일출까지';
+        
+        ring.style.strokeDashoffset = circumference * 0.2;
+        progressBar.style.width = '100%';
+        progressBar.style.background = 'linear-gradient(135deg, #6366f1, #3b82f6)';
+        progressPct.textContent = '완료';
+        
+        if (!themeManualOverride) {
+            setTheme('night');
+            overlay.classList.add('active');
+        }
+        isNightMode = true;
+    }
+}
+
+function setTheme(mode) {
+    document.documentElement.setAttribute('data-theme', mode === 'night' ? 'night' : '');
+    document.getElementById('theme-toggle').textContent = mode === 'night' ? '🌙' : '☀️';
+}
+
+function toggleThemeManual() {
+    themeManualOverride = true;
+    const isNight = document.documentElement.getAttribute('data-theme') === 'night';
+    setTheme(isNight ? 'day' : 'night');
+    // Reset override after 30 seconds
+    setTimeout(() => { themeManualOverride = false; }, 30000);
+}
+
+// ============================================================
+// IMEM ENGINE — Independent α, β, γ Calculation
+// ============================================================
+function calculateIMEM() {
+    const checks = routine.map((_, i) => document.getElementById(`item-${i}`)?.classList.contains('checked') || false);
+    
+    // ── α (Timing) ── Based on actual meal timing relative to sunset
+    // In prototype: based on "저녁 마감" check (index 6) + circadian routine items
+    const morningReset = checks[0]; // 07:00 생체 리듬 리셋
+    const dinnerCutoff = checks[6]; // 19:00 저녁 마감
+    const melatonin = checks[8];    // 22:00 멜라토닌
+    const sleep = checks[9];        // 23:00 수면
+    
+    let alpha = 1.0;
+    if (dinnerCutoff) {
+        // Check if current sunset is after 19:00 - if dinner done before sunset
+        const sunsetMins = currentSunset ? timeToMinutes(currentSunset.h, currentSunset.m) : 1080;
+        if (sunsetMins >= 1140) { // sunset after 19:00 → dinner well before sunset
+            alpha = 1.10;
+        } else {
+            alpha = 1.05; // dinner done around sunset
+        }
+    } else if (!isNightMode) {
+        alpha = 1.0; // Still day, haven't confirmed yet
+    } else {
+        alpha = 0.90; // Night mode and dinner not completed on time
+    }
+    // Circadian bonuses
+    if (morningReset) alpha += 0.02;
+    if (melatonin && sleep) alpha += 0.02;
+    alpha = Math.round(alpha * 100) / 100;
+    
+    // ── β (Sequence) ── Independent preload + sequence scoring
+    const preload = checks[3];   // 11:00 프리로드
+    const sequence = checks[4];  // 12:00 시퀀스
+    const walk = checks[5];      // 12:50 식후 산책
+    
+    let beta_pre = preload ? 1.025 : 1.0;
+    let beta_seq = (sequence && walk) ? 1.025 : (sequence ? 1.015 : 1.0);
+    let beta = Math.round((beta_pre * beta_seq) * 1000) / 1000;
+    
+    // ── γ (Sensitivity) ── Based on diabetes status + exercise
+    const isDiabetic = document.getElementById('p-diabetic').value;
+    const exCount = parseInt(document.getElementById('p-exercise').value) || 0;
+    const muscleWork = checks[7]; // 20:30 근력운동
+    
+    let gamma_base;
+    switch(isDiabetic) {
+        case 'yes': gamma_base = 0.85; break;  // T2DM: GIP response ≈ 0
+        case 'pre': gamma_base = 0.95; break;  // Pre-diabetic
+        default: gamma_base = 1.00;             // Non-diabetic
+    }
+    
+    let gamma_exercise = 0;
+    if (exCount >= 3 && muscleWork) gamma_exercise = 0.05;     // Resistance 3+/week + today done
+    else if (exCount >= 3) gamma_exercise = 0.03;                // Regular but not today
+    else if (muscleWork) gamma_exercise = 0.02;                  // Today only
+    
+    let gamma = Math.round((gamma_base * (1 + gamma_exercise)) * 100) / 100;
+    
+    return { alpha, beta, gamma, beta_pre, beta_seq };
+}
+
+function updateIMEMDisplay() {
+    const imem = calculateIMEM();
+    
+    document.getElementById('alpha-val').textContent = imem.alpha.toFixed(2);
+    document.getElementById('beta-val').textContent = imem.beta.toFixed(3);
+    document.getElementById('gamma-val').textContent = imem.gamma.toFixed(2);
+    
+    // Color coding
+    const alphaEl = document.getElementById('alpha-val');
+    if (imem.alpha >= 1.05) alphaEl.style.color = 'var(--success)';
+    else if (imem.alpha >= 1.0) alphaEl.style.color = 'var(--accent)';
+    else alphaEl.style.color = 'var(--danger)';
+    
+    return imem;
+}
+
+// ============================================================
+// SCORE ENGINE — Weighted by IMEM mapping
+// ============================================================
+function calculateScore() {
+    const checks = routine.map((_, i) => document.getElementById(`item-${i}`)?.classList.contains('checked') || false);
+    return routine.reduce((sum, item, i) => sum + (checks[i] ? item.pts : 0), 0);
+}
+
+// ============================================================
+// AI NUDGE
+// ============================================================
+function updateAIStatus(score) {
+    if (score === undefined) score = calculateScore();
+    const imem = calculateIMEM();
+    const persona = document.getElementById('ai-persona').value;
+    const nudgeEl = document.getElementById('ai-nudge');
+    
+    let state = "reset";
+    if (score >= 85) state = "master";
+    else if (score >= 55) state = "achiever";
+    
+    const total = (imem.alpha * imem.beta * imem.gamma).toFixed(3);
+    let msg = nudges[persona][state];
+    msg = msg.replace('{a}', imem.alpha.toFixed(2));
+    msg = msg.replace('{b}', imem.beta.toFixed(3));
+    msg = msg.replace('{g}', imem.gamma.toFixed(2));
+    msg = msg.replace('{total}', total);
+    nudgeEl.textContent = msg;
+}
+
+// ============================================================
+// RENDERING & DATA PERSISTENCE
+// ============================================================
+let simChart, trendChart;
+const dateInput = document.getElementById('target-date');
+dateInput.value = new Date().toISOString().split('T')[0];
+
+function init() {
+    renderList();
+    renderModalContent();
+    loadAll();
+    updateBioSyncTimer();
+    bioSyncInterval = setInterval(updateBioSyncTimer, 30000); // Update every 30s
+}
+
+function renderList() {
+    document.getElementById('routine-list').innerHTML = routine.map((item, i) => `
+        <div class="item ${item.crit ? 'critical' : ''}" id="item-${i}" onclick="toggleTask(${i})">
+            <div class="item-icon">${item.icon}</div>
+            <div class="item-body">
+                <span class="item-time">${item.t} · ${item.imem}</span>
+                <span class="item-title">${item.title}</span>
+                <span class="item-action">${item.action}</span>
+            </div>
+            <div class="score-badge">+${item.pts}</div>
+        </div>
+    `).join('');
+}
+
+function renderModalContent() {
+    document.getElementById('modal-guide-body').innerHTML = routine.map(r => `
+        <div class="guide-step">
+            <span class="guide-time">${r.icon} ${r.t}</span>
+            <span class="guide-title">${r.title} <span style="font-size:0.7rem; color:var(--primary); font-weight:700;">[${r.imem}]</span></span>
+            <div class="guide-box">
+                <span class="guide-label">Action Protocol</span>
+                <p class="guide-text"><b>${r.action}</b></p>
+                <span class="guide-label" style="margin-top:10px;">Clinical Mechanism</span>
+                <p class="guide-text" style="color:var(--primary);">${r.detail}</p>
+            </div>
+        </div>
+    `).join('');
+}
+
+function toggleModal(id) {
+    const modal = document.getElementById(id);
+    modal.style.display = (modal.style.display === 'flex') ? 'none' : 'flex';
+}
+
+function toggleTask(i) {
+    document.getElementById(`item-${i}`).classList.toggle('checked');
+    onDataChange();
+}
+
+function onDataChange() {
+    const score = calculateScore();
+    const imem = updateIMEMDisplay();
+    updateAIStatus(score);
+    refreshStats(score);
+    saveDaily();
+}
+
+function saveDaily() {
+    const hist = JSON.parse(localStorage.getItem('inc_v30_h') || '{}');
+    const checks = routine.map((_, i) => document.getElementById(`item-${i}`).classList.contains('checked'));
+    const score = calculateScore();
+    const imem = calculateIMEM();
+    hist[dateInput.value] = { 
+        score, checks, 
+        weight: document.getElementById('daily-weight').value,
+        alpha: imem.alpha, beta: imem.beta, gamma: imem.gamma 
+    };
+    localStorage.setItem('inc_v30_h', JSON.stringify(hist));
+    saveProfile();
+    updateTrendChart();
+}
+
+function saveProfile() {
+    const p = {
+        start: document.getElementById('p-start').value,
+        h: document.getElementById('p-h').value,
+        sw: document.getElementById('p-sw').value,
+        cw: document.getElementById('p-cw').value,
+        gw: document.getElementById('p-gw').value,
+        isDiabetic: document.getElementById('p-diabetic').value,
+        exercise: document.getElementById('p-exercise').value,
+        lat: document.getElementById('p-lat').value
+    };
+    localStorage.setItem('inc_v30_p', JSON.stringify(p));
+}
+
+function loadAll() {
+    const p = JSON.parse(localStorage.getItem('inc_v30_p') || '{}');
+    if (p.start) {
+        document.getElementById('p-start').value = p.start;
+        document.getElementById('p-h').value = p.h;
+        document.getElementById('p-sw').value = p.sw;
+        document.getElementById('p-cw').value = p.cw;
+        document.getElementById('p-gw').value = p.gw;
+        document.getElementById('p-diabetic').value = p.isDiabetic || 'no';
+        document.getElementById('p-exercise').value = p.exercise;
+        if (p.lat) document.getElementById('p-lat').value = p.lat;
+    }
+    
+    const hist = JSON.parse(localStorage.getItem('inc_v30_h') || '{}');
+    const data = hist[dateInput.value];
+    routine.forEach((_, i) => {
+        const el = document.getElementById(`item-${i}`);
+        if (data && data.checks && data.checks[i]) el.classList.add('checked');
+        else el.classList.remove('checked');
+    });
+    document.getElementById('daily-weight').value = (data && data.weight) ? data.weight : '';
+    
+    const score = calculateScore();
+    updateIMEMDisplay();
+    updateAIStatus(score);
+    refreshStats(score);
+    updateTrendChart();
+}
+
+function refreshStats(score) {
+    const h = parseFloat(document.getElementById('p-h').value) / 100;
+    const cw = parseFloat(document.getElementById('p-cw').value);
+    const sw = parseFloat(document.getElementById('p-sw').value);
+    const gw = parseFloat(document.getElementById('p-gw').value);
+
+    if (h > 0 && cw > 0) document.getElementById('bmi-v').textContent = (cw / (h * h)).toFixed(1);
+    if (sw && gw && cw && sw !== gw) {
+        const ach = Math.max(0, Math.min(100, ((sw - cw) / (sw - gw)) * 100));
+        const achEl = document.getElementById('ach-v');
+        achEl.textContent = ach.toFixed(1) + '%';
+        achEl.style.color = ach >= 50 ? 'var(--success)' : (ach >= 25 ? 'var(--accent)' : 'var(--danger)');
+    }
+
+    if (score === undefined) score = calculateScore();
+    document.getElementById('today-score').textContent = score;
+    
+    const imem = calculateIMEM();
+    const efficiency = ((imem.alpha * imem.beta * imem.gamma - 1) * 100);
+    const burnRate = Math.max(0, Math.round(efficiency * 10) / 10);
+    const burnEl = document.getElementById('burn-rate');
+    burnEl.textContent = (burnRate > 0 ? '+' : '') + burnRate.toFixed(1) + '%';
+    burnEl.style.color = burnRate > 5 ? 'var(--success)' : (burnRate > 0 ? 'var(--accent)' : 'var(--danger)');
+}
+
+function updateTrendChart() {
+    const hist = JSON.parse(localStorage.getItem('inc_v30_h') || '{}');
+    const sortedDates = Object.keys(hist).sort();
+    const weightData = sortedDates.filter(d => hist[d].weight).map(d => ({ date: d.slice(5), weight: parseFloat(hist[d].weight) }));
+
+    if (weightData.length > 0) {
+        document.getElementById('trend-view').style.display = 'block';
+        const ctx = document.getElementById('trendChart').getContext('2d');
+        if (trendChart) trendChart.destroy();
+        trendChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: weightData.map(d => d.date),
+                datasets: [{
+                    data: weightData.map(d => d.weight),
+                    borderColor: '#2563eb', backgroundColor: 'rgba(37, 99, 235, 0.08)',
+                    fill: true, tension: 0.35, pointRadius: 4, pointBackgroundColor: '#2563eb', borderWidth: 2
+                }]
+            },
+            options: {
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { beginAtZero: false, grid: { color: 'rgba(0,0,0,0.05)' } },
+                    x: { grid: { display: false } }
+                }
+            }
+        });
+    }
+}
+
+// ============================================================
+// COMPREHENSIVE ANALYSIS — Corrected IMEM Simulation
+// ============================================================
+function runComprehensiveAnalysis() {
+    const cw = parseFloat(document.getElementById('p-cw').value);
+    const gw = parseFloat(document.getElementById('p-gw').value);
+    const h = parseFloat(document.getElementById('p-h').value) / 100;
+    const imem = calculateIMEM();
+    
+    document.getElementById('sim-view').style.display = 'block';
+    
+    // Realistic BMR-based calculation
+    // Assume moderate deficit of 300kcal/day
+    const dailyDeficit = 300; // kcal
+    const weeklyDeficit = dailyDeficit * 7;
+    const baseWeeklyLoss = weeklyDeficit / 7700; // ~0.27kg/week from pure deficit
+    
+    // IMEM multiplier effect
+    const imemMultiplier = imem.alpha * imem.beta * imem.gamma;
+    const compliance = calculateScore() / 100;
+    
+    let labels = ["현재"], weights = [cw], tempW = cw;
+    for (let w = 1; w <= 4; w++) {
+        // Week 1 has extra water weight loss (~0.5kg)
+        const waterBonus = w === 1 ? 0.5 : 0;
+        const weekLoss = (baseWeeklyLoss * imemMultiplier * Math.max(compliance, 0.5)) + waterBonus;
+        tempW -= weekLoss;
+        tempW = Math.max(tempW, gw); // Don't go below goal
+        labels.push(w + "주");
+        weights.push(parseFloat(tempW.toFixed(1)));
+    }
+
+    const ctx = document.getElementById('simChart').getContext('2d');
+    if (simChart) simChart.destroy();
+    simChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'IMEM 예측',
+                data: weights,
+                borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.08)',
+                borderDash: [6, 4], tension: 0.4, fill: true, pointRadius: 5,
+                pointBackgroundColor: '#10b981', borderWidth: 2
+            }]
+        },
+        options: {
+            plugins: { legend: { display: false } },
+            scales: {
+                y: { beginAtZero: false, grid: { color: 'rgba(0,0,0,0.05)' } },
+                x: { grid: { display: false } }
+            }
+        }
+    });
+    
+    onDataChange();
+}
+
+// ============================================================
+// EXCEL EXPORT
+// ============================================================
+function exportToExcel() {
+    const p = JSON.parse(localStorage.getItem('inc_v30_p') || '{}');
+    const h = JSON.parse(localStorage.getItem('inc_v30_h') || '{}');
+    const heightM = parseFloat(p.h) / 100;
+    
+    const data = Object.keys(h).sort().map(date => {
+        const entry = h[date];
+        const w = parseFloat(entry.weight) || 0;
+        return {
+            "날짜": date,
+            "루틴점수": entry.score,
+            "체중(kg)": w,
+            "BMI": w > 0 ? (w / (heightM * heightM)).toFixed(1) : "-",
+            "α(Timing)": entry.alpha || "-",
+            "β(Sequence)": entry.beta || "-",
+            "γ(Sensitivity)": entry.gamma || "-",
+            "IMEM 종합": entry.alpha && entry.beta && entry.gamma 
+                ? (entry.alpha * entry.beta * entry.gamma).toFixed(3) : "-",
+            "실천내용": entry.checks ? entry.checks.map((c, i) => c ? routine[i].title : null).filter(v => v).join(", ") : ""
+        };
+    });
+    
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([{
+        ...p,
+        "내보내기일시": new Date().toLocaleString('ko-KR')
+    }]), "User_Profile");
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data), "IMEM_Clinical_Log");
+    XLSX.writeFile(wb, `IncretinAi_v3.0_ClinicalData.xlsx`);
+}
+
+// ============================================================
+// EVENT LISTENERS
+// ============================================================
+dateInput.addEventListener('change', () => { loadAll(); });
+document.getElementById('daily-weight').addEventListener('input', saveDaily);
+document.getElementById('p-lat').addEventListener('change', () => { updateBioSyncTimer(); saveProfile(); });
+document.getElementById('p-diabetic').addEventListener('change', onDataChange);
+document.getElementById('p-exercise').addEventListener('change', onDataChange);
+
+window.onload = init;
+</script>
+
+</body>
+</html>
