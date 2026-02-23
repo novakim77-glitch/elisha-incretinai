@@ -1,6 +1,16 @@
 # Claude Code
 .claude/
 
+# Local-only folders (not for GitHub Pages deployment)
+문서/
+웹앱/
+프레젠테이션/
+엘리사 창업/
+VC/
+SESSION_*.md
+create_checklist.py
+ELISHA_Startup_Checklist.xlsx
+
 # OS files
 .DS_Store
 Thumbs.db
