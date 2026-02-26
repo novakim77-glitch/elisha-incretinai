@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IncretinA i Pro v5.0 — Defense & Recovery Edition</title>
+    <title>IncretinA i Pro v6.0 — Gamification Edition</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
@@ -127,6 +127,20 @@
         .ai-title{font-weight:800;color:var(--primary);font-size:.9rem;display:flex;align-items:center;gap:8px}
         .ai-persona-select{border:1px solid var(--border);border-radius:10px;padding:5px 10px;font-family:'Outfit',sans-serif;font-weight:700;font-size:.72rem;background:var(--surface-alt);color:var(--text);cursor:pointer}
         .ai-content{background:var(--surface-alt);padding:16px;border-radius:14px;font-size:.88rem;line-height:1.7;border-left:4px solid var(--primary);color:var(--text-sub);font-weight:500}
+
+        /* ★ TINA MINI-NUDGE CARD — v6.0 ★ */
+        .tina-mini-card{background:var(--surface);border-radius:var(--card-radius);padding:16px 20px;margin-bottom:20px;border:2px solid var(--primary);box-shadow:0 4px 20px var(--primary-glow);cursor:pointer;transition:all .3s ease;width:100%}
+        .tina-mini-card:active{transform:scale(.98)}
+        .tina-mini-header{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+        .tina-avatar{font-size:1.5rem;line-height:1}
+        .tina-mini-title{font-size:.72rem;font-weight:800;color:var(--primary);letter-spacing:.5px;text-transform:uppercase}
+        .tina-mini-msg{font-size:.82rem;line-height:1.6;color:var(--text-sub);font-weight:500}
+        .tina-mini-msg .tina-greeting{display:block;font-size:.72rem;color:var(--accent);font-weight:700;margin-bottom:4px}
+
+        /* ★ TINA TOAST — v6.0 ★ */
+        .tina-toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--surface);border:1.5px solid var(--primary);border-radius:16px;padding:10px 20px;font-size:.78rem;font-weight:600;color:var(--text);box-shadow:0 8px 32px rgba(0,0,0,.15);z-index:3000;opacity:0;transition:all .3s ease;pointer-events:none;max-width:90%;text-align:center;white-space:nowrap}
+        .tina-toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+        .tina-toast .tina-toast-avatar{margin-right:6px}
 
         /* CHARTS */
         .dashboard-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;width:100%}
@@ -260,6 +274,62 @@
             .main-nav-tab{font-size:.68rem;padding:10px 4px}
         }
         @media print{.no-print{display:none!important}}
+
+        /* ============ v6.0 GAMIFICATION CSS ============ */
+
+        /* LEVEL BAR */
+        .level-bar{display:flex;align-items:center;gap:8px;padding:6px 12px;background:var(--surface-alt);border-radius:12px;border:1px solid var(--border)}
+        .level-badge-icon{font-size:1rem}
+        .level-num{font-family:'JetBrains Mono',monospace;font-size:.72rem;font-weight:800;color:var(--primary);white-space:nowrap}
+        .level-title{font-size:.6rem;font-weight:700;color:var(--text-sub);white-space:nowrap;display:none}
+        @media(min-width:420px){.level-title{display:inline}}
+        .xp-bar-wrap{flex:1;min-width:50px;height:6px;background:var(--border);border-radius:3px;overflow:hidden}
+        .xp-bar-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--primary),#7c3aed);transition:width .6s ease}
+        .xp-text{font-family:'JetBrains Mono',monospace;font-size:.55rem;font-weight:700;color:var(--text-sub);white-space:nowrap}
+
+        /* STREAK BAR */
+        .streak-bar{display:flex;align-items:center;gap:8px;padding:8px 14px;margin-bottom:12px;background:linear-gradient(135deg,rgba(249,115,22,.08),rgba(239,68,68,.05));border-radius:14px;border:1px solid rgba(249,115,22,.15)}
+        [data-theme="night"] .streak-bar{background:linear-gradient(135deg,rgba(249,115,22,.12),rgba(239,68,68,.08));border-color:rgba(249,115,22,.2)}
+        .streak-fire{font-size:1.3rem;filter:drop-shadow(0 0 4px rgba(249,115,22,.5))}
+        .streak-count{font-family:'JetBrains Mono',monospace;font-size:1.1rem;font-weight:800;color:#ea580c}
+        [data-theme="night"] .streak-count{color:#fb923c}
+        .streak-label{font-size:.7rem;font-weight:700;color:var(--text-sub)}
+        .streak-best{margin-left:auto;font-size:.65rem;font-weight:700;color:var(--text-sub);font-family:'JetBrains Mono',monospace}
+        .streak-milestone{background:#ea580c;color:#fff;font-size:.6rem;font-weight:800;padding:2px 8px;border-radius:8px;margin-left:6px;animation:badgePulse 2s infinite}
+
+        /* QUEST CARD */
+        .quest-card{background:var(--surface);border-radius:var(--card-radius);padding:24px;margin-bottom:20px;border:2px solid var(--accent);box-shadow:0 8px 32px var(--accent-glow);width:100%;transition:background var(--transition),border-color var(--transition)}
+        [data-theme="night"] .quest-card{border-color:#b45309}
+        .quest-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+        .quest-title{font-size:.8rem;font-weight:800;color:var(--accent);display:flex;align-items:center;gap:6px}
+        .quest-progress{font-family:'JetBrains Mono',monospace;font-size:.75rem;font-weight:800;color:var(--text-sub)}
+        .quest-item{display:flex;align-items:center;gap:12px;padding:10px 14px;margin-bottom:8px;background:var(--surface-alt);border-radius:14px;border:1px solid var(--border);transition:all .25s}
+        .quest-item.completed{background:var(--success-glow);border-color:var(--success)}
+        .quest-check{width:24px;height:24px;border-radius:8px;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:.75rem;flex-shrink:0;transition:all .25s}
+        .quest-item.completed .quest-check{background:var(--success);border-color:var(--success);color:#fff}
+        .quest-desc{flex:1;font-size:.82rem;font-weight:600;color:var(--text)}
+        .quest-item.completed .quest-desc{text-decoration:line-through;color:var(--text-sub)}
+        .quest-xp{font-family:'JetBrains Mono',monospace;font-size:.7rem;font-weight:800;color:var(--accent);flex-shrink:0}
+        .quest-item.completed .quest-xp{color:var(--success)}
+        .quest-bonus{text-align:center;padding:10px;margin-top:4px;font-size:.75rem;font-weight:700;color:var(--accent);background:var(--accent-glow);border-radius:12px}
+        .quest-bonus.claimed{background:var(--success-glow);color:var(--success)}
+
+        /* CELEBRATION CANVAS */
+        #celebration-canvas{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9999}
+
+        /* FLOATING XP TEXT */
+        .xp-float{position:fixed;font-family:'JetBrains Mono',monospace;font-size:1.1rem;font-weight:800;color:var(--primary);pointer-events:none;z-index:9998;animation:xpFloat 1.5s ease-out forwards;text-shadow:0 2px 8px rgba(37,99,235,.3)}
+        @keyframes xpFloat{0%{opacity:1;transform:translateY(0) scale(1)}50%{opacity:1;transform:translateY(-40px) scale(1.2)}100%{opacity:0;transform:translateY(-80px) scale(.8)}}
+
+        /* LEVELUP OVERLAY */
+        .levelup-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.7);backdrop-filter:blur(6px);z-index:9000;justify-content:center;align-items:center}
+        .levelup-overlay.show{display:flex;animation:fadeIn .3s ease}
+        .levelup-card{background:var(--surface);border-radius:28px;padding:40px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3);border:2px solid var(--primary);max-width:360px;width:90%;animation:slideUp .5s ease}
+        .levelup-icon{font-size:3.5rem;margin-bottom:12px;display:block}
+        .levelup-title{font-size:1.5rem;font-weight:900;color:var(--primary);margin-bottom:6px}
+        .levelup-sub{font-size:.85rem;color:var(--text-sub);margin-bottom:20px;line-height:1.5}
+        .levelup-btn{padding:14px 32px;border-radius:16px;border:none;background:var(--primary);color:#fff;font-family:'Outfit',sans-serif;font-size:.9rem;font-weight:800;cursor:pointer;transition:transform .2s}
+        .levelup-btn:hover{transform:translateY(-2px)}
     </style>
 </head>
 <body>
@@ -297,7 +367,7 @@
             </svg>
         </div>
         <div class="auth-title">IncretinA i Pro</div>
-        <div class="auth-subtitle">v5.0 Defense & Recovery Edition</div>
+        <div class="auth-subtitle">v6.0 Gamification Edition</div>
         <div class="auth-error" id="auth-error"></div>
         <div id="auth-login">
             <input class="auth-input" type="email" id="auth-email" placeholder="이메일 주소" autocomplete="email">
@@ -328,6 +398,13 @@
                 <div class="sync-badge" id="sync-badge"><span class="dot"></span> Cloud Sync</div>
             </div>
         </div>
+        <div class="level-bar" id="level-bar">
+            <span class="level-badge-icon" id="level-icon">🌱</span>
+            <span class="level-num" id="level-num">Lv.1</span>
+            <span class="level-title" id="level-title">인크레틴 새싹</span>
+            <div class="xp-bar-wrap"><div class="xp-bar-fill" id="xp-bar" style="width:0%"></div></div>
+            <span class="xp-text" id="xp-text">0 / 100 XP</span>
+        </div>
         <button class="logout-btn" onclick="doLogout()">로그아웃</button>
     </div>
 
@@ -340,7 +417,7 @@
                           fill="none" stroke="#fff" stroke-width="1.2" stroke-linecap="round" opacity="0.5"/>
                 </svg>
             </div>
-            <div class="logo-text"><h1>IncretinA<span class="logo-i">i</span></h1><span>v5.0 DEFENSE & RECOVERY</span></div>
+            <div class="logo-text"><h1>IncretinA<span class="logo-i">i</span></h1><span>v6.0 GAMIFICATION</span></div>
         </div>
         <div class="header-actions no-print">
             <button class="icon-btn" onclick="toggleThemeManual()" id="theme-toggle">☀️</button>
@@ -352,7 +429,7 @@
         <button class="main-nav-tab active" id="nav-dashboard" onclick="switchMainTab('dashboard')">📊 대시보드</button>
         <button class="main-nav-tab" id="nav-routine" onclick="switchMainTab('routine')">📝 루틴 기록</button>
         <button class="main-nav-tab" id="nav-profile" onclick="switchMainTab('profile')">⚙️ 프로필 분석</button>
-        <button class="main-nav-tab popup-trigger" id="nav-ai" onclick="showAINudgeModal()">🧠 AI 넛지</button>
+        <button class="main-nav-tab popup-trigger" id="nav-ai" onclick="showAINudgeModal()">👩‍⚕️ 인크레티나</button>
     </div>
 
     <!-- ★ PAGE: DASHBOARD ★ -->
@@ -393,6 +470,14 @@
 
     <!-- ★ BATTERY GAUGE — v4.0 NEW ★ -->
     <div class="gauge-card" id="gauge-card">
+        <!-- ★ STREAK BAR — v6.0 ★ -->
+        <div class="streak-bar" id="streak-bar">
+            <span class="streak-fire" id="streak-fire">🔥</span>
+            <span class="streak-count" id="streak-count">0</span>
+            <span class="streak-label">일 연속</span>
+            <span id="streak-milestone-badge"></span>
+            <span class="streak-best" id="streak-best">최고: 0일</span>
+        </div>
         <div class="gauge-header">
             <span class="gauge-title">🔋 인크레틴 게이지 (Defense & Recovery)</span>
             <span style="font-family:'JetBrains Mono',monospace;font-size:.7rem;font-weight:700;color:var(--text-sub)" id="gauge-detail">+0 / -0</span>
@@ -410,6 +495,25 @@
             <div class="gauge-legend-item"><span class="gauge-legend-dot" style="background:#22c55e"></span>양호 (70~84)</div>
             <div class="gauge-legend-item"><span class="gauge-legend-dot" style="background:#3b82f6"></span>최적 (85+)</div>
         </div>
+    </div>
+
+    <!-- ★ DAILY QUEST CARD — v6.0 ★ -->
+    <div class="quest-card" id="quest-card">
+        <div class="quest-header">
+            <span class="quest-title">🎯 오늘의 퀘스트</span>
+            <span class="quest-progress" id="quest-progress">0/3</span>
+        </div>
+        <div id="quest-list"></div>
+        <div class="quest-bonus" id="quest-bonus">🎁 3개 완료 시 보너스 +30 XP</div>
+    </div>
+
+    <!-- ★ TINA MINI-NUDGE CARD — v6.0 ★ -->
+    <div class="tina-mini-card" id="tina-mini-card" onclick="showAINudgeModal()">
+        <div class="tina-mini-header">
+            <span class="tina-avatar">👩‍⚕️</span>
+            <span class="tina-mini-title">인크레티나 한마디</span>
+        </div>
+        <div class="tina-mini-msg" id="tina-mini-msg">안녕하세요! 오늘도 함께 건강한 하루 만들어 봐요 😊</div>
     </div>
 
     <div class="stat-grid no-print">
@@ -535,22 +639,22 @@
     </div>
 </div>
 
-<!-- ★ AI NUDGE MODAL — v5.0 ★ -->
+<!-- ★ AI NUDGE MODAL — v6.0 인크레티나 ★ -->
 <div class="ai-modal" id="ai-modal" onclick="if(event.target===this)closeAINudgeModal()">
     <div class="ai-modal-content">
         <div class="ai-modal-header">
-            <h2>🧠 AI 넛지 v2.0</h2>
+            <h2>👩‍⚕️ 인크레티나 코치</h2>
             <button class="ai-modal-close" onclick="closeAINudgeModal()">&times;</button>
         </div>
         <div style="margin-bottom:16px">
-            <label style="font-size:.65rem;font-weight:700;color:var(--text-sub);display:block;margin-bottom:6px">페르소나 선택</label>
+            <label style="font-size:.65rem;font-weight:700;color:var(--text-sub);display:block;margin-bottom:6px">티나의 무드</label>
             <select class="ai-persona-select" id="ai-persona" onchange="updateAIStatus()" style="width:100%;padding:10px 14px;font-size:.85rem">
-                <option value="clinical">🔬 임상 전문가</option>
-                <option value="driver">🔥 결과 지향</option>
-                <option value="empathetic">🤝 공감 파트너</option>
+                <option value="pro">🔬 티나 선생님 (프로)</option>
+                <option value="fighter">🔥 불꽃 티나 (파이터)</option>
+                <option value="healing" selected>🤗 따뜻한 티나 (힐링)</option>
             </select>
         </div>
-        <div id="ai-nudge" class="ai-content" style="min-height:80px">데이터 분석을 위해 루틴을 기록해 주세요.</div>
+        <div id="ai-nudge" class="ai-content" style="min-height:80px">안녕하세요! 인크레티나예요 😊 루틴을 기록하면 맞춤 코칭을 드릴게요!</div>
     </div>
 </div>
 
@@ -562,6 +666,22 @@
             <button class="guide-popup-close" onclick="closeGuidePopup()">&times;</button>
         </div>
         <div id="guide-popup-body"></div>
+    </div>
+</div>
+
+<!-- ★ TINA TOAST — v6.0 ★ -->
+<div class="tina-toast" id="tina-toast"><span class="tina-toast-avatar">👩‍⚕️</span><span id="tina-toast-msg"></span></div>
+
+<!-- ★ CELEBRATION CANVAS — v6.0 ★ -->
+<canvas id="celebration-canvas"></canvas>
+
+<!-- ★ LEVELUP OVERLAY — v6.0 ★ -->
+<div class="levelup-overlay" id="levelup-overlay" onclick="if(event.target===this)closeLevelUp()">
+    <div class="levelup-card">
+        <span class="levelup-icon" id="levelup-icon">🎉</span>
+        <div class="levelup-title" id="levelup-title">LEVEL UP!</div>
+        <div class="levelup-sub" id="levelup-sub">축하합니다!</div>
+        <button class="levelup-btn" onclick="closeLevelUp()">확인</button>
     </div>
 </div>
 
@@ -623,7 +743,7 @@ async function saveDailyToCloud(){
     try{await historyCollection().doc(dateKey).set(data);showSyncStatus('synced')}catch(e){console.error('Daily save:',e);showSyncStatus('offline')}
 }
 function showSyncStatus(s){const b=document.getElementById('sync-badge');if(s==='synced'){b.className='sync-badge';b.innerHTML='<span class="dot"></span> Cloud Synced'}else{b.className='sync-badge offline';b.innerHTML='<span class="dot"></span> Offline'}}
-function listenToProfile(){if(unsubProfile)unsubProfile();unsubProfile=userDoc().onSnapshot(doc=>{if(doc.exists){const p=doc.data();if(p.name)document.getElementById('p-name').value=p.name;if(p.age)document.getElementById('p-age').value=p.age;if(p.gender)document.getElementById('p-gender').value=p.gender;if(p.start)document.getElementById('p-start').value=p.start;if(p.h)document.getElementById('p-h').value=p.h;if(p.sw)document.getElementById('p-sw').value=p.sw;if(p.gw)document.getElementById('p-gw').value=p.gw;if(p.isDiabetic)document.getElementById('p-diabetic').value=p.isDiabetic;if(p.exercise)document.getElementById('p-exercise').value=p.exercise;if(p.lat)document.getElementById('p-lat').value=p.lat}showSyncStatus('synced')},e=>{console.warn('Profile listen:',e);showSyncStatus('offline')})}
+function listenToProfile(){if(unsubProfile)unsubProfile();unsubProfile=userDoc().onSnapshot(doc=>{if(doc.exists){const p=doc.data();if(p.name)document.getElementById('p-name').value=p.name;if(p.age)document.getElementById('p-age').value=p.age;if(p.gender)document.getElementById('p-gender').value=p.gender;if(p.start)document.getElementById('p-start').value=p.start;if(p.h)document.getElementById('p-h').value=p.h;if(p.sw)document.getElementById('p-sw').value=p.sw;if(p.gw)document.getElementById('p-gw').value=p.gw;if(p.isDiabetic)document.getElementById('p-diabetic').value=p.isDiabetic;if(p.exercise)document.getElementById('p-exercise').value=p.exercise;if(p.lat)document.getElementById('p-lat').value=p.lat;loadGamificationFromProfile(p)}showSyncStatus('synced')},e=>{console.warn('Profile listen:',e);showSyncStatus('offline')})}
 function listenToHistory(){if(unsubHistory)unsubHistory();unsubHistory=historyCollection().onSnapshot(snap=>{const hist={};snap.forEach(doc=>{hist[doc.id]=doc.data()});window._cloudHistory=hist;loadDateData();showSyncStatus('synced')},e=>{console.warn('History listen:',e);showSyncStatus('offline')})}
 
 function loadDateData(){
@@ -680,28 +800,637 @@ let recoveryDone = new Array(risks.length).fill(false);
 let currentRecoveryIndex = -1;
 
 // ============================================================
-// NUDGE MESSAGES (v2.0 with penalty awareness)
+// v6.0 GAMIFICATION ENGINE
 // ============================================================
-const nudges={
-    clinical:{
-        master:"최적의 대사 효율 달성 (α_net={a}, β_net={b}, γ_net={g}). 페널티 없이 완벽한 하루입니다.",
-        achiever:"현재 α_net={a}. 골든타임 내 식사를 완료하면 α 상향이 가능합니다. 마이너스 루틴을 주의하세요.",
-        reset:"경고: 종합 효율 {total}. 대사 부채가 누적되고 있습니다. 회복 미션을 수행하세요.",
-        penalty:"⚠️ α_net이 {a}로 하락. 페널티 {pen}점 발생. 즉각 회복 미션으로 {rec}점 복구 가능합니다."
+
+// --- LEVEL SYSTEM ---
+const LEVEL_TABLE = [
+    {lv:1, xp:0, title:'인크레틴 새싹', icon:'🌱'},
+    {lv:2, xp:100, title:'인크레틴 새싹', icon:'🌱'},
+    {lv:3, xp:220, title:'인크레틴 새싹', icon:'🌱'},
+    {lv:4, xp:360, title:'인크레틴 새싹', icon:'🌱'},
+    {lv:5, xp:500, title:'인크레틴 새싹', icon:'🌱'},
+    {lv:6, xp:680, title:'리듬 탐험가', icon:'🌿'},
+    {lv:7, xp:880, title:'리듬 탐험가', icon:'🌿'},
+    {lv:8, xp:1100, title:'리듬 탐험가', icon:'🌿'},
+    {lv:9, xp:1340, title:'리듬 탐험가', icon:'🌿'},
+    {lv:10, xp:1500, title:'리듬 탐험가', icon:'🌿'},
+    {lv:11, xp:1800, title:'대사 수호자', icon:'🌳'},
+    {lv:12, xp:2150, title:'대사 수호자', icon:'🌳'},
+    {lv:13, xp:2550, title:'대사 수호자', icon:'🌳'},
+    {lv:14, xp:3000, title:'대사 수호자', icon:'🌳'},
+    {lv:15, xp:3500, title:'대사 수호자', icon:'🌳'},
+    {lv:16, xp:4100, title:'호르몬 전략가', icon:'⚡'},
+    {lv:17, xp:4800, title:'호르몬 전략가', icon:'⚡'},
+    {lv:18, xp:5600, title:'호르몬 전략가', icon:'⚡'},
+    {lv:19, xp:6500, title:'호르몬 전략가', icon:'⚡'},
+    {lv:20, xp:7000, title:'호르몬 전략가', icon:'⚡'},
+    {lv:21, xp:8000, title:'골든타임 마스터', icon:'🔥'},
+    {lv:22, xp:9200, title:'골든타임 마스터', icon:'🔥'},
+    {lv:23, xp:10500, title:'골든타임 마스터', icon:'🔥'},
+    {lv:24, xp:11500, title:'골든타임 마스터', icon:'🔥'},
+    {lv:25, xp:12000, title:'골든타임 마스터', icon:'🔥'},
+    {lv:26, xp:13500, title:'인크레틴 레전드', icon:'👑'},
+    {lv:27, xp:15000, title:'인크레틴 레전드', icon:'👑'},
+    {lv:28, xp:17000, title:'인크레틴 레전드', icon:'👑'},
+    {lv:29, xp:19000, title:'인크레틴 레전드', icon:'👑'},
+    {lv:30, xp:20000, title:'인크레틴 레전드', icon:'👑'}
+];
+
+let _gamification = { xp: 0, level: 1, streak: 0, bestStreak: 0, lastStreakDate: '', todayXpAwarded: false };
+let _prevLevel = 1;
+
+function getLevelInfo(xp) {
+    let info = LEVEL_TABLE[0];
+    for (let i = LEVEL_TABLE.length - 1; i >= 0; i--) {
+        if (xp >= LEVEL_TABLE[i].xp) { info = LEVEL_TABLE[i]; break; }
+    }
+    const nextIdx = Math.min(info.lv, LEVEL_TABLE.length - 1);
+    const nextXp = LEVEL_TABLE[nextIdx] ? LEVEL_TABLE[nextIdx].xp : info.xp;
+    const prevXp = info.xp;
+    const pct = nextXp > prevXp ? Math.min(100, ((xp - prevXp) / (nextXp - prevXp)) * 100) : 100;
+    return { ...info, nextXp, pct };
+}
+
+function updateLevelDisplay() {
+    const info = getLevelInfo(_gamification.xp);
+    document.getElementById('level-icon').textContent = info.icon;
+    document.getElementById('level-num').textContent = 'Lv.' + info.lv;
+    document.getElementById('level-title').textContent = info.title;
+    document.getElementById('xp-bar').style.width = info.pct.toFixed(1) + '%';
+    document.getElementById('xp-text').textContent = _gamification.xp + ' / ' + info.nextXp + ' XP';
+    _gamification.level = info.lv;
+}
+
+function addXP(amount, showFloat) {
+    if (amount <= 0) return;
+    _gamification.xp += amount;
+    updateLevelDisplay();
+    if (showFloat !== false) showXPFloat('+' + amount + ' XP');
+    // Check level up
+    const newLevel = getLevelInfo(_gamification.xp).lv;
+    if (newLevel > _prevLevel) {
+        _prevLevel = newLevel;
+        showLevelUpOverlay(newLevel);
+    }
+    saveGamificationToCloud();
+}
+
+// --- STREAK SYSTEM ---
+function calculateStreak() {
+    const hist = window._cloudHistory || {};
+    const dates = Object.keys(hist).sort().reverse();
+    const today = document.getElementById('target-date').value;
+    let streak = 0;
+    let checkDate = new Date(today);
+
+    // Check if today qualifies (score >= 70)
+    if (hist[today] && hist[today].score >= 70) {
+        streak = 1;
+        checkDate.setDate(checkDate.getDate() - 1);
+    } else {
+        // Today not yet qualified, check from yesterday
+        checkDate.setDate(checkDate.getDate() - 1);
+    }
+
+    // Count consecutive past days with score >= 70
+    for (let i = 0; i < 365; i++) {
+        const key = checkDate.toISOString().split('T')[0];
+        if (hist[key] && hist[key].score >= 70) {
+            streak++;
+            checkDate.setDate(checkDate.getDate() - 1);
+        } else {
+            break;
+        }
+    }
+
+    _gamification.streak = streak;
+    if (streak > _gamification.bestStreak) {
+        _gamification.bestStreak = streak;
+    }
+    return streak;
+}
+
+function updateStreakDisplay() {
+    const streak = calculateStreak();
+    document.getElementById('streak-count').textContent = streak;
+    document.getElementById('streak-best').textContent = '최고: ' + _gamification.bestStreak + '일';
+
+    // Fire intensity
+    const fire = document.getElementById('streak-fire');
+    if (streak >= 30) fire.textContent = '🔥';
+    else if (streak >= 14) fire.textContent = '🔥';
+    else if (streak >= 7) fire.textContent = '🔥';
+    else if (streak >= 3) fire.textContent = '🔥';
+    else fire.textContent = '💤';
+
+    // Milestone badge
+    const badge = document.getElementById('streak-milestone-badge');
+    if (streak >= 100) badge.innerHTML = '<span class="streak-milestone">👑 100일!</span>';
+    else if (streak >= 30) badge.innerHTML = '<span class="streak-milestone">💎 30일!</span>';
+    else if (streak >= 14) badge.innerHTML = '<span class="streak-milestone">🌟 14일!</span>';
+    else if (streak >= 7) badge.innerHTML = '<span class="streak-milestone">⚡ 7일!</span>';
+    else if (streak >= 3) badge.innerHTML = '<span class="streak-milestone">🔥 3일!</span>';
+    else badge.innerHTML = '';
+}
+
+// --- DAILY QUEST SYSTEM ---
+const QUEST_POOL = [
+    {id:'q01', desc:'🌅 기상 후 10분 내 햇빛 노출', check: () => document.getElementById('item-0')?.classList.contains('checked'), xp:15},
+    {id:'q02', desc:'☕ 블랙커피 부스트 실행', check: () => document.getElementById('item-1')?.classList.contains('checked'), xp:10},
+    {id:'q03', desc:'🍳 14시간 단식 해제 성공', check: () => document.getElementById('item-2')?.classList.contains('checked'), xp:15},
+    {id:'q04', desc:'🥜 프리로드 수행 (단백질+식이섬유)', check: () => document.getElementById('item-3')?.classList.contains('checked'), xp:15},
+    {id:'q05', desc:'🥗 인크레틴 시퀀스 순서 고수', check: () => document.getElementById('item-4')?.classList.contains('checked'), xp:15},
+    {id:'q06', desc:'🚶 식후 30분 걷기 수행', check: () => document.getElementById('item-5')?.classList.contains('checked'), xp:15},
+    {id:'q07', desc:'⏰ 19시 전 마지막 식사 완료', check: () => document.getElementById('item-6')?.classList.contains('checked'), xp:20},
+    {id:'q08', desc:'💪 근력운동 30분 수행', check: () => document.getElementById('item-7')?.classList.contains('checked'), xp:15},
+    {id:'q09', desc:'🌙 22시 전 블루라이트 차단', check: () => document.getElementById('item-8')?.classList.contains('checked'), xp:10},
+    {id:'q10', desc:'😴 23시 전 취침', check: () => document.getElementById('item-9')?.classList.contains('checked'), xp:10},
+    {id:'q11', desc:'🛡️ 야식 유혹 방어 성공', check: () => !document.getElementById('risk-6')?.classList.contains('active'), xp:20},
+    {id:'q12', desc:'🛡️ 가당 음료 방어 성공', check: () => !document.getElementById('risk-1')?.classList.contains('active'), xp:15},
+    {id:'q13', desc:'🏆 배터리 게이지 85% 이상 달성', check: () => calculateTotalScore() >= 85, xp:25},
+    {id:'q14', desc:'💯 루틴 5개 이상 완료', check: () => routine.filter((_,i)=>document.getElementById('item-'+i)?.classList.contains('checked')).length >= 5, xp:15},
+    {id:'q15', desc:'🚑 회복 미션 1회 이상 수행', check: () => recoveryDone.some(v=>v), xp:15}
+];
+
+let _todayQuests = [];
+let _questBonusClaimed = false;
+
+function seededRandom(seed) {
+    let x = Math.sin(seed) * 10000;
+    return x - Math.floor(x);
+}
+
+function generateDailyQuests(dateStr) {
+    // Deterministic seed from date string
+    let seed = 0;
+    for (let i = 0; i < dateStr.length; i++) seed += dateStr.charCodeAt(i) * (i + 1);
+
+    // Pick 3 unique quests from pool
+    const indices = [];
+    const pool = [...QUEST_POOL];
+    for (let i = 0; i < 3 && pool.length > 0; i++) {
+        const idx = Math.floor(seededRandom(seed + i * 7) * pool.length);
+        indices.push(pool[idx]);
+        pool.splice(idx, 1);
+    }
+    return indices;
+}
+
+function renderQuests() {
+    const dateStr = document.getElementById('target-date').value;
+    _todayQuests = generateDailyQuests(dateStr);
+    _questBonusClaimed = false;
+    updateQuestDisplay();
+}
+
+function updateQuestDisplay() {
+    const list = document.getElementById('quest-list');
+    let completedCount = 0;
+
+    list.innerHTML = _todayQuests.map((q, i) => {
+        const done = q.check();
+        if (done) completedCount++;
+        return `<div class="quest-item ${done ? 'completed' : ''}">
+            <div class="quest-check">${done ? '✓' : ''}</div>
+            <div class="quest-desc">${q.desc}</div>
+            <div class="quest-xp">${done ? '✅' : '+'+ q.xp +' XP'}</div>
+        </div>`;
+    }).join('');
+
+    document.getElementById('quest-progress').textContent = completedCount + '/3';
+
+    const bonusEl = document.getElementById('quest-bonus');
+    if (completedCount >= 3 && !_questBonusClaimed) {
+        _questBonusClaimed = true;
+        bonusEl.className = 'quest-bonus claimed';
+        bonusEl.textContent = '🎉 보너스 +30 XP 획득!';
+    } else if (completedCount >= 3) {
+        bonusEl.className = 'quest-bonus claimed';
+        bonusEl.textContent = '🎉 보너스 +30 XP 획득!';
+    } else {
+        bonusEl.className = 'quest-bonus';
+        bonusEl.textContent = '🎁 3개 완료 시 보너스 +30 XP';
+    }
+}
+
+// --- XP CALCULATION FOR TODAY ---
+function calculateDailyXP() {
+    const checks = routine.map((_, i) => document.getElementById('item-' + i)?.classList.contains('checked') || false);
+    const checkedCount = checks.filter(Boolean).length;
+
+    let xp = 0;
+    // +5 per checked routine
+    xp += checkedCount * 5;
+    // +30 bonus for full clear
+    if (checkedCount === routine.length) xp += 30;
+    // +10 per recovery done
+    xp += recoveryDone.filter(Boolean).length * 10;
+    // +20 for streak maintenance (if streak >= 1)
+    if (_gamification.streak >= 1) xp += 20;
+    // Quest XP
+    _todayQuests.forEach(q => { if (q.check()) xp += q.xp; });
+    // Quest bonus
+    const questDone = _todayQuests.filter(q => q.check()).length;
+    if (questDone >= 3) xp += 30;
+
+    return xp;
+}
+
+// --- CELEBRATION EFFECTS ---
+function showXPFloat(text) {
+    const el = document.createElement('div');
+    el.className = 'xp-float';
+    el.textContent = text;
+    el.style.left = (window.innerWidth / 2 - 40) + 'px';
+    el.style.top = '30%';
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 1500);
+}
+
+function showLevelUpOverlay(lv) {
+    const info = LEVEL_TABLE.find(l => l.lv === lv) || LEVEL_TABLE[0];
+    const lvMsg = getTinaEventMessage('levelUp', { lv: lv, title: info.title });
+    document.getElementById('levelup-icon').textContent = info.icon;
+    document.getElementById('levelup-title').textContent = 'LEVEL ' + lv + ' UP!';
+    document.getElementById('levelup-sub').innerHTML = lvMsg || ('<b>' + info.title + '</b> 칭호를 획득했습니다!<br>계속 달려볼까요?');
+    document.getElementById('levelup-overlay').classList.add('show');
+    launchConfetti();
+}
+function closeLevelUp() {
+    document.getElementById('levelup-overlay').classList.remove('show');
+}
+
+function launchConfetti() {
+    const canvas = document.getElementById('celebration-canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    const particles = [];
+    const colors = ['#f59e0b', '#ef4444', '#3b82f6', '#10b981', '#8b5cf6', '#ec4899', '#fbbf24'];
+
+    for (let i = 0; i < 120; i++) {
+        particles.push({
+            x: Math.random() * canvas.width,
+            y: -20 - Math.random() * 200,
+            w: 4 + Math.random() * 6,
+            h: 8 + Math.random() * 8,
+            color: colors[Math.floor(Math.random() * colors.length)],
+            vy: 2 + Math.random() * 4,
+            vx: (Math.random() - 0.5) * 4,
+            rot: Math.random() * Math.PI * 2,
+            rotV: (Math.random() - 0.5) * 0.2,
+            life: 1
+        });
+    }
+
+    let frame = 0;
+    function animate() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        let alive = false;
+        particles.forEach(p => {
+            if (p.life <= 0) return;
+            alive = true;
+            p.y += p.vy;
+            p.x += p.vx;
+            p.vy += 0.1;
+            p.rot += p.rotV;
+            p.life -= 0.005;
+            ctx.save();
+            ctx.translate(p.x, p.y);
+            ctx.rotate(p.rot);
+            ctx.globalAlpha = Math.max(0, p.life);
+            ctx.fillStyle = p.color;
+            ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+            ctx.restore();
+        });
+        frame++;
+        if (alive && frame < 300) requestAnimationFrame(animate);
+        else ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+    animate();
+}
+
+// --- GAMIFICATION CLOUD PERSISTENCE ---
+async function saveGamificationToCloud() {
+    if (!currentUser) return;
+    try {
+        await userDoc().set({
+            xp: _gamification.xp,
+            level: _gamification.level,
+            streak: _gamification.streak,
+            bestStreak: _gamification.bestStreak,
+            lastStreakDate: _gamification.lastStreakDate
+        }, { merge: true });
+    } catch (e) { console.warn('Gamification save:', e); }
+}
+
+function loadGamificationFromProfile(data) {
+    if (data.xp !== undefined) _gamification.xp = data.xp;
+    if (data.level !== undefined) { _gamification.level = data.level; _prevLevel = data.level; }
+    if (data.streak !== undefined) _gamification.streak = data.streak;
+    if (data.bestStreak !== undefined) _gamification.bestStreak = data.bestStreak;
+    if (data.lastStreakDate !== undefined) _gamification.lastStreakDate = data.lastStreakDate;
+    updateLevelDisplay();
+    updateStreakDisplay();
+}
+
+// --- GAMIFICATION HOOK INTO DATA CHANGE ---
+let _lastDailyXP = 0;
+function gamificationOnDataChange() {
+    updateStreakDisplay();
+    updateQuestDisplay();
+
+    // Calculate today's XP and award incrementally
+    const newDailyXP = calculateDailyXP();
+    const xpDiff = newDailyXP - _lastDailyXP;
+    if (xpDiff > 0) {
+        addXP(xpDiff, true);
+    }
+    _lastDailyXP = newDailyXP;
+
+    // Check for full clear celebration + 인크레티나 축하
+    const checkedCount = routine.filter((_, i) => document.getElementById('item-' + i)?.classList.contains('checked')).length;
+    if (checkedCount === routine.length) {
+        setTimeout(() => {
+            launchConfetti();
+            const fcMsg = getTinaEventMessage('fullClear');
+            if (fcMsg) showTinaToast(fcMsg);
+        }, 300);
+    }
+
+    // 스트릭 마일스톤 인크레티나 축하
+    const streak = _gamification.streak || 0;
+    const milestones = [3, 7, 14, 30];
+    for (const ms of milestones) {
+        if (streak === ms && _lastStreakMilestone < ms) {
+            _lastStreakMilestone = ms;
+            const sMsg = getTinaEventMessage('streak');
+            if (sMsg) setTimeout(() => showTinaToast(sMsg), 600);
+            break;
+        }
+    }
+
+    // 미니 넛지 업데이트
+    updateMiniNudge();
+}
+
+// ============================================================
+// ★ 인크레티나 AI 페르소나 — v6.0 ★
+// 3 무드 × 4 상태 × 5 메시지 = 60개 랜덤 메시지 풀
+// ============================================================
+const TINA_MESSAGES = {
+    pro: {
+        master: [
+            "{name}님, 오늘 정말 대단해요! α {a} × β {b} × γ {g} = 최적 효율 🎯 이 페이스면 이번 주 목표 거뜬해요!",
+            "IMEM 종합 효율 {total} — 이건 상위 10% 수준이에요! 페널티 제로, 모든 계수가 이상적 범위 안에 있어요 📊",
+            "α_net {a}, β_net {b}, γ_net {g} — 세 계수 모두 최적 구간입니다. 인크레틴 호르몬이 최고 효율로 작동 중이에요 🔬",
+            "페널티 제로! 🛡️ 완벽한 방어에요. 이렇게 3일만 더 가면 {name}님의 대사 패턴이 확실히 달라질 거예요.",
+            "오늘의 {name}님, 100점 만점에 {score}점! 과학적으로도 완벽한 하루예요. 내일도 이 리듬 유지해 봐요! 📈"
+        ],
+        achiever: [
+            "현재 α_net {a}이에요. 골든타임 내 식사를 완료하면 α 상향이 가능해요. 남은 시간 체크해 보세요! ⏰",
+            "{name}님, β 계수가 {b}인데요... 다음 식사 때 '채소 먼저' 순서만 지키면 β가 0.05~0.1 상승할 수 있어요 🥬",
+            "종합 효율 {total}, 양호한 수준이에요! 여기서 마이너스 루틴만 피하면 '최적' 등급까지 충분히 갈 수 있어요 📊",
+            "지금까지 {score}점이에요. γ 계수를 올리려면 야간 공복 유지가 핵심이에요. 인크레틴 감수성의 회복 시간이 필요해요 🌙",
+            "나쁘지 않은 데이터예요! 근데 살짝 아쉬운 게, α가 {a}인데 일몰 전 마지막 식사만 마무리하면 확 올라가요 🌅"
+        ],
+        penalty: [
+            "α_net이 {a}로 하락했어요. 인슐린-멜라토닌 충돌 상태가 감지돼요. 20분 스트레칭으로 혈당을 근육에서 소모시키면 {rec}점 복구 가능해요 🔬",
+            "{pen}점 감점이 생겼어요. 하지만 데이터를 분석해 보면, 지금 회복 미션 수행 시 손실의 60~80%를 되찾을 수 있어요. 객관적으로 최선의 선택은 '즉시 행동'이에요 📉",
+            "페널티 분석 결과: {pen}점 발생. β 계수에 직접 영향을 주고 있어요. 회복 미션으로 {rec}점 복구하면 오늘의 IMEM 효율을 살릴 수 있어요 💡",
+            "대사 방어선에 이상이 감지됐어요 ⚠️ 현재 페널티 {pen}점. 하지만 회복 경로가 열려 있어요. 과학적으로 가장 효과적인 복구법을 추천해 드릴게요!",
+            "{name}님, 페널티 {pen}점이 IMEM 효율을 낮추고 있어요. 지금 바로 회복 미션을 시작하면 {rec}점 회복이 가능해요. 데이터가 증명해요 📊"
+        ],
+        reset: [
+            "오늘의 종합 효율 {total}이에요. 대사 부채가 누적되고 있지만, 지금부터 물 500ml만 마셔도 내일 아침 인크레틴 감수성이 개선돼요 🔬",
+            "{name}님, 점수가 낮지만 과학적으로 '리셋'은 가능해요. 밤 사이 12시간 공복만 유지하면 인슐린 저항성이 초기화돼요. 내일이 기대돼요 📊",
+            "지금 점수보다 중요한 건 '다음 행동'이에요. 블루라이트 차단 + 수분 섭취만으로 멜라토닌 분비가 촉진되고, 내일 αnet이 회복돼요 🌙",
+            "오늘의 데이터는 좀 아쉽지만, 장기 추세가 더 중요해요. 이 앱을 열었다는 것 자체가 행동의학적으로 강력한 시그널이에요 💡",
+            "종합 효율 {total}... 하지만 걱정 마세요. 내일 아침 10분 햇빛 노출로 세로토닌 → 멜라토닌 사이클을 리셋하면 새 출발이에요 ☀️"
+        ]
     },
-    driver:{
-        master:"완벽! α={a} × β={b} × γ={g} = {total}. 오늘 방어 성공!",
-        achiever:"방어선 유지 중. 페널티를 0으로 만드세요!",
-        reset:"경고: 효율 {total}. 지금 회복하지 않으면 오늘의 노력이 무의미해집니다!",
-        penalty:"🔴 {pen}점 손실! 지금 회복 미션을 하면 {rec}점 되찾을 수 있습니다. 타협하지 마십시오!"
+    fighter: {
+        master: [
+            "완벽! α={a} × β={b} × γ={g} = {total} 💥 오늘 방어 성공! {name}님, 오늘은 진짜 전사예요!",
+            "풀스코어 {score}점! 🔥 페널티 제로, 회복 미션도 필요 없는 완벽한 하루! 이 기세 그대로 내일도 돌파!",
+            "10/10 올클리어가 코앞이에요! 지금 이 리듬이면 못 할 게 없어요. {name}님의 의지력은 레전드급! 🏆",
+            "방어 성공! 마이너스 루틴 제로! 이게 바로 진짜 전사의 하루예요. 내일도 이 불꽃 유지합시다! 🔥",
+            "오늘의 {name}님 = 인크레틴 히어로! {score}점! 이 페이스면 목표 체중까지 직행이에요! 💪"
+        ],
+        achiever: [
+            "방어선 유지 중! 🛡️ 여기서 하나만 더 챙기면 '최적' 등급이에요. 포기하지 마세요!",
+            "{score}점, 좋아요! 근데 아직 끝난 게 아니에요. 남은 루틴 하나가 승부를 갈라요. 갈 수 있죠?! 💪",
+            "절반 이상 해냈어요! 지금 포기하면 여기까지의 노력이 아까워요. 마지막 스퍼트! 🔥",
+            "나쁘지 않아요! 근데 {name}님의 잠재력은 이 정도가 아니잖아요? 조금만 더! 목표는 '최적'! 🎯",
+            "페널티를 0으로 만들면 오늘의 승리예요! 마이너스 루틴만 피하면 됩니다. 집중! ⚡"
+        ],
+        penalty: [
+            "{pen}점 손실! 💥 하지만 포기는 없어요! 지금 당장 회복 미션 시작! {rec}점 되찾고 오늘을 살려요!",
+            "방어선에 구멍이 뚫렸어요! 🛡️ 하지만 즉시 행동하면 복구 가능! 제가 미션 하나 드릴게요. 해낼 수 있죠?!",
+            "야식의 유혹에 졌어요? 그럴 수 있어요. 근데 여기서 끝내면 안 돼요! 20분 스트레칭으로 반격 시작! 🥊",
+            "페널티 {pen}점... 속상하죠? 근데 지금 주저앉으면 안 돼요! 회복 미션으로 {rec}점 되찾읍시다. 타협은 없어요! 🔥",
+            "{name}님! 실수했으면 바로 만회하는 거예요! 지금 회복 미션 하면 {rec}점 복구! 갈 수 있죠?! 💪"
+        ],
+        reset: [
+            "오늘 좀 힘들었죠? 근데 {name}님, 진짜 강한 사람은 넘어진 다음 날 일어나는 사람이에요. 내일 아침, 다시 시작이에요! 🔥",
+            "점수가 낮다고? 그래도 이 앱을 열었잖아요! 그 자체가 투지의 증거예요. 내일은 반드시 더 나은 하루! 💪",
+            "오늘은 졌어요. 인정합시다. 근데 내일 아침 배터리가 100%로 리셋돼요. 그때 반격 시작이에요! ⚡",
+            "지금 할 수 있는 가장 쉬운 것: 물 한 잔 마시기. 이것만으로도 내일을 위한 준비가 시작돼요. 작은 것부터! 🥤",
+            "오늘의 전투는 끝났어요. 하지만 전쟁은 아직이에요. 자기 전에 블루라이트만 차단해도 내일의 나는 달라져요! 🌙"
+        ]
     },
-    empathetic:{
-        master:"오늘 정말 완벽한 하루였어요! 마이너스 루틴 하나 없이 해내셨네요 😊",
-        achiever:"잘 하고 있어요! 조금만 더 신경 쓰면 최적 구간이에요.",
-        reset:"오늘 좀 힘드셨죠? 괜찮아요. 회복 미션 하나만 해도 충분해요 💪",
-        penalty:"실수는 누구나 해요. 지금 {rec}점을 되찾을 수 있는 방법이 있어요. 해볼까요?"
+    healing: {
+        master: [
+            "와, 완벽한 하루! 🌟 인크레틴 호르몬이 지금 최고로 활발하게 일하고 있을 거예요. 이대로만!",
+            "오늘의 {name}님, 100점 만점에 {score}점! 제가 코치한 보람이 있네요 😊 내일도 이 리듬 유지해 봐요!",
+            "오늘 정말 완벽한 하루였어요! 마이너스 루틴 하나 없이 해내셨네요. {name}님 정말 대단해요 😊",
+            "페널티 제로! 🛡️ {name}님의 노력이 빛나는 하루예요. 이렇게 3일만 더 가면 몸이 확실히 달라질 거예요 💕",
+            "지금 {name}님의 대사 효율 {total} — 오늘의 나에게 박수 👏 정말 수고 많았어요!"
+        ],
+        achiever: [
+            "좋은 흐름이에요! 👍 여기서 하나만 더 챙기면 오늘 '최적' 등급 가능해요. 해볼까요?",
+            "잘 하고 있어요! 조금만 더 신경 쓰면 최적 구간이에요. {name}님이라면 할 수 있어요 😊",
+            "절반 이상 해냈어요! 지금까지 잘해왔잖아요. 남은 건 조금씩 천천히, 나 자신을 위해서 💛",
+            "{name}님, 오늘도 열심히 하고 있네요. 조금 아쉬운 부분이 있지만, 충분히 좋은 하루예요 😊",
+            "오늘의 진행률 {score}%! 이 정도면 충분히 좋은 하루예요. 근데 조금만 더 하면 '최적'인데... 욕심내 볼까요? 😏"
+        ],
+        penalty: [
+            "앗, {pen}점 감점이 생겼어요. 하지만 당황하지 마세요! 지금 바로 회복 미션을 하면 {rec}점까지 되찾을 수 있어요. 같이 해요! 💪",
+            "실수는 실수일 뿐이에요 🤗 중요한 건 '다음 행동'이에요. 회복 미션 준비해 뒀으니, 한번 도전해 볼까요?",
+            "밤에 배가 고팠군요... 누구나 그런 날 있어요 😥 괜찮아요. 지금 양치하고 가벼운 스트레칭 해볼까요? 조금이라도 회복해 놓으면 내일 기분이 훨씬 나을 거예요 💕",
+            "페널티 {pen}점... 속상하죠? 괜찮아요. 다행히 회복 루트가 있어요! 지금 미션 하면 {rec}점 되찾아요. 지금 바로? 😊",
+            "{name}님, 방어선에 구멍이 생겼어요! 🛡️ 하지만 지금 즉시 행동하면 복구 가능해요. 제가 미션 하나 드릴게요!"
+        ],
+        reset: [
+            "오늘 좀 힘든 날이죠? 😔 그런 날도 있는 거예요. 지금부터라도 딱 하나만 해보는 건 어때요? 물 한 잔이라도!",
+            "점수가 낮다고 자책하지 마세요. 제가 옆에 있잖아요 🤗 지금 할 수 있는 가장 쉬운 것: 물 500ml 마시기. 이것만으로도 내일 아침 컨디션이 달라져요.",
+            "힘든 하루였나 봐요. 괜찮아요, 진짜 괜찮아요. 다이어트는 마라톤이지 단거리가 아니니까요. 내일 아침, 햇빛 10분만 쬐면 새로운 시작이에요 ☀️",
+            "오늘의 점수가 전부가 아니에요. {name}님이 이 앱을 열었다는 것 자체가 이미 대단한 거예요. 내일은 더 나은 하루가 될 거예요 💕",
+            "{name}님, 숫자는 좀 낮지만 포기하지 마세요. 내일 아침 배터리는 다시 100%로 리셋돼요. 오늘 자기 전에 블루라이트만 차단해도 내일이 달라져요 🌙"
+        ]
     }
 };
+
+// ★ 시간대별 인사 메시지 ★
+const TINA_GREETINGS = {
+    morning: [
+        "좋은 아침이에요, {name}님! ☀️ 배터리 100%로 출발! 오늘 첫 미션: 10분 햇빛 노출, 준비됐죠?",
+        "일어나셨군요! 🌅 오늘의 골든타임이 기다리고 있어요. 이 소중한 시간, 같이 잘 써봐요!",
+        "좋은 아침! 어젯밤 잘 주무셨나요? 지금 물 한 잔 마시면 밤새 쉬었던 GLP-1이 깨어나요 💧"
+    ],
+    lunch: [
+        "점심시간이에요! 🍽️ 프리로드는 하셨나요? 식사 30분 전 단백질 간식이 β 계수를 올려줘요!",
+        "식사 순서 잊지 마세요: 채소 → 단백질 → 탄수화물! 🥗 이 순서만 지키면 혈당 스파이크가 크게 줄어요.",
+        "지금이 인크레틴 호르몬 최고 활성 시간이에요! 이 타이밍을 놓치지 마세요 💪"
+    ],
+    evening: [
+        "골든타임이 얼마 안 남았어요! ⏰ 마지막 식사를 지금 마무리하면 α에 보너스가 붙어요!",
+        "저녁 마감 시간이 다가와요! 지금 식사 끝내면 오늘의 최대 포인트 루틴을 달성할 수 있어요! 🔥",
+        "라스트콜! 🔔 지금 마지막 식사를 마무리하면 밤새 지방 연소 모드에 돌입해요!"
+    ],
+    night: [
+        "야간 모드예요 🌙 지금부터는 먹지 않는 게 최고의 전략이에요. 물이나 허브티 한 잔은 괜찮아요!",
+        "배가 고프시다면... 양치질 한 번 해보세요! 🦷 입맛이 리셋되면서 야식 충동이 사라질 거예요.",
+        "블루라이트 차단 시간이에요 📱→🌙 지금 폰 밝기를 낮추면 멜라토닌이 분비되기 시작해요. 내일의 컨디션은 오늘 밤에 결정돼요!"
+    ]
+};
+
+// ★ 특수 이벤트 메시지 ★
+const TINA_EVENTS = {
+    streak: {
+        3: "3일 연속 방어 성공! 🔥 벌써 습관이 되고 있네요!",
+        7: "일주일 연속! ⚡ 이 정도면 몸이 변화를 느끼기 시작할 때예요!",
+        14: "2주 연속! 🌟 대단해요, {name}님. 진짜 대사 전사예요!",
+        30: "한 달 연속! 💎 인크레틴 감수성이 크게 개선됐을 거예요. 자부심을 가지세요!"
+    },
+    fullClear: [
+        "퍼! 펙! 트! 🎉 10/10 올클리어! 오늘의 {name}님은 그 누구보다 빛나요! ✨",
+        "10개 루틴 전부 완료! 🏆 이건 정말 대단해요! 오늘의 인크레틴 히어로는 {name}님!"
+    ],
+    levelUp: "축하해요, {name}님! 🎊 레벨 {lv} 달성! 이제부터 '{title}' 칭호예요!",
+    recovery: [
+        "해냈어요! 💪 {rec}점 복구 성공! 실수를 만회할 줄 아는 사람이 진짜 강한 거예요.",
+        "회복 미션 클리어! 🛡️ 방어선 복구 완료. 이렇게 바로 행동하는 {name}님이라면 목표 달성 문제없어요!"
+    ]
+};
+
+// ★ 루틴별 토스트 메시지 ★
+const TINA_TOASTS = [
+    "좋아요! 세로토닌 합성 시작! ☀️",
+    "GLP-1 사전 분비 준비 완료! 🥜",
+    "완벽한 순서! 혈당이 안정될 거예요 🥗",
+    "채소 먼저, 현명한 선택! 🥬",
+    "근육이 인슐린 수용체를 깨우고 있어요 💪",
+    "훌륭해요! 수분 보충 완료 💧",
+    "스트레스 호르몬 감소 시작! 🧘",
+    "멜라토닌 분비 환경 조성 완료! 🌙",
+    "최고! 오늘의 MVP 미션 달성! ⏰🔥",
+    "인크레틴 감수성 극대화! 완벽한 마무리! ✨"
+];
+
+let _tinaToastTimer = null;
+let _lastStreakMilestone = 0;
+
+// ★ 인크레티나 핵심 함수 ★
+function getRandomItem(arr) {
+    return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function getUserName() {
+    return document.getElementById('p-name').value || '사용자';
+}
+
+function getTimeGreeting() {
+    const h = new Date().getHours();
+    if (h >= 6 && h < 9) return getRandomItem(TINA_GREETINGS.morning);
+    if (h >= 11 && h < 13) return getRandomItem(TINA_GREETINGS.lunch);
+    if (h >= 17 && h < 19) return getRandomItem(TINA_GREETINGS.evening);
+    if (h >= 21) return getRandomItem(TINA_GREETINGS.night);
+    return null;
+}
+
+function replaceTinaTokens(msg, extra) {
+    const name = getUserName();
+    const imem = calculateIMEM();
+    const score = calculateTotalScore();
+    const total = (imem.alpha_net * imem.beta_net * imem.gamma_net).toFixed(3);
+    const pen = getTotalPenalty();
+    const rec = getTotalRecovery();
+    const streak = _gamification.streak || 0;
+    let result = msg
+        .replace(/\{name\}/g, name)
+        .replace(/\{a\}/g, imem.alpha_net.toFixed(2))
+        .replace(/\{b\}/g, imem.beta_net.toFixed(3))
+        .replace(/\{g\}/g, imem.gamma_net.toFixed(2))
+        .replace(/\{total\}/g, total)
+        .replace(/\{pen\}/g, pen)
+        .replace(/\{rec\}/g, rec)
+        .replace(/\{score\}/g, score)
+        .replace(/\{streak\}/g, streak);
+    if (extra) {
+        Object.keys(extra).forEach(k => {
+            result = result.replace(new RegExp('\\{' + k + '\\}', 'g'), extra[k]);
+        });
+    }
+    return result;
+}
+
+function showTinaToast(msg) {
+    const toast = document.getElementById('tina-toast');
+    document.getElementById('tina-toast-msg').textContent = msg;
+    toast.classList.add('show');
+    if (_tinaToastTimer) clearTimeout(_tinaToastTimer);
+    _tinaToastTimer = setTimeout(() => {
+        toast.classList.remove('show');
+        _tinaToastTimer = null;
+    }, 2200);
+}
+
+function updateMiniNudge() {
+    const score = calculateTotalScore();
+    const pen = getTotalPenalty();
+    const rec = getTotalRecovery();
+    const mood = document.getElementById('ai-persona').value || 'healing';
+
+    let state;
+    if (pen < 0 && rec === 0) state = 'penalty';
+    else if (score >= 85) state = 'master';
+    else if (score >= 50) state = 'achiever';
+    else state = 'reset';
+
+    // 시간 인사 + 상태별 메시지 조합
+    const greeting = getTimeGreeting();
+    const msgs = TINA_MESSAGES[mood] && TINA_MESSAGES[mood][state] ? TINA_MESSAGES[mood][state] : TINA_MESSAGES.healing[state];
+    const mainMsg = replaceTinaTokens(getRandomItem(msgs));
+
+    const miniEl = document.getElementById('tina-mini-msg');
+    if (miniEl) {
+        if (greeting) {
+            miniEl.innerHTML = '<span class="tina-greeting">' + replaceTinaTokens(greeting) + '</span>' + mainMsg;
+        } else {
+            miniEl.textContent = mainMsg;
+        }
+    }
+}
+
+function getTinaEventMessage(eventType, extra) {
+    if (eventType === 'streak') {
+        const streak = _gamification.streak || 0;
+        const milestones = [30, 14, 7, 3];
+        for (const ms of milestones) {
+            if (streak >= ms && TINA_EVENTS.streak[ms]) {
+                return replaceTinaTokens(TINA_EVENTS.streak[ms], extra);
+            }
+        }
+        return null;
+    }
+    if (eventType === 'fullClear') return replaceTinaTokens(getRandomItem(TINA_EVENTS.fullClear), extra);
+    if (eventType === 'levelUp') return replaceTinaTokens(TINA_EVENTS.levelUp, extra);
+    if (eventType === 'recovery') return replaceTinaTokens(getRandomItem(TINA_EVENTS.recovery), extra);
+    return null;
+}
 
 // ============================================================
 // BIO-SYNC TIMER
@@ -954,9 +1683,8 @@ function updateGauge(){
 
 function updateAIStatus(score){
     if(score===undefined)score=calculateTotalScore();
-    const imem=calculateIMEM(),persona=document.getElementById('ai-persona').value;
-    const total=(imem.alpha_net*imem.beta_net*imem.gamma_net).toFixed(3);
     const pen=getTotalPenalty(),rec=getTotalRecovery();
+    const mood=document.getElementById('ai-persona').value||'healing';
 
     let state;
     if(pen<0&&rec===0)state='penalty';
@@ -964,11 +1692,20 @@ function updateAIStatus(score){
     else if(score>=50)state='achiever';
     else state='reset';
 
-    let msg=(nudges[persona][state]||nudges[persona].reset)
-        .replace('{a}',imem.alpha_net.toFixed(2)).replace('{b}',imem.beta_net.toFixed(3))
-        .replace('{g}',imem.gamma_net.toFixed(2)).replace('{total}',total)
-        .replace('{pen}',pen).replace('{rec}',rec);
-    document.getElementById('ai-nudge').textContent=msg;
+    const msgs=TINA_MESSAGES[mood]&&TINA_MESSAGES[mood][state]?TINA_MESSAGES[mood][state]:TINA_MESSAGES.healing[state];
+    let msg=replaceTinaTokens(getRandomItem(msgs));
+
+    // 시간대 인사 추가
+    const greeting=getTimeGreeting();
+    const nudgeEl=document.getElementById('ai-nudge');
+    if(greeting){
+        nudgeEl.innerHTML='<div style="font-size:.75rem;color:var(--accent);font-weight:700;margin-bottom:8px">'+replaceTinaTokens(greeting)+'</div>'+msg;
+    }else{
+        nudgeEl.textContent=msg;
+    }
+
+    // 미니 넛지도 동기화
+    updateMiniNudge();
 }
 
 function refreshStats(score){
@@ -1023,7 +1760,16 @@ function renderRiskList(){
 
 function toggleModal(id){const m=document.getElementById(id);m.style.display=m.style.display==='flex'?'none':'flex'}
 
-function toggleTask(i){document.getElementById(`item-${i}`).classList.toggle('checked');onDataChange()}
+function toggleTask(i){
+    const el=document.getElementById(`item-${i}`);
+    const wasChecked=el.classList.contains('checked');
+    el.classList.toggle('checked');
+    // 체크 시에만 토스트 표시 (해제 시에는 미표시)
+    if(!wasChecked&&TINA_TOASTS[i]){
+        showTinaToast(TINA_TOASTS[i]);
+    }
+    onDataChange();
+}
 
 function toggleRisk(i){
     const el=document.getElementById(`risk-${i}`);
@@ -1055,6 +1801,11 @@ function doRecovery(){
     }
     document.getElementById('recovery-popup').classList.remove('show');
     onDataChange();
+    // 인크레티나 회복 축하 토스트
+    setTimeout(() => {
+        const rMsg = getTinaEventMessage('recovery');
+        if (rMsg) showTinaToast(rMsg);
+    }, 400);
 }
 function skipRecovery(){
     currentRecoveryIndex=-1;
@@ -1062,7 +1813,7 @@ function skipRecovery(){
 }
 function closeRecovery(){skipRecovery()}
 
-function onDataChange(){fullRefresh();saveDailyToCloud();saveProfileToCloud()}
+function onDataChange(){fullRefresh();saveDailyToCloud();saveProfileToCloud();gamificationOnDataChange()}
 
 function updateTrendChart(){
     const hist=window._cloudHistory||{};
@@ -1098,7 +1849,7 @@ function exportToExcel(){
         "IMEM":(e.alpha_net&&e.beta_net&&e.gamma_net)?(e.alpha_net*e.beta_net*e.gamma_net).toFixed(3):"-",
         "리스크":e.riskChecks?e.riskChecks.map((c,i)=>c?risks[i].title:null).filter(Boolean).join(", "):"",
         "회복미션":e.recoveries?e.recoveries.map((c,i)=>c?risks[i].recovery:null).filter(Boolean).join(", "):""}});
-    const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(data),"IMEM_v2.0_Log");XLSX.writeFile(wb,'IncretinAi_v5.0_DefenseRecovery.xlsx');
+    const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(data),"IMEM_v2.0_Log");XLSX.writeFile(wb,'IncretinAi_v6.0_Gamification.xlsx');
 }
 
 // ============================================================
@@ -1106,11 +1857,16 @@ function exportToExcel(){
 // ============================================================
 function initApp(){
     renderList();renderRiskList();
+    renderQuests();
+    updateLevelDisplay();
     listenToProfile();listenToHistory();
     updateBioSyncTimer();setInterval(updateBioSyncTimer,30000);
     fullRefresh();
+    // 인크레티나 미니 넛지 초기화 + 30분 갱신
+    updateMiniNudge();
+    setInterval(updateMiniNudge, 1800000);
 }
-dateInput.addEventListener('change',()=>{recoveryDone.fill(false);loadDateData()});
+dateInput.addEventListener('change',()=>{recoveryDone.fill(false);_lastDailyXP=0;renderQuests();loadDateData()});
 document.getElementById('daily-weight').addEventListener('input',()=>{saveDailyToCloud()});
 document.getElementById('p-lat').addEventListener('change',()=>{updateBioSyncTimer();saveProfileToCloud()});
 document.getElementById('p-diabetic').addEventListener('change',onDataChange);
