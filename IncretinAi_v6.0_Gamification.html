@@ -4,11 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>IncretinA i Pro v6.0 — Gamification Edition</title>
-    <link rel="manifest" href="/manifest.json">
+    <link rel="manifest" href="/elisha-incretinai/manifest.json">
     <meta name="theme-color" content="#2563eb">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <link rel="apple-touch-icon" href="/icons/icon-192x192.png">
+    <link rel="apple-touch-icon" href="/elisha-incretinai/icons/icon-192x192.png">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
@@ -760,7 +760,7 @@
 
 <!-- ★ PWA INSTALL BANNER ★ -->
 <div class="pwa-install-banner" id="pwa-install-banner">
-    <img src="/icons/icon-192x192.png" class="pwa-icon" alt="IncretinAi">
+    <img src="/elisha-incretinai/icons/icon-192x192.png" class="pwa-icon" alt="IncretinAi">
     <div class="pwa-text">
         <div class="pwa-title">IncretinAi 앱 설치</div>
         <div class="pwa-desc">홈 화면에 추가하여 앱처럼 사용하세요</div>
@@ -814,7 +814,7 @@ let deferredPrompt=null;
 const VAPID_KEY='BHOWoTxFmqizl_9nf1owOr5EUg0u0yY81-NfnmF_TJ1tryAfd8i7sO97dSjox2ld84qa9xr_9R94RobUFH9nye8';
 
 if('serviceWorker' in navigator){
-    navigator.serviceWorker.register('/sw.js').then(reg=>{
+    navigator.serviceWorker.register('/elisha-incretinai/sw.js',{scope:'/elisha-incretinai/'}).then(reg=>{
         swRegistration=reg;
         console.log('SW registered');
     }).catch(err=>console.warn('SW fail:',err));
@@ -906,30 +906,30 @@ function checkRoutineReminders(){
         const ssM=currentSunset.h*60+currentSunset.m;
         const diff=ssM-nowM;
         if(diff===15&&!_reminderFlags.golden15){
-            new Notification('IncretinAi',{body:'골든타임이 15분 남았어요! 마지막 식사를 마무리하세요.',icon:'/icons/icon-192x192.png',tag:'golden-15'});
+            new Notification('IncretinAi',{body:'골든타임이 15분 남았어요! 마지막 식사를 마무리하세요.',icon:'/elisha-incretinai/icons/icon-192x192.png',tag:'golden-15'});
             _reminderFlags.golden15=true;
         }
         if(diff===30&&!_reminderFlags.golden30){
-            new Notification('IncretinAi',{body:'골든타임이 30분 남았어요. 저녁 식사를 준비하세요.',icon:'/icons/icon-192x192.png',tag:'golden-30'});
+            new Notification('IncretinAi',{body:'골든타임이 30분 남았어요. 저녁 식사를 준비하세요.',icon:'/elisha-incretinai/icons/icon-192x192.png',tag:'golden-30'});
             _reminderFlags.golden30=true;
         }
     }
 
     // Morning check reminder (9 AM)
     if(nowM===540&&!_reminderFlags.morning){
-        new Notification('IncretinAi',{body:'좋은 아침이에요! 오늘 체중과 기상시간을 기록해주세요.',icon:'/icons/icon-192x192.png',tag:'morning'});
+        new Notification('IncretinAi',{body:'좋은 아침이에요! 오늘 체중과 기상시간을 기록해주세요.',icon:'/elisha-incretinai/icons/icon-192x192.png',tag:'morning'});
         _reminderFlags.morning=true;
     }
 
     // Lunch reminder (12 PM)
     if(nowM===720&&!_reminderFlags.lunch){
-        new Notification('IncretinAi',{body:'점심 식사 전 채소를 먼저 드세요! 인크레틴 분비에 도움이 됩니다.',icon:'/icons/icon-192x192.png',tag:'lunch'});
+        new Notification('IncretinAi',{body:'점심 식사 전 채소를 먼저 드세요! 인크레틴 분비에 도움이 됩니다.',icon:'/elisha-incretinai/icons/icon-192x192.png',tag:'lunch'});
         _reminderFlags.lunch=true;
     }
 
     // Evening routine reminder (9 PM)
     if(nowM===1260&&!_reminderFlags.evening){
-        new Notification('IncretinAi',{body:'오늘 하루 루틴을 완료하고 체크해주세요!',icon:'/icons/icon-192x192.png',tag:'evening'});
+        new Notification('IncretinAi',{body:'오늘 하루 루틴을 완료하고 체크해주세요!',icon:'/elisha-incretinai/icons/icon-192x192.png',tag:'evening'});
         _reminderFlags.evening=true;
     }
 }

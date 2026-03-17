@@ -2,8 +2,8 @@
   "name": "IncretinA i Pro — 인크레틴을 지키는 과학",
   "short_name": "IncretinAi",
   "description": "GLP-1/인크레틴 호르몬 최적화를 위한 디지털 헬스케어 앱",
-  "start_url": "/IncretinAi_v6.0_Gamification.html",
-  "scope": "/",
+  "start_url": "/elisha-incretinai/IncretinAi_v6.0_Gamification.html",
+  "scope": "/elisha-incretinai/",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#0f172a",
@@ -11,12 +11,12 @@
   "lang": "ko",
   "icons": [
     {
-      "src": "/icons/icon-192x192.png",
+      "src": "/elisha-incretinai/icons/icon-192x192.png",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "/icons/icon-512x512.png",
+      "src": "/elisha-incretinai/icons/icon-512x512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"

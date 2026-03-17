@@ -1,9 +1,10 @@
 // IncretinAi PWA Service Worker v1.0
-const CACHE_NAME = 'incretinai-v6.1.0';
+const CACHE_NAME = 'incretinai-v6.2.0';
+const BASE = '/elisha-incretinai';
 const APP_SHELL = [
-  '/IncretinAi_v6.0_Gamification.html',
-  '/icons/icon-192x192.png',
-  '/icons/icon-512x512.png'
+  BASE + '/IncretinAi_v6.0_Gamification.html',
+  BASE + '/icons/icon-192x192.png',
+  BASE + '/icons/icon-512x512.png'
 ];
 
 // Install: pre-cache app shell
@@ -69,8 +70,8 @@ messaging.onBackgroundMessage(payload => {
   const title = payload.notification?.title || 'IncretinAi';
   const options = {
     body: payload.notification?.body || '',
-    icon: '/icons/icon-192x192.png',
-    badge: '/icons/icon-192x192.png',
+    icon: BASE + '/icons/icon-192x192.png',
+    badge: BASE + '/icons/icon-192x192.png',
     data: payload.data
   };
   self.registration.showNotification(title, options);
@@ -85,7 +86,7 @@ self.addEventListener('notificationclick', e => {
         for (const client of clientList) {
           if (client.url.includes('IncretinAi') && 'focus' in client) return client.focus();
         }
-        return clients.openWindow('/IncretinAi_v6.0_Gamification.html');
+        return clients.openWindow(BASE + '/IncretinAi_v6.0_Gamification.html');
       })
   );
 });
