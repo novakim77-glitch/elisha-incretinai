@@ -4,11 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>IncretinA i Pro v6.0 — Gamification Edition</title>
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#2563eb">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="/icons/icon-192x192.png">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800;900&family=JetBrains+Mono:wght@500;700&family=Noto+Sans+KR:wght@300;400;500;600&display=swap');
         :root {
@@ -67,6 +73,28 @@
         .cover-story-btn:hover{background:var(--primary);color:#fff;border-color:var(--primary)}
         .admin-btn{font-size:.68rem;font-weight:700;color:#fff;background:linear-gradient(135deg,#ef4444,#dc2626);border:none;padding:6px 12px;border-radius:20px;cursor:pointer;letter-spacing:-.2px;transition:all .2s;white-space:nowrap}
         .admin-btn:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(239,68,68,.3)}
+        /* PWA Install Banner */
+        .pwa-install-banner{display:none;position:fixed;bottom:0;left:0;right:0;z-index:9999;background:linear-gradient(135deg,#1e293b,#0f172a);color:#fff;padding:16px 20px;align-items:center;gap:12px;box-shadow:0 -4px 24px rgba(0,0,0,.3);animation:slideUp .4s ease}
+        @keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+        .pwa-install-banner .pwa-icon{width:44px;height:44px;border-radius:12px;flex-shrink:0}
+        .pwa-install-banner .pwa-text{flex:1}
+        .pwa-install-banner .pwa-title{font-weight:700;font-size:.9rem;margin-bottom:2px}
+        .pwa-install-banner .pwa-desc{font-size:.75rem;color:#94a3b8}
+        .pwa-install-btn{background:var(--primary);color:#fff;border:none;padding:10px 20px;border-radius:12px;font-weight:700;font-size:.82rem;cursor:pointer;white-space:nowrap}
+        .pwa-install-btn:hover{filter:brightness(1.1)}
+        .pwa-dismiss-btn{background:none;border:none;color:#64748b;font-size:1.2rem;cursor:pointer;padding:4px 8px}
+        /* Notification Toggle */
+        .notif-toggle-row{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-top:1px solid var(--border)}
+        .notif-toggle-label{font-size:.85rem;font-weight:600;color:var(--text)}
+        .notif-toggle-sub{font-size:.72rem;color:var(--text-sub);margin-top:2px}
+        .notif-switch{position:relative;width:48px;height:26px;flex-shrink:0}
+        .notif-switch input{opacity:0;width:0;height:0}
+        .notif-slider{position:absolute;inset:0;background:#cbd5e1;border-radius:26px;cursor:pointer;transition:.3s}
+        .notif-slider:before{content:'';position:absolute;width:20px;height:20px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.3s}
+        .notif-switch input:checked+.notif-slider{background:var(--primary)}
+        .notif-switch input:checked+.notif-slider:before{transform:translateX(22px)}
+        /* iOS install guide */
+        .ios-guide{display:none;background:var(--surface-alt);border:1px solid var(--border);border-radius:12px;padding:14px;margin-top:10px;font-size:.78rem;color:var(--text-sub);line-height:1.6}
         .admin-table{width:100%;border-collapse:collapse;font-size:.8rem;margin-top:16px}
         .admin-table th{background:var(--surface-alt);font-weight:700;text-align:left;padding:10px 12px;font-size:.7rem;color:var(--text-sub);letter-spacing:.5px;text-transform:uppercase;border-bottom:2px solid var(--border)}
         .admin-table td{padding:10px 12px;border-bottom:1px solid var(--border);color:var(--text)}
@@ -638,6 +666,23 @@
             <div class="input-group"><label>위도 (자동)</label><input type="number" id="p-lat" step="0.1" value="37.5"></div>
         </div>
         <button class="btn btn-primary no-print" onclick="runComprehensiveAnalysis()">🔬 분석 실행 및 데이터 갱신</button>
+
+        <!-- 알림 설정 -->
+        <div class="notif-toggle-row no-print" id="notif-section">
+            <div>
+                <div class="notif-toggle-label">🔔 루틴 알림 받기</div>
+                <div class="notif-toggle-sub" id="notif-status-text">골든타임 임박 시 알림을 받습니다</div>
+            </div>
+            <label class="notif-switch">
+                <input type="checkbox" id="notif-toggle" onchange="toggleNotifications(this.checked)">
+                <span class="notif-slider"></span>
+            </label>
+        </div>
+        <div class="ios-guide" id="ios-guide">
+            📱 <b>iPhone 사용자 안내</b><br>
+            푸시 알림을 받으려면 먼저 앱을 홈 화면에 추가해야 합니다:<br>
+            Safari 하단 <b>공유 버튼(↑)</b> → <b>"홈 화면에 추가"</b> 탭
+        </div>
     </div>
 
     <div class="dashboard-grid no-print">
@@ -713,6 +758,17 @@
     </div>
 </div>
 
+<!-- ★ PWA INSTALL BANNER ★ -->
+<div class="pwa-install-banner" id="pwa-install-banner">
+    <img src="/icons/icon-192x192.png" class="pwa-icon" alt="IncretinAi">
+    <div class="pwa-text">
+        <div class="pwa-title">IncretinAi 앱 설치</div>
+        <div class="pwa-desc">홈 화면에 추가하여 앱처럼 사용하세요</div>
+    </div>
+    <button class="pwa-install-btn" onclick="installPWA()">설치</button>
+    <button class="pwa-dismiss-btn" onclick="dismissInstallBanner()">&times;</button>
+</div>
+
 <!-- ★ ADMIN MODAL ★ -->
 <div class="modal" id="admin-modal" onclick="if(event.target===this)closeAdminModal()">
     <div class="modal-content" style="max-width:900px">
@@ -749,6 +805,134 @@ db.enablePersistence({synchronizeTabs:true}).catch(e=>console.warn('Persistence:
 let currentUser=null,unsubProfile=null,unsubHistory=null;
 const ADMIN_EMAILS=['novakim77@gmail.com'];
 function isAdmin(){return currentUser&&currentUser.email&&ADMIN_EMAILS.includes(currentUser.email)}
+
+// ============================================================
+// PWA & PUSH NOTIFICATIONS
+// ============================================================
+let swRegistration=null;
+let deferredPrompt=null;
+const VAPID_KEY='BHOWoTxFmqizl_9nf1owOr5EUg0u0yY81-NfnmF_TJ1tryAfd8i7sO97dSjox2ld84qa9xr_9R94RobUFH9nye8';
+
+if('serviceWorker' in navigator){
+    navigator.serviceWorker.register('/sw.js').then(reg=>{
+        swRegistration=reg;
+        console.log('SW registered');
+    }).catch(err=>console.warn('SW fail:',err));
+}
+
+// PWA install prompt
+window.addEventListener('beforeinstallprompt',e=>{
+    e.preventDefault();
+    deferredPrompt=e;
+    const dismissed=localStorage.getItem('pwa-dismissed');
+    if(!dismissed||Date.now()-parseInt(dismissed)>7*24*60*60*1000){
+        document.getElementById('pwa-install-banner').style.display='flex';
+    }
+});
+window.addEventListener('appinstalled',()=>{
+    document.getElementById('pwa-install-banner').style.display='none';
+    deferredPrompt=null;
+    showTinaToast('IncretinAi가 홈 화면에 설치되었어요!');
+});
+function installPWA(){
+    if(!deferredPrompt)return;
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then(c=>{
+        deferredPrompt=null;
+        document.getElementById('pwa-install-banner').style.display='none';
+    });
+}
+function dismissInstallBanner(){
+    document.getElementById('pwa-install-banner').style.display='none';
+    localStorage.setItem('pwa-dismissed',Date.now().toString());
+}
+
+// iOS detection
+function isIOS(){return /iPad|iPhone|iPod/.test(navigator.userAgent)}
+function isStandalone(){return window.navigator.standalone===true||window.matchMedia('(display-mode:standalone)').matches}
+
+// Notification functions
+async function requestNotifPermission(){
+    if(!('Notification' in window)){showTinaToast('이 브라우저는 알림을 지원하지 않아요.');return false}
+    const perm=await Notification.requestPermission();
+    if(perm==='granted'){
+        await saveFCMToken();
+        showTinaToast('루틴 알림이 활성화되었어요!');
+        return true;
+    }else{
+        showTinaToast('알림 권한이 거부되었어요.');
+        return false;
+    }
+}
+async function saveFCMToken(){
+    if(!swRegistration||!currentUser||VAPID_KEY==='__VAPID_KEY__')return;
+    try{
+        const messaging=firebase.messaging();
+        const token=await messaging.getToken({vapidKey:VAPID_KEY,serviceWorkerRegistration:swRegistration});
+        if(token){
+            await userDoc().set({fcmToken:token,fcmUpdatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});
+        }
+    }catch(e){console.warn('FCM token error:',e)}
+}
+async function toggleNotifications(on){
+    if(on){
+        if(isIOS()&&!isStandalone()){
+            document.getElementById('ios-guide').style.display='block';
+            document.getElementById('notif-toggle').checked=false;
+            return;
+        }
+        const ok=await requestNotifPermission();
+        if(!ok){document.getElementById('notif-toggle').checked=false;return}
+        document.getElementById('notif-status-text').textContent='알림이 활성화되었습니다';
+        document.getElementById('ios-guide').style.display='none';
+        if(currentUser)await userDoc().set({notificationsEnabled:true},{merge:true});
+    }else{
+        document.getElementById('notif-status-text').textContent='골든타임 임박 시 알림을 받습니다';
+        if(currentUser)await userDoc().set({notificationsEnabled:false},{merge:true});
+    }
+}
+
+// Client-side routine reminders (runs while app is open)
+let _reminderFlags={};
+function checkRoutineReminders(){
+    if(Notification.permission!=='granted')return;
+    const now=new Date();
+    const nowM=now.getHours()*60+now.getMinutes();
+    const today=now.toISOString().slice(0,10);
+    if(_reminderFlags._date!==today){_reminderFlags={_date:today}}
+
+    // Golden time end reminder (15 min before)
+    if(typeof currentSunset!=='undefined'&&currentSunset){
+        const ssM=currentSunset.h*60+currentSunset.m;
+        const diff=ssM-nowM;
+        if(diff===15&&!_reminderFlags.golden15){
+            new Notification('IncretinAi',{body:'골든타임이 15분 남았어요! 마지막 식사를 마무리하세요.',icon:'/icons/icon-192x192.png',tag:'golden-15'});
+            _reminderFlags.golden15=true;
+        }
+        if(diff===30&&!_reminderFlags.golden30){
+            new Notification('IncretinAi',{body:'골든타임이 30분 남았어요. 저녁 식사를 준비하세요.',icon:'/icons/icon-192x192.png',tag:'golden-30'});
+            _reminderFlags.golden30=true;
+        }
+    }
+
+    // Morning check reminder (9 AM)
+    if(nowM===540&&!_reminderFlags.morning){
+        new Notification('IncretinAi',{body:'좋은 아침이에요! 오늘 체중과 기상시간을 기록해주세요.',icon:'/icons/icon-192x192.png',tag:'morning'});
+        _reminderFlags.morning=true;
+    }
+
+    // Lunch reminder (12 PM)
+    if(nowM===720&&!_reminderFlags.lunch){
+        new Notification('IncretinAi',{body:'점심 식사 전 채소를 먼저 드세요! 인크레틴 분비에 도움이 됩니다.',icon:'/icons/icon-192x192.png',tag:'lunch'});
+        _reminderFlags.lunch=true;
+    }
+
+    // Evening routine reminder (9 PM)
+    if(nowM===1260&&!_reminderFlags.evening){
+        new Notification('IncretinAi',{body:'오늘 하루 루틴을 완료하고 체크해주세요!',icon:'/icons/icon-192x192.png',tag:'evening'});
+        _reminderFlags.evening=true;
+    }
+}
 
 // ============================================================
 // AUTH
@@ -2026,11 +2210,21 @@ function initApp(){
     renderQuests();
     updateLevelDisplay();
     listenToProfile();listenToHistory();
-    updateBioSyncTimer();setInterval(updateBioSyncTimer,30000);
+    updateBioSyncTimer();setInterval(()=>{updateBioSyncTimer();checkRoutineReminders()},30000);
     fullRefresh();
     // 인크레티나 미니 넛지 초기화 + 30분 갱신
     updateMiniNudge();
     setInterval(updateMiniNudge, 1800000);
+    // Restore notification toggle state
+    if('Notification' in window && Notification.permission==='granted'){
+        document.getElementById('notif-toggle').checked=true;
+        document.getElementById('notif-status-text').textContent='알림이 활성화되었습니다';
+    }
+    if(isIOS()&&!isStandalone()){
+        document.getElementById('ios-guide').style.display='block';
+    }
+    // Init FCM token if already permitted
+    if(Notification.permission==='granted'&&swRegistration){saveFCMToken()}
 }
 dateInput.addEventListener('change',()=>{recoveryDone.fill(false);_lastDailyXP=0;renderQuests();loadDateData()});
 // Weight input: sanitize to allow only digits and one decimal point, debounce save
