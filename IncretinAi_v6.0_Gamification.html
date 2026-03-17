@@ -362,7 +362,12 @@
         /* STREAK BAR */
         .streak-bar{display:flex;align-items:center;gap:8px;padding:8px 14px;margin-bottom:12px;background:linear-gradient(135deg,rgba(249,115,22,.08),rgba(239,68,68,.05));border-radius:14px;border:1px solid rgba(249,115,22,.15)}
         [data-theme="night"] .streak-bar{background:linear-gradient(135deg,rgba(249,115,22,.12),rgba(239,68,68,.08));border-color:rgba(249,115,22,.2)}
-        .streak-fire{font-size:1.3rem;filter:drop-shadow(0 0 4px rgba(249,115,22,.5))}
+        .streak-fire{font-size:1.3rem;filter:drop-shadow(0 0 4px rgba(249,115,22,.5));transition:all .3s}
+        .streak-fire.intensity-mid{animation:streakPulse 1.5s infinite}
+        .streak-fire.intensity-high{filter:drop-shadow(0 0 8px #f97316) drop-shadow(0 0 16px rgba(249,115,22,.3))}
+        .streak-fire.intensity-max{font-size:1.4rem;filter:drop-shadow(0 0 12px #fbbf24) drop-shadow(0 0 24px rgba(251,191,36,.3));animation:streakGlow 2s infinite}
+        @keyframes streakPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.15)}}
+        @keyframes streakGlow{0%,100%{filter:drop-shadow(0 0 8px #f97316)}50%{filter:drop-shadow(0 0 16px #fbbf24) drop-shadow(0 0 24px rgba(251,191,36,.4))}}
         .streak-count{font-family:'JetBrains Mono',monospace;font-size:1.1rem;font-weight:800;color:#ea580c}
         [data-theme="night"] .streak-count{color:#fb923c}
         .streak-label{font-size:.7rem;font-weight:700;color:var(--text-sub)}
@@ -385,6 +390,60 @@
         .quest-item.completed .quest-xp{color:var(--success)}
         .quest-bonus{text-align:center;padding:10px;margin-top:4px;font-size:.75rem;font-weight:700;color:var(--accent);background:var(--accent-glow);border-radius:12px}
         .quest-bonus.claimed{background:var(--success-glow);color:var(--success)}
+
+        /* STREAK FREEZE BADGE */
+        .streak-freeze{font-size:.6rem;font-weight:800;color:#60a5fa;margin-left:4px}
+
+        /* WEEKLY REPORT */
+        .weekly-report-card{background:var(--surface);border-radius:var(--card-radius);padding:20px;margin-bottom:20px;border:2px solid var(--primary);box-shadow:0 8px 32px var(--primary-glow);width:100%;transition:background var(--transition)}
+        [data-theme="night"] .weekly-report-card{border-color:#3b82f6}
+        .weekly-report-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+        .weekly-report-title{font-size:.82rem;font-weight:800;color:var(--primary);display:flex;align-items:center;gap:6px}
+        .weekly-report-dates{font-family:'JetBrains Mono',monospace;font-size:.65rem;font-weight:700;color:var(--text-sub)}
+        .wr-stats-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:14px}
+        .wr-stat{background:var(--surface-alt);border-radius:14px;padding:12px;text-align:center;border:1px solid var(--border)}
+        .wr-stat-value{font-family:'JetBrains Mono',monospace;font-size:1.2rem;font-weight:700;display:block}
+        .wr-stat-label{font-size:.6rem;font-weight:700;color:var(--text-sub);display:block;margin-top:2px}
+        .wr-compare-row{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-radius:10px;background:var(--surface-alt);margin-bottom:5px;font-size:.72rem;font-weight:600}
+        .wr-arrow{font-size:.7rem;font-weight:800}
+        .wr-arrow.up{color:var(--success)}.wr-arrow.down{color:var(--danger)}.wr-arrow.same{color:var(--text-sub)}
+
+        /* BADGE INVENTORY */
+        .badge-inventory-card{background:var(--surface);border-radius:var(--card-radius);padding:20px;margin-bottom:20px;border:1px solid var(--border);box-shadow:var(--shadow)}
+        .badge-inv-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+        .badge-inv-title{font-size:.82rem;font-weight:800;color:var(--text)}
+        .badge-inv-count{font-family:'JetBrains Mono',monospace;font-size:.7rem;font-weight:700;color:var(--text-sub)}
+        .badge-inv-tabs{display:flex;gap:4px;margin-bottom:12px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:4px}
+        .badge-tab{padding:5px 10px;border-radius:10px;border:1px solid var(--border);background:var(--surface-alt);font-size:.6rem;font-weight:700;cursor:pointer;white-space:nowrap;color:var(--text-sub)}
+        .badge-tab.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+        .badge-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+        @media(max-width:420px){.badge-grid{grid-template-columns:repeat(3,1fr)}}
+        .badge-cell{text-align:center;padding:12px 6px;border-radius:14px;background:var(--surface-alt);border:1px solid var(--border);transition:all .3s}
+        .badge-cell.earned{border-color:var(--primary);background:var(--primary-glow)}
+        .badge-cell.locked{opacity:.3;filter:grayscale(1)}
+        .badge-icon{font-size:1.6rem;display:block;margin-bottom:3px}
+        .badge-name{font-size:.55rem;font-weight:700;color:var(--text);display:block}
+        .badge-desc{font-size:.48rem;color:var(--text-sub);display:block;margin-top:1px}
+        .badge-cell.earned .badge-name{color:var(--primary)}
+        @keyframes badgeEarn{0%{transform:scale(0) rotate(-180deg);opacity:0}60%{transform:scale(1.2) rotate(10deg)}100%{transform:scale(1) rotate(0);opacity:1}}
+        .badge-cell.just-earned{animation:badgeEarn .6s ease}
+
+        /* BEFORE/AFTER COMPARISON */
+        .compare-date-row{display:flex;align-items:center;gap:10px;margin-bottom:18px}
+        .compare-date-pick{flex:1}
+        .compare-date-pick label{font-size:.6rem;font-weight:700;color:var(--text-sub);display:block;margin-bottom:4px}
+        .compare-date-pick input[type="date"]{width:100%;padding:8px 10px;border-radius:10px;border:1px solid var(--border);background:var(--surface-alt);font-size:.75rem;font-family:'JetBrains Mono',monospace;color:var(--text)}
+        .compare-vs{font-family:'JetBrains Mono',monospace;font-size:1rem;font-weight:900;color:var(--primary)}
+        .compare-row{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-bottom:1px solid var(--border);font-size:.78rem}
+        .compare-row:last-child{border-bottom:none}
+        .compare-label{font-weight:700;color:var(--text-sub);flex:1}
+        .compare-values{display:flex;align-items:center;gap:8px}
+        .compare-old{font-family:'JetBrains Mono',monospace;font-size:.8rem;font-weight:700;color:var(--text-sub)}
+        .compare-new{font-family:'JetBrains Mono',monospace;font-size:.8rem;font-weight:700;color:var(--primary)}
+        .compare-diff{font-family:'JetBrains Mono',monospace;font-size:.68rem;font-weight:800;padding:2px 8px;border-radius:8px}
+        .compare-diff.positive{background:var(--success-glow);color:var(--success)}
+        .compare-diff.negative{background:var(--danger-glow);color:var(--danger)}
+        .compare-diff.neutral{background:var(--surface-alt);color:var(--text-sub)}
 
         /* CELEBRATION CANVAS */
         #celebration-canvas{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9999}
@@ -583,6 +642,7 @@
             <span class="streak-count" id="streak-count">0</span>
             <span class="streak-label">일 연속</span>
             <span id="streak-milestone-badge"></span>
+            <span class="streak-freeze" id="streak-freeze-badge"></span>
             <span class="streak-best" id="streak-best">최고: 0일</span>
         </div>
         <div class="gauge-header">
@@ -614,6 +674,16 @@
         <div class="quest-bonus" id="quest-bonus">🎁 3개 완료 시 보너스 +30 XP</div>
     </div>
 
+    <!-- ★ WEEKLY REPORT CARD — v7.0 ★ -->
+    <div class="weekly-report-card" id="weekly-report" style="display:none">
+        <div class="weekly-report-header">
+            <span class="weekly-report-title">📊 주간 리포트</span>
+            <span class="weekly-report-dates" id="wr-dates"></span>
+        </div>
+        <div class="wr-stats-grid" id="wr-stats"></div>
+        <div id="wr-compare"></div>
+    </div>
+
     <!-- ★ TINA MINI-NUDGE CARD — v6.0 ★ -->
     <div class="tina-mini-card" id="tina-mini-card" onclick="showAINudgeModal()">
         <div class="tina-mini-header">
@@ -628,6 +698,7 @@
         <div class="stat-item"><span class="stat-lbl">목표 달성률</span><span class="stat-val" id="ach-v" style="color:var(--danger)">0%</span></div>
         <div class="stat-item"><span class="stat-lbl">페널티 합계</span><span class="stat-val" id="penalty-total" style="color:var(--danger)">0</span></div>
         <div class="stat-item"><span class="stat-lbl">회복 합계</span><span class="stat-val" id="recovery-total" style="color:var(--success)">0</span></div>
+        <div class="stat-item" onclick="openCompareModal()" style="cursor:pointer;grid-column:1/-1"><span class="stat-lbl">📊 Before / After 비교 분석</span><span class="stat-val" style="font-size:.85rem;color:var(--primary)">보기 →</span></div>
     </div>
 
     <div class="imem-card">
@@ -701,6 +772,16 @@
 
     <!-- ★ PAGE: PROFILE ★ -->
     <div class="main-page" id="page-profile">
+
+    <!-- ★ BADGE INVENTORY — v7.0 ★ -->
+    <div class="badge-inventory-card" id="badge-inventory">
+        <div class="badge-inv-header">
+            <span class="badge-inv-title">🏅 배지 컬렉션</span>
+            <span class="badge-inv-count" id="badge-count">0/20</span>
+        </div>
+        <div class="badge-inv-tabs" id="badge-tabs"></div>
+        <div class="badge-grid" id="badge-grid"></div>
+    </div>
 
     <div class="glass-card">
         <span class="section-label">👤 프로필 및 분석 설정</span>
@@ -803,6 +884,28 @@
             </select>
         </div>
         <div id="ai-nudge" class="ai-content" style="min-height:80px">안녕하세요! 인크레티나예요 😊 루틴을 기록하면 맞춤 코칭을 드릴게요!</div>
+    </div>
+</div>
+
+<!-- ★ BEFORE/AFTER COMPARISON MODAL — v7.0 ★ -->
+<div class="ai-modal" id="compare-modal" onclick="if(event.target===this)closeCompareModal()">
+    <div class="ai-modal-content" style="max-width:480px">
+        <div class="ai-modal-header">
+            <h2>📊 Before / After</h2>
+            <button class="ai-modal-close" onclick="closeCompareModal()">&times;</button>
+        </div>
+        <div class="compare-date-row">
+            <div class="compare-date-pick">
+                <label>시작일 (Before)</label>
+                <input type="date" id="compare-from" onchange="renderComparison()">
+            </div>
+            <div class="compare-vs">VS</div>
+            <div class="compare-date-pick">
+                <label>오늘 (After)</label>
+                <input type="date" id="compare-to" disabled>
+            </div>
+        </div>
+        <div id="compare-body" style="background:var(--surface-alt);border-radius:18px;padding:16px"></div>
     </div>
 </div>
 
@@ -1144,7 +1247,8 @@ const LEVEL_TABLE = [
     {lv:30, xp:20000, title:'인크레틴 레전드', icon:'👑'}
 ];
 
-let _gamification = { xp: 0, level: 1, streak: 0, bestStreak: 0, lastStreakDate: '', todayXpAwarded: false };
+let _gamification = { xp: 0, level: 1, streak: 0, bestStreak: 0, lastStreakDate: '', todayXpAwarded: false,
+    streakMilestonesAwarded: [], streakFreezeUsed: false, streakFreezeDate: '', lastWeeklyBonusStreak: 0, earnedBadges: [] };
 let _prevLevel = 1;
 
 function getLevelInfo(xp) {
@@ -1183,34 +1287,46 @@ function addXP(amount, showFloat) {
     saveGamificationToCloud();
 }
 
-// --- STREAK SYSTEM ---
+// --- STREAK SYSTEM (v7.0 Enhanced) ---
 function calculateStreak() {
     const hist = window._cloudHistory || {};
-    const dates = Object.keys(hist).sort().reverse();
     const today = document.getElementById('target-date').value;
     let streak = 0;
     let checkDate = new Date(today);
+    let freezeUsed = false;
 
-    // Check if today qualifies (score >= 70)
     if (hist[today] && hist[today].score >= 70) {
         streak = 1;
         checkDate.setDate(checkDate.getDate() - 1);
     } else {
-        // Today not yet qualified, check from yesterday
         checkDate.setDate(checkDate.getDate() - 1);
     }
 
-    // Count consecutive past days with score >= 70
     for (let i = 0; i < 365; i++) {
         const key = checkDate.toISOString().split('T')[0];
         if (hist[key] && hist[key].score >= 70) {
             streak++;
             checkDate.setDate(checkDate.getDate() - 1);
+        } else if (!freezeUsed && streak >= 7) {
+            // Streak freeze: bridge 1-day gap if streak >= 7
+            const prevDate = new Date(checkDate);
+            prevDate.setDate(prevDate.getDate() - 1);
+            const prevKey = prevDate.toISOString().split('T')[0];
+            if (hist[prevKey] && hist[prevKey].score >= 70) {
+                freezeUsed = true;
+                _gamification.streakFreezeDate = key;
+                checkDate = prevDate;
+                streak++;
+                checkDate.setDate(checkDate.getDate() - 1);
+            } else {
+                break;
+            }
         } else {
             break;
         }
     }
 
+    _gamification.streakFreezeUsed = freezeUsed;
     _gamification.streak = streak;
     if (streak > _gamification.bestStreak) {
         _gamification.bestStreak = streak;
@@ -1223,22 +1339,39 @@ function updateStreakDisplay() {
     document.getElementById('streak-count').textContent = streak;
     document.getElementById('streak-best').textContent = '최고: ' + _gamification.bestStreak + '일';
 
-    // Fire intensity
+    // Fire intensity (v7.0 visual escalation)
     const fire = document.getElementById('streak-fire');
-    if (streak >= 30) fire.textContent = '🔥';
-    else if (streak >= 14) fire.textContent = '🔥';
-    else if (streak >= 7) fire.textContent = '🔥';
-    else if (streak >= 3) fire.textContent = '🔥';
-    else fire.textContent = '💤';
+    fire.className = 'streak-fire';
+    if (streak >= 100) { fire.textContent = '👑🔥'; fire.classList.add('intensity-max'); }
+    else if (streak >= 30) { fire.textContent = '💎🔥'; fire.classList.add('intensity-max'); }
+    else if (streak >= 14) { fire.textContent = '🔥🔥🔥'; fire.classList.add('intensity-high'); }
+    else if (streak >= 7) { fire.textContent = '🔥🔥'; fire.classList.add('intensity-high'); }
+    else if (streak >= 3) { fire.textContent = '🔥'; fire.classList.add('intensity-mid'); }
+    else if (streak >= 1) { fire.textContent = '🔥'; }
+    else { fire.textContent = '💤'; }
 
     // Milestone badge
     const badge = document.getElementById('streak-milestone-badge');
     if (streak >= 100) badge.innerHTML = '<span class="streak-milestone">👑 100일!</span>';
+    else if (streak >= 50) badge.innerHTML = '<span class="streak-milestone">🏆 50일!</span>';
     else if (streak >= 30) badge.innerHTML = '<span class="streak-milestone">💎 30일!</span>';
+    else if (streak >= 21) badge.innerHTML = '<span class="streak-milestone">🏅 3주!</span>';
     else if (streak >= 14) badge.innerHTML = '<span class="streak-milestone">🌟 14일!</span>';
+    else if (streak >= 10) badge.innerHTML = '<span class="streak-milestone">💫 10일!</span>';
     else if (streak >= 7) badge.innerHTML = '<span class="streak-milestone">⚡ 7일!</span>';
+    else if (streak >= 5) badge.innerHTML = '<span class="streak-milestone">⭐ 5일!</span>';
     else if (streak >= 3) badge.innerHTML = '<span class="streak-milestone">🔥 3일!</span>';
     else badge.innerHTML = '';
+
+    // Freeze indicator
+    const freezeBadge = document.getElementById('streak-freeze-badge');
+    if (_gamification.streakFreezeUsed) {
+        freezeBadge.textContent = '❄️ 프리즈 사용';
+    } else if (streak >= 7) {
+        freezeBadge.textContent = '❄️ 프리즈 보유';
+    } else {
+        freezeBadge.textContent = '';
+    }
 }
 
 // --- DAILY QUEST SYSTEM ---
@@ -1335,6 +1468,11 @@ function calculateDailyXP() {
     xp += recoveryDone.filter(Boolean).length * 10;
     // +20 for streak maintenance (if streak >= 1)
     if (_gamification.streak >= 1) xp += 20;
+    // +50 weekly streak bonus (every 7 days)
+    if (_gamification.streak > 0 && _gamification.streak % 7 === 0 && _gamification.lastWeeklyBonusStreak < _gamification.streak) {
+        xp += 50;
+        _gamification.lastWeeklyBonusStreak = _gamification.streak;
+    }
     // Quest XP
     _todayQuests.forEach(q => { if (q.check()) xp += q.xp; });
     // Quest bonus
@@ -1428,7 +1566,12 @@ async function saveGamificationToCloud() {
             level: _gamification.level,
             streak: _gamification.streak,
             bestStreak: _gamification.bestStreak,
-            lastStreakDate: _gamification.lastStreakDate
+            lastStreakDate: _gamification.lastStreakDate,
+            streakMilestonesAwarded: _gamification.streakMilestonesAwarded,
+            streakFreezeUsed: _gamification.streakFreezeUsed,
+            streakFreezeDate: _gamification.streakFreezeDate,
+            lastWeeklyBonusStreak: _gamification.lastWeeklyBonusStreak,
+            earnedBadges: _gamification.earnedBadges
         }, { merge: true });
     } catch (e) { console.warn('Gamification save:', e); }
 }
@@ -1439,9 +1582,28 @@ function loadGamificationFromProfile(data) {
     if (data.streak !== undefined) _gamification.streak = data.streak;
     if (data.bestStreak !== undefined) _gamification.bestStreak = data.bestStreak;
     if (data.lastStreakDate !== undefined) _gamification.lastStreakDate = data.lastStreakDate;
+    if (Array.isArray(data.streakMilestonesAwarded)) _gamification.streakMilestonesAwarded = data.streakMilestonesAwarded;
+    if (data.streakFreezeUsed !== undefined) _gamification.streakFreezeUsed = data.streakFreezeUsed;
+    if (data.streakFreezeDate !== undefined) _gamification.streakFreezeDate = data.streakFreezeDate;
+    if (data.lastWeeklyBonusStreak !== undefined) _gamification.lastWeeklyBonusStreak = data.lastWeeklyBonusStreak;
+    if (Array.isArray(data.earnedBadges)) _gamification.earnedBadges = data.earnedBadges;
     updateLevelDisplay();
     updateStreakDisplay();
+    renderBadgeInventory();
 }
+
+// --- STREAK MILESTONE TABLE (v7.0) ---
+const STREAK_MILESTONES = [
+    {days:3, xp:15, emoji:'🔥', label:'3일 돌파'},
+    {days:5, xp:20, emoji:'⚡', label:'5일 연속'},
+    {days:7, xp:30, emoji:'🌟', label:'1주 완주'},
+    {days:10, xp:25, emoji:'💫', label:'10일 달성'},
+    {days:14, xp:50, emoji:'⭐', label:'2주 연속'},
+    {days:21, xp:40, emoji:'🏅', label:'3주 달성'},
+    {days:30, xp:100, emoji:'💎', label:'한 달 연속'},
+    {days:50, xp:75, emoji:'🏆', label:'50일 레전드'},
+    {days:100, xp:200, emoji:'👑', label:'100일 전설'}
+];
 
 // --- GAMIFICATION HOOK INTO DATA CHANGE ---
 let _lastDailyXP = 0;
@@ -1467,17 +1629,23 @@ function gamificationOnDataChange() {
         }, 300);
     }
 
-    // 스트릭 마일스톤 인크레티나 축하
+    // 스트릭 마일스톤 (v7.0 enhanced with XP rewards)
     const streak = _gamification.streak || 0;
-    const milestones = [3, 7, 14, 30];
-    for (const ms of milestones) {
-        if (streak === ms && _lastStreakMilestone < ms) {
-            _lastStreakMilestone = ms;
-            const sMsg = getTinaEventMessage('streak');
-            if (sMsg) setTimeout(() => showTinaToast(sMsg), 600);
+    for (const ms of STREAK_MILESTONES) {
+        if (streak >= ms.days && !_gamification.streakMilestonesAwarded.includes(ms.days)) {
+            _gamification.streakMilestonesAwarded.push(ms.days);
+            addXP(ms.xp, true);
+            const msg = ms.emoji + ' ' + ms.label + '! +' + ms.xp + ' XP';
+            setTimeout(() => showTinaToast(msg), 600);
             break;
         }
     }
+
+    // Badge checking (v7.0)
+    checkBadges();
+
+    // Weekly report (v7.0)
+    generateWeeklyReport();
 
     // 미니 넛지 업데이트
     updateMiniNudge();
@@ -1707,11 +1875,20 @@ function updateMiniNudge() {
     else if (score >= 50) state = 'achiever';
     else state = 'reset';
 
-    // 시간 인사 + 상태별 메시지 조합
-    const greeting = getTimeGreeting();
-    const msgs = TINA_MESSAGES[mood] && TINA_MESSAGES[mood][state] ? TINA_MESSAGES[mood][state] : TINA_MESSAGES.healing[state];
-    const mainMsg = replaceTinaTokens(getRandomItem(msgs));
+    // v7.0: 30% chance to show personalized trend message
+    let mainMsg = null;
+    const trends = analyzeTrends();
+    if (trends.totalDays >= 3 && Math.random() < 0.3) {
+        const personalMsg = getPersonalizedMessage(trends);
+        if (personalMsg) mainMsg = replaceTinaTokens(personalMsg);
+    }
 
+    if (!mainMsg) {
+        const msgs = TINA_MESSAGES[mood] && TINA_MESSAGES[mood][state] ? TINA_MESSAGES[mood][state] : TINA_MESSAGES.healing[state];
+        mainMsg = replaceTinaTokens(getRandomItem(msgs));
+    }
+
+    const greeting = getTimeGreeting();
     const miniEl = document.getElementById('tina-mini-msg');
     if (miniEl) {
         if (greeting) {
@@ -1737,6 +1914,357 @@ function getTinaEventMessage(eventType, extra) {
     if (eventType === 'levelUp') return replaceTinaTokens(TINA_EVENTS.levelUp, extra);
     if (eventType === 'recovery') return replaceTinaTokens(getRandomItem(TINA_EVENTS.recovery), extra);
     return null;
+}
+
+// ============================================================
+// v7.0 BADGE CATALOG & INVENTORY
+// ============================================================
+const BADGE_CATALOG = [
+    // Streak
+    {id:'s3', cat:'streak', icon:'🔥', name:'첫 스트릭', desc:'3일 연속 달성'},
+    {id:'s7', cat:'streak', icon:'⚡', name:'1주 전사', desc:'7일 연속 달성'},
+    {id:'s14', cat:'streak', icon:'🌟', name:'2주 마스터', desc:'14일 연속 달성'},
+    {id:'s30', cat:'streak', icon:'💎', name:'한 달 챔피언', desc:'30일 연속 달성'},
+    {id:'s100', cat:'streak', icon:'👑', name:'100일 레전드', desc:'100일 연속 달성'},
+    // Score
+    {id:'sc85', cat:'score', icon:'🏆', name:'최적 달성', desc:'일일 85점 이상'},
+    {id:'sc100', cat:'score', icon:'💯', name:'퍼펙트 데이', desc:'일일 100점 달성'},
+    {id:'sc85x7', cat:'score', icon:'🔱', name:'최적의 주간', desc:'7일 연속 85점+'},
+    // Consistency
+    {id:'c7', cat:'consistency', icon:'📅', name:'1주 기록', desc:'7일 이상 기록'},
+    {id:'c30', cat:'consistency', icon:'📆', name:'한 달 기록', desc:'30일 이상 기록'},
+    {id:'c100', cat:'consistency', icon:'🗓️', name:'100일 기록', desc:'100일 이상 기록'},
+    // Level
+    {id:'l5', cat:'level', icon:'🌿', name:'리듬 탐험가', desc:'레벨 5 달성'},
+    {id:'l10', cat:'level', icon:'🌳', name:'대사 수호자', desc:'레벨 10 달성'},
+    {id:'l20', cat:'level', icon:'🔥', name:'골든타임 마스터', desc:'레벨 20 달성'},
+    {id:'l30', cat:'level', icon:'👑', name:'인크레틴 레전드', desc:'레벨 30 달성'},
+    // Special
+    {id:'fc1', cat:'special', icon:'🎉', name:'첫 올클리어', desc:'10/10 루틴 첫 완료'},
+    {id:'fc10', cat:'special', icon:'🎊', name:'올클리어 10회', desc:'올클리어 10회 달성'},
+    {id:'rec5', cat:'special', icon:'🛡️', name:'회복의 달인', desc:'회복 미션 5회 수행'},
+    {id:'wl3', cat:'special', icon:'⚖️', name:'3kg 감량', desc:'시작 대비 3kg 감량'},
+    {id:'wl5', cat:'special', icon:'🎯', name:'5kg 감량', desc:'시작 대비 5kg 감량'}
+];
+
+let _badgeFilter = 'all';
+
+function checkBadges() {
+    const hist = window._cloudHistory || {};
+    const sorted = Object.keys(hist).sort();
+    const totalDays = sorted.length;
+    const streak = _gamification.streak || 0;
+    const level = _gamification.level || 1;
+    const score = calculateTotalScore();
+    const sw = parseFloat(document.getElementById('p-sw').value) || 0;
+    const latestWeight = parseFloat(document.getElementById('daily-weight').value) || sw;
+    const weightLoss = sw - latestWeight;
+
+    // Count full clears and recoveries across history
+    let fullClearCount = 0, totalRecoveries = 0, consecutiveAbove85 = 0, maxConsec85 = 0;
+    for (let i = sorted.length - 1; i >= 0; i--) {
+        const d = hist[sorted[i]];
+        if (d.checks && d.checks.filter(Boolean).length === 10) fullClearCount++;
+        if (d.recoveries) totalRecoveries += d.recoveries.filter(Boolean).length;
+        if (d.score >= 85) { consecutiveAbove85++; maxConsec85 = Math.max(maxConsec85, consecutiveAbove85); }
+        else { consecutiveAbove85 = 0; }
+    }
+
+    const conditions = {
+        s3: streak >= 3, s7: streak >= 7, s14: streak >= 14, s30: streak >= 30, s100: streak >= 100,
+        sc85: score >= 85, sc100: score >= 100, sc85x7: maxConsec85 >= 7,
+        c7: totalDays >= 7, c30: totalDays >= 30, c100: totalDays >= 100,
+        l5: level >= 5, l10: level >= 10, l20: level >= 20, l30: level >= 30,
+        fc1: fullClearCount >= 1, fc10: fullClearCount >= 10, rec5: totalRecoveries >= 5,
+        wl3: weightLoss >= 3, wl5: weightLoss >= 5
+    };
+
+    let newBadge = false;
+    for (const badge of BADGE_CATALOG) {
+        if (conditions[badge.id] && !_gamification.earnedBadges.includes(badge.id)) {
+            _gamification.earnedBadges.push(badge.id);
+            newBadge = true;
+            setTimeout(() => showTinaToast(badge.icon + ' ' + badge.name + ' 배지 획득!'), 800);
+        }
+    }
+    if (newBadge) {
+        saveGamificationToCloud();
+        renderBadgeInventory();
+    }
+}
+
+function renderBadgeInventory() {
+    const grid = document.getElementById('badge-grid');
+    const tabs = document.getElementById('badge-tabs');
+    const countEl = document.getElementById('badge-count');
+    if (!grid) return;
+
+    const earned = _gamification.earnedBadges || [];
+    countEl.textContent = earned.length + '/' + BADGE_CATALOG.length;
+
+    // Category tabs
+    const cats = [{id:'all',label:'전체'},{id:'streak',label:'스트릭'},{id:'score',label:'점수'},{id:'consistency',label:'일관성'},{id:'level',label:'레벨'},{id:'special',label:'특별'}];
+    tabs.innerHTML = cats.map(c => `<button class="badge-tab${_badgeFilter===c.id?' active':''}" onclick="_badgeFilter='${c.id}';renderBadgeInventory()">${c.label}</button>`).join('');
+
+    const filtered = _badgeFilter === 'all' ? BADGE_CATALOG : BADGE_CATALOG.filter(b => b.cat === _badgeFilter);
+    grid.innerHTML = filtered.map(b => {
+        const isEarned = earned.includes(b.id);
+        return `<div class="badge-cell ${isEarned ? 'earned' : 'locked'}">
+            <span class="badge-icon">${b.icon}</span>
+            <span class="badge-name">${b.name}</span>
+            <span class="badge-desc">${b.desc}</span>
+        </div>`;
+    }).join('');
+}
+
+// ============================================================
+// v7.0 WEEKLY REPORT
+// ============================================================
+function getWeekData(hist, monday) {
+    const result = { avgScore: 0, daysRecorded: 0, routineRate: 0, weightStart: 0, weightEnd: 0, weightChange: 0, streakDays: 0 };
+    let totalScore = 0, totalChecked = 0, totalPossible = 0;
+    for (let i = 0; i < 7; i++) {
+        const d = new Date(monday);
+        d.setDate(monday.getDate() + i);
+        const key = d.toISOString().split('T')[0];
+        if (hist[key]) {
+            result.daysRecorded++;
+            totalScore += (hist[key].score || 0);
+            if (hist[key].checks) { totalChecked += hist[key].checks.filter(Boolean).length; totalPossible += 10; }
+            const w = parseFloat(hist[key].weight);
+            if (w > 0) {
+                if (!result.weightStart) result.weightStart = w;
+                result.weightEnd = w;
+            }
+            if ((hist[key].score || 0) >= 70) result.streakDays++;
+        }
+    }
+    if (result.daysRecorded > 0) result.avgScore = Math.round(totalScore / result.daysRecorded);
+    if (totalPossible > 0) result.routineRate = Math.round((totalChecked / totalPossible) * 100);
+    if (result.weightStart && result.weightEnd) result.weightChange = +(result.weightEnd - result.weightStart).toFixed(1);
+    return result;
+}
+
+function generateWeeklyReport() {
+    const hist = window._cloudHistory || {};
+    const el = document.getElementById('weekly-report');
+    if (!el) return;
+
+    const today = new Date(document.getElementById('target-date').value);
+    const dow = today.getDay();
+    const thisMonday = new Date(today);
+    thisMonday.setDate(today.getDate() - (dow === 0 ? 6 : dow - 1));
+
+    const thisWeek = getWeekData(hist, thisMonday);
+    if (thisWeek.daysRecorded < 3) { el.style.display = 'none'; return; }
+
+    const lastMonday = new Date(thisMonday);
+    lastMonday.setDate(thisMonday.getDate() - 7);
+    const lastWeek = getWeekData(hist, lastMonday);
+
+    const endDate = new Date(thisMonday);
+    endDate.setDate(thisMonday.getDate() + 6);
+    document.getElementById('wr-dates').textContent =
+        (thisMonday.getMonth()+1) + '/' + thisMonday.getDate() + ' - ' + (endDate.getMonth()+1) + '/' + endDate.getDate();
+
+    document.getElementById('wr-stats').innerHTML =
+        `<div class="wr-stat"><span class="wr-stat-value">${thisWeek.avgScore}</span><span class="wr-stat-label">평균 점수</span></div>` +
+        `<div class="wr-stat"><span class="wr-stat-value">${thisWeek.routineRate}%</span><span class="wr-stat-label">루틴 완수율</span></div>` +
+        `<div class="wr-stat"><span class="wr-stat-value">${thisWeek.weightChange > 0 ? '+' : ''}${thisWeek.weightChange || '-'}kg</span><span class="wr-stat-label">체중 변화</span></div>` +
+        `<div class="wr-stat"><span class="wr-stat-value">${thisWeek.streakDays}일</span><span class="wr-stat-label">70점+ 일수</span></div>`;
+
+    if (lastWeek.daysRecorded >= 1) {
+        const rows = [
+            { label: '평균 점수', cur: thisWeek.avgScore, prev: lastWeek.avgScore, unit: '', higher: true },
+            { label: '루틴 완수율', cur: thisWeek.routineRate, prev: lastWeek.routineRate, unit: '%', higher: true },
+            { label: '70점+ 일수', cur: thisWeek.streakDays, prev: lastWeek.streakDays, unit: '일', higher: true }
+        ];
+        document.getElementById('wr-compare').innerHTML = '<div style="font-size:.65rem;font-weight:700;color:var(--text-sub);margin-bottom:8px">전주 대비</div>' +
+            rows.map(r => {
+                const diff = r.cur - r.prev;
+                const cls = diff > 0 ? (r.higher ? 'up' : 'down') : diff < 0 ? (r.higher ? 'down' : 'up') : 'same';
+                const arrow = diff > 0 ? '▲' : diff < 0 ? '▼' : '−';
+                return `<div class="wr-compare-row"><span>${r.label}</span><span class="wr-arrow ${cls}">${arrow} ${Math.abs(diff)}${r.unit}</span></div>`;
+            }).join('');
+    } else {
+        document.getElementById('wr-compare').innerHTML = '';
+    }
+
+    el.style.display = 'block';
+}
+
+// ============================================================
+// v7.0 PERSONALIZED AI COACHING
+// ============================================================
+function analyzeTrends() {
+    const hist = window._cloudHistory || {};
+    const sorted = Object.keys(hist).sort();
+    const trends = { scoreDirection: 'stable', scoreDaysRising: 0, weightTrend: 0, bestRoutineIdx: -1, worstRoutineIdx: -1, totalDays: sorted.length };
+
+    if (sorted.length < 3) return trends;
+
+    // Score direction: check last 3 days
+    const recent = sorted.slice(-5);
+    let rising = 0;
+    for (let i = 1; i < recent.length; i++) {
+        if ((hist[recent[i]].score || 0) > (hist[recent[i-1]].score || 0)) rising++;
+        else rising = 0;
+    }
+    if (rising >= 2) { trends.scoreDirection = 'rising'; trends.scoreDaysRising = rising; }
+    else {
+        let falling = 0;
+        for (let i = 1; i < recent.length; i++) {
+            if ((hist[recent[i]].score || 0) < (hist[recent[i-1]].score || 0)) falling++;
+            else falling = 0;
+        }
+        if (falling >= 2) trends.scoreDirection = 'falling';
+    }
+
+    // Weight trend (last 7 days)
+    const lastWeek = sorted.slice(-7);
+    let firstW = 0, lastW = 0;
+    for (const d of lastWeek) { const w = parseFloat(hist[d].weight); if (w > 0) { if (!firstW) firstW = w; lastW = w; } }
+    if (firstW && lastW) trends.weightTrend = +(lastW - firstW).toFixed(1);
+
+    // Per-routine completion rate (last 14 days)
+    const last14 = sorted.slice(-14);
+    const routineCounts = new Array(10).fill(0);
+    let routineDays = 0;
+    for (const d of last14) {
+        if (hist[d].checks && hist[d].checks.length === 10) {
+            routineDays++;
+            hist[d].checks.forEach((c, i) => { if (c) routineCounts[i]++; });
+        }
+    }
+    if (routineDays >= 3) {
+        let maxRate = 0, minRate = 100, bestI = 0, worstI = 0;
+        routineCounts.forEach((c, i) => {
+            const rate = (c / routineDays) * 100;
+            if (rate > maxRate) { maxRate = rate; bestI = i; }
+            if (rate < minRate) { minRate = rate; worstI = i; }
+        });
+        trends.bestRoutineIdx = bestI;
+        trends.bestRoutineRate = Math.round(maxRate);
+        trends.worstRoutineIdx = worstI;
+        trends.worstRoutineRate = Math.round(minRate);
+    }
+
+    return trends;
+}
+
+const TINA_PERSONALIZED = {
+    scoreRising: [
+        "{scoreDaysRising}일 연속 점수 상승 중이에요! 📈 이 추세면 이번 주 최고 기록 갱신도 가능해요!",
+        "꾸준히 오르고 있어요! {scoreDaysRising}일째 상승 곡선! 이 흐름을 유지해요 🔥"
+    ],
+    scoreFalling: [
+        "최근 점수가 살짝 내려가고 있어요. 괜찮아요, 오늘 하나만 더 챙겨볼까요? 💪"
+    ],
+    weightLoss: [
+        "이번 주 {weightTrend}kg 감량 성공! ⚖️ 꾸준한 노력이 결과로 나타나고 있어요!"
+    ],
+    weightGain: [
+        "체중이 살짝 늘었지만, 하루하루의 변동은 자연스러운 거예요. 장기 추세가 더 중요해요 📊"
+    ],
+    bestRoutine: [
+        "{routineName} 완수율이 {rate}%로 최고예요! 이 루틴은 확실히 습관이 됐네요 🏆"
+    ],
+    worstRoutine: [
+        "{routineName} 완수율이 {rate}%로 가장 낮아요. 이번 주 이것만 집중해볼까요? 🎯"
+    ],
+    goalProgress: [
+        "목표 체중까지 {remaining}kg 남았어요! 지금 페이스면 충분히 달성 가능해요 🎯"
+    ]
+};
+
+function getPersonalizedMessage(trends) {
+    const msgs = [];
+    if (trends.scoreDirection === 'rising' && trends.scoreDaysRising >= 2) {
+        msgs.push(...TINA_PERSONALIZED.scoreRising.map(m => m.replace(/\{scoreDaysRising\}/g, trends.scoreDaysRising)));
+    }
+    if (trends.scoreDirection === 'falling') {
+        msgs.push(...TINA_PERSONALIZED.scoreFalling);
+    }
+    if (trends.weightTrend < -0.2) {
+        msgs.push(...TINA_PERSONALIZED.weightLoss.map(m => m.replace(/\{weightTrend\}/g, Math.abs(trends.weightTrend))));
+    }
+    if (trends.weightTrend > 0.3) {
+        msgs.push(...TINA_PERSONALIZED.weightGain);
+    }
+    if (trends.bestRoutineIdx >= 0 && trends.bestRoutineRate >= 80) {
+        const name = routine[trends.bestRoutineIdx]?.title || '';
+        msgs.push(...TINA_PERSONALIZED.bestRoutine.map(m => m.replace(/\{routineName\}/g, name).replace(/\{rate\}/g, trends.bestRoutineRate)));
+    }
+    if (trends.worstRoutineIdx >= 0 && trends.worstRoutineRate < 40) {
+        const name = routine[trends.worstRoutineIdx]?.title || '';
+        msgs.push(...TINA_PERSONALIZED.worstRoutine.map(m => m.replace(/\{routineName\}/g, name).replace(/\{rate\}/g, trends.worstRoutineRate)));
+    }
+    // Goal progress
+    const gw = parseFloat(document.getElementById('p-gw').value) || 0;
+    const cw = parseFloat(document.getElementById('daily-weight').value) || 0;
+    if (gw > 0 && cw > gw) {
+        const remaining = (cw - gw).toFixed(1);
+        msgs.push(...TINA_PERSONALIZED.goalProgress.map(m => m.replace(/\{remaining\}/g, remaining)));
+    }
+    return msgs.length > 0 ? getRandomItem(msgs) : null;
+}
+
+// ============================================================
+// v7.0 BEFORE/AFTER COMPARISON
+// ============================================================
+function openCompareModal() {
+    const hist = window._cloudHistory || {};
+    const sorted = Object.keys(hist).sort();
+    const today = document.getElementById('target-date').value;
+    const startDate = document.getElementById('p-start').value || (sorted.length > 0 ? sorted[0] : today);
+    document.getElementById('compare-from').value = startDate;
+    document.getElementById('compare-to').value = today;
+    renderComparison();
+    document.getElementById('compare-modal').classList.add('show');
+}
+function closeCompareModal() { document.getElementById('compare-modal').classList.remove('show'); }
+
+function renderComparison() {
+    const hist = window._cloudHistory || {};
+    const fromDate = document.getElementById('compare-from').value;
+    const toDate = document.getElementById('compare-to').value || document.getElementById('target-date').value;
+    const fromData = hist[fromDate] || {};
+    const toData = hist[toDate] || {};
+    const sw = parseFloat(document.getElementById('p-sw').value) || 0;
+    const h = parseFloat(document.getElementById('p-h').value) || 170;
+    const hm = h / 100;
+
+    const wBefore = parseFloat(fromData.weight) || sw;
+    const wAfter = parseFloat(toData.weight) || parseFloat(document.getElementById('daily-weight').value) || sw;
+    const bmiBefore = wBefore > 0 ? (wBefore / (hm * hm)).toFixed(1) : '-';
+    const bmiAfter = wAfter > 0 ? (wAfter / (hm * hm)).toFixed(1) : '-';
+    const scoreBefore = fromData.score || 0;
+    const scoreAfter = toData.score || calculateTotalScore();
+
+    const metrics = [
+        { label: '체중', before: wBefore.toFixed(1) + 'kg', after: wAfter.toFixed(1) + 'kg', diff: +(wAfter - wBefore).toFixed(1), unit: 'kg', lowerBetter: true },
+        { label: 'BMI', before: bmiBefore, after: bmiAfter, diff: bmiBefore !== '-' && bmiAfter !== '-' ? +(bmiAfter - bmiBefore).toFixed(1) : 0, unit: '', lowerBetter: true },
+        { label: '인크레틴 게이지', before: scoreBefore + '점', after: scoreAfter + '점', diff: scoreAfter - scoreBefore, unit: '점', lowerBetter: false },
+        { label: '연속 기록', before: '시작', after: (_gamification.streak || 0) + '일', diff: _gamification.streak || 0, unit: '일', lowerBetter: false },
+        { label: '레벨', before: 'Lv.1', after: 'Lv.' + (_gamification.level || 1), diff: (_gamification.level || 1) - 1, unit: '', lowerBetter: false },
+        { label: 'XP', before: '0', after: (_gamification.xp || 0).toLocaleString(), diff: _gamification.xp || 0, unit: '', lowerBetter: false },
+        { label: '배지', before: '0개', after: (_gamification.earnedBadges?.length || 0) + '개', diff: _gamification.earnedBadges?.length || 0, unit: '개', lowerBetter: false }
+    ];
+
+    document.getElementById('compare-body').innerHTML = metrics.map(m => {
+        let cls = 'neutral', sign = '';
+        if (m.diff > 0) { sign = '+'; cls = m.lowerBetter ? 'negative' : 'positive'; }
+        else if (m.diff < 0) { sign = ''; cls = m.lowerBetter ? 'positive' : 'negative'; }
+        return `<div class="compare-row">
+            <span class="compare-label">${m.label}</span>
+            <div class="compare-values">
+                <span class="compare-old">${m.before}</span>
+                <span style="color:var(--text-sub)">→</span>
+                <span class="compare-new">${m.after}</span>
+                <span class="compare-diff ${cls}">${sign}${m.diff}${m.unit}</span>
+            </div>
+        </div>`;
+    }).join('');
 }
 
 // ============================================================
@@ -2371,9 +2899,11 @@ function initApp(){
     renderWidgetItems();
     renderQuests();
     updateLevelDisplay();
+    renderBadgeInventory();
     listenToProfile();listenToHistory();
     updateBioSyncTimer();setInterval(()=>{updateBioSyncTimer();checkRoutineReminders()},30000);
     fullRefresh();
+    generateWeeklyReport();
     // 인크레티나 미니 넛지 초기화 + 30분 갱신
     updateMiniNudge();
     setInterval(updateMiniNudge, 1800000);
