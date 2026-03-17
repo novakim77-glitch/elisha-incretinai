@@ -95,6 +95,40 @@
         .notif-switch input:checked+.notif-slider:before{transform:translateX(22px)}
         /* iOS install guide */
         .ios-guide{display:none;background:var(--surface-alt);border:1px solid var(--border);border-radius:12px;padding:14px;margin-top:10px;font-size:.78rem;color:var(--text-sub);line-height:1.6}
+        /* Widget Card — One-Touch Routine Check */
+        .widget-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--card-radius);padding:16px;margin-bottom:16px;box-shadow:0 2px 12px rgba(0,0,0,.04)}
+        .widget-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+        .widget-title{font-size:.95rem;font-weight:800;color:var(--text);letter-spacing:-.3px}
+        .widget-progress{font-size:.8rem;font-weight:700;color:var(--primary);background:rgba(37,99,235,.1);padding:4px 10px;border-radius:20px}
+        .widget-weight-row{display:flex;align-items:center;gap:8px;margin-bottom:12px;padding:10px 12px;background:var(--surface-alt);border-radius:10px;border:1px solid var(--border)}
+        .widget-weight-row span{font-size:.85rem;color:var(--text-sub)}
+        .widget-weight-row input{flex:1;border:none;background:transparent;font-size:1rem;font-weight:700;color:var(--text);outline:none;text-align:center;font-family:inherit}
+        .widget-items{display:flex;flex-direction:column;gap:6px}
+        .widget-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;background:var(--surface-alt);border:1px solid var(--border);cursor:pointer;transition:all .25s ease;-webkit-tap-highlight-color:transparent;user-select:none}
+        .widget-item:active{transform:scale(.97)}
+        .widget-item.done{background:rgba(16,185,129,.08);border-color:rgba(16,185,129,.25);order:1}
+        .widget-item.done .widget-item-name{text-decoration:line-through;color:var(--text-sub)}
+        .widget-item.done .widget-item-check{color:var(--success)}
+        .widget-item-icon{font-size:1.15rem;width:28px;text-align:center;flex-shrink:0}
+        .widget-item-info{flex:1;min-width:0}
+        .widget-item-name{display:block;font-size:.82rem;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .widget-item-time{display:block;font-size:.68rem;color:var(--text-sub);margin-top:1px}
+        .widget-item-pts{font-size:.72rem;font-weight:700;color:var(--success);white-space:nowrap}
+        .widget-item-check{font-size:1.1rem;width:26px;text-align:center;flex-shrink:0;transition:transform .2s}
+        .widget-item.done .widget-item-check{animation:widgetPop .3s ease}
+        @keyframes widgetPop{0%{transform:scale(1)}50%{transform:scale(1.4)}100%{transform:scale(1)}}
+        .widget-completed{text-align:center;padding:20px;font-size:.9rem;font-weight:700;color:var(--success);display:none}
+        .widget-risk-header{display:flex;align-items:center;justify-content:space-between;padding:10px 0 6px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+        .widget-risk-header span:first-child{font-size:.82rem;font-weight:700;color:var(--text-sub)}
+        .widget-risk-toggle{font-size:.7rem;color:var(--text-sub);transition:transform .2s}
+        .widget-risk-toggle.open{transform:rotate(180deg)}
+        .widget-risk-items{display:flex;flex-direction:column;gap:6px;padding-top:6px}
+        .widget-risk-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;background:var(--surface-alt);border:1px solid var(--border);cursor:pointer;transition:all .25s ease;-webkit-tap-highlight-color:transparent;user-select:none}
+        .widget-risk-item:active{transform:scale(.97)}
+        .widget-risk-item.active{background:rgba(239,68,68,.08);border-color:rgba(239,68,68,.25)}
+        .widget-risk-item .widget-item-pts{color:var(--danger)}
+        .widget-risk-item .widget-item-check{color:var(--text-sub)}
+        .widget-risk-item.active .widget-item-check{color:var(--danger)}
         .admin-table{width:100%;border-collapse:collapse;font-size:.8rem;margin-top:16px}
         .admin-table th{background:var(--surface-alt);font-weight:700;text-align:left;padding:10px 12px;font-size:.7rem;color:var(--text-sub);letter-spacing:.5px;text-transform:uppercase;border-bottom:2px solid var(--border)}
         .admin-table td{padding:10px 12px;border-bottom:1px solid var(--border);color:var(--text)}
@@ -521,6 +555,28 @@
             <span style="font-size:.7rem;font-weight:700;color:var(--text-sub)">골든타임</span>
             <div class="progress-bar-wrap"><div class="progress-bar-fill" id="golden-progress" style="width:0%;background:var(--golden-gradient)"></div></div>
             <span class="progress-pct" id="golden-pct">0%</span>
+        </div>
+    </div>
+
+    <!-- ★ ONE-TOUCH ROUTINE WIDGET — v6.2 ★ -->
+    <div class="widget-card" id="widget-card">
+        <div class="widget-header">
+            <span class="widget-title">⚡ 오늘의 루틴</span>
+            <span class="widget-progress" id="widget-progress">0/10</span>
+        </div>
+        <div class="widget-weight-row">
+            <span>⚖️</span>
+            <input type="text" inputmode="decimal" id="widget-weight" placeholder="오늘 체중" autocomplete="off">
+            <span>kg</span>
+        </div>
+        <div class="widget-items" id="widget-items"></div>
+        <div class="widget-completed" id="widget-completed">🎉 오늘 루틴을 모두 완료했어요!</div>
+        <div id="widget-risks-section">
+            <div class="widget-risk-header" onclick="toggleWidgetRisks()">
+                <span>⚠️ 리스크 체크</span>
+                <span class="widget-risk-toggle" id="widget-risk-toggle">▼</span>
+            </div>
+            <div class="widget-risk-items" id="widget-risk-items" style="display:none"></div>
         </div>
     </div>
 
@@ -984,8 +1040,10 @@ function loadDateData(){
     risks.forEach((_,i)=>{const el=document.getElementById(`risk-${i}`);if(el){if(data&&data.riskChecks&&data.riskChecks[i])el.classList.add('active');else el.classList.remove('active')}});
     if(data&&data.recoveries)data.recoveries.forEach((v,i)=>{recoveryDone[i]=v});else recoveryDone.fill(false);
     document.getElementById('daily-weight').value=(data&&data.weight)?data.weight:'';
+    document.getElementById('widget-weight').value=(data&&data.weight)?data.weight:'';
     fullRefresh();
     updateTrendChart();
+    renderWidgetItems();
 }
 
 // ============================================================
@@ -2043,7 +2101,89 @@ function skipRecovery(){
 }
 function closeRecovery(){skipRecovery()}
 
-function onDataChange(){fullRefresh();saveDailyToCloud();saveProfileToCloud();gamificationOnDataChange()}
+// ============================================================
+// ONE-TOUCH WIDGET
+// ============================================================
+function renderWidgetItems(){
+    const container=document.getElementById('widget-items');
+    const riskContainer=document.getElementById('widget-risk-items');
+    if(!container)return;
+    let checkedCount=0;
+    let html='';
+    for(let i=0;i<routine.length;i++){
+        const r=routine[i];
+        const done=document.getElementById(`item-${i}`).classList.contains('checked');
+        if(done)checkedCount++;
+        html+=`<div class="widget-item${done?' done':''}" onclick="widgetToggle(${i})">
+            <div class="widget-item-icon">${r.icon}</div>
+            <div class="widget-item-info">
+                <span class="widget-item-name">${r.title}</span>
+                <span class="widget-item-time">${r.t}</span>
+            </div>
+            <div class="widget-item-pts">+${r.pts}</div>
+            <div class="widget-item-check">${done?'✅':'○'}</div>
+        </div>`;
+    }
+    container.innerHTML=html;
+    document.getElementById('widget-progress').textContent=`${checkedCount}/10`;
+    const comp=document.getElementById('widget-completed');
+    if(checkedCount===10){comp.style.display='block'}else{comp.style.display='none'}
+
+    // Risks
+    let riskHtml='';
+    for(let i=0;i<risks.length;i++){
+        const rk=risks[i];
+        const active=document.getElementById(`risk-${i}`).classList.contains('active');
+        riskHtml+=`<div class="widget-risk-item${active?' active':''}" onclick="widgetToggleRisk(${i})">
+            <div class="widget-item-icon">${rk.icon}</div>
+            <div class="widget-item-info">
+                <span class="widget-item-name">${rk.title}</span>
+                <span class="widget-item-time">${rk.t} · ${rk.id}</span>
+            </div>
+            <div class="widget-item-pts">${rk.penalty}</div>
+            <div class="widget-item-check">${active?'⛔':'○'}</div>
+        </div>`;
+    }
+    riskContainer.innerHTML=riskHtml;
+}
+function widgetToggle(i){toggleTask(i)}
+function widgetToggleRisk(i){toggleRisk(i)}
+function toggleWidgetRisks(){
+    const items=document.getElementById('widget-risk-items');
+    const toggle=document.getElementById('widget-risk-toggle');
+    const show=items.style.display==='none';
+    items.style.display=show?'flex':'none';
+    toggle.classList.toggle('open',show);
+}
+// Widget weight sync
+(function(){
+    const ww=document.getElementById('widget-weight');
+    const dw=document.getElementById('daily-weight');
+    if(!ww||!dw)return;
+    let _wTimer=null;
+    ww.addEventListener('input',function(){
+        let v=this.value.replace(/[^0-9.]/g,'');
+        const parts=v.split('.');
+        if(parts.length>2)v=parts[0]+'.'+parts.slice(1).join('');
+        if(parts.length===2&&parts[1].length>1)v=parts[0]+'.'+parts[1].charAt(0);
+        if(v!==this.value)this.value=v;
+        dw.value=v;
+        clearTimeout(_wTimer);
+        if(v&&!v.endsWith('.')&&parseFloat(v)>0){
+            _wTimer=setTimeout(()=>{saveDailyToCloud()},800);
+        }
+    });
+    ww.addEventListener('blur',function(){
+        clearTimeout(_wTimer);
+        const v=parseFloat(this.value);
+        if(v>0){this.value=v.toFixed(1);dw.value=this.value;saveDailyToCloud()}
+        else{this.value=''}
+    });
+    // Sync from daily-weight to widget-weight
+    dw.addEventListener('input',function(){ww.value=this.value});
+})();
+
+function onDataChange(){fullRefresh();saveDailyToCloud();saveProfileToCloud();gamificationOnDataChange();renderWidgetItems()}
 
 function updateTrendChart(){
     const hist=window._cloudHistory||{};
@@ -2207,6 +2347,7 @@ function exportAllUsersExcel(){
 // ============================================================
 function initApp(){
     renderList();renderRiskList();
+    renderWidgetItems();
     renderQuests();
     updateLevelDisplay();
     listenToProfile();listenToHistory();
