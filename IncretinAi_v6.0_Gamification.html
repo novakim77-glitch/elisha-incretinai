@@ -1182,9 +1182,10 @@ auth.onAuthStateChanged(user=>{currentUser=user;if(user){document.getElementById
 // ============================================================
 function userDoc(){return db.collection('users').doc(currentUser.uid)}
 function historyCollection(){return userDoc().collection('dailyRoutines')}
-async function saveProfileToCloud(){if(!currentUser)return;try{await userDoc().set({email:currentUser.email||'guest',name:document.getElementById('p-name').value,age:document.getElementById('p-age').value,gender:document.getElementById('p-gender').value,start:document.getElementById('p-start').value,h:document.getElementById('p-h').value,sw:document.getElementById('p-sw').value,gw:document.getElementById('p-gw').value,isDiabetic:document.getElementById('p-diabetic').value,exercise:document.getElementById('p-exercise').value,wakeup:document.getElementById('p-wakeup').value,lat:document.getElementById('p-lat').value,updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});showSyncStatus('synced')}catch(e){console.error('Profile save:',e);showSyncStatus('offline')}}
+async function saveProfileToCloud(){if(!currentUser||!_appDataLoaded)return;try{await userDoc().set({email:currentUser.email||'guest',name:document.getElementById('p-name').value,age:document.getElementById('p-age').value,gender:document.getElementById('p-gender').value,start:document.getElementById('p-start').value,h:document.getElementById('p-h').value,sw:document.getElementById('p-sw').value,gw:document.getElementById('p-gw').value,isDiabetic:document.getElementById('p-diabetic').value,exercise:document.getElementById('p-exercise').value,wakeup:document.getElementById('p-wakeup').value,lat:document.getElementById('p-lat').value,updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});showSyncStatus('synced')}catch(e){console.error('Profile save:',e);showSyncStatus('offline')}}
 
 let _appDataLoaded=false; // Firebase 데이터 로드 완료 플래그
+let _chartTimer=null; // 차트 갱신 debounce
 async function saveDailyToCloud(){
     if(!currentUser)return;
     if(!_appDataLoaded)return; // 데이터 로드 전 저장 차단
@@ -1221,9 +1222,13 @@ function loadDateData(){
     _appDataLoaded=true; // Firebase 데이터 로드 완료
     fullRefresh();
     renderWidgetItems();
-    // 차트는 데이터 로드 시에만 갱신 (성능 최적화)
-    try{updateTrendChart();}catch(e){}
-    try{runComprehensiveAnalysis();}catch(e){}
+    // 차트+주간리포트는 debounce로 1회만 갱신 (onSnapshot 캐시+서버 2회 방지)
+    clearTimeout(_chartTimer);
+    _chartTimer=setTimeout(()=>{
+        try{updateTrendChart();}catch(e){}
+        try{runComprehensiveAnalysis();}catch(e){}
+        try{generateWeeklyReport();}catch(e){}
+    },800);
 }
 
 // ============================================================
@@ -3024,6 +3029,7 @@ function toggleWidgetRisks(){
 
 let _dataChangeTimer=null;
 function onDataChange(){
+    if(!_appDataLoaded)return; // Firebase 데이터 로드 전 모든 변경/저장 차단
     fullRefresh();
     gamificationOnDataChange();
     renderWidgetItems();
@@ -3032,7 +3038,7 @@ function onDataChange(){
     _dataChangeTimer=setTimeout(()=>{
         saveDailyToCloud();
         saveProfileToCloud();
-    },500);
+    },600);
 }
 
 function updateTrendChart(){
@@ -3203,8 +3209,7 @@ function initApp(){
     renderBadgeInventory();
     listenToProfile();listenToHistory();
     updateBioSyncTimer();setInterval(()=>{updateBioSyncTimer();checkRoutineReminders();updateUpcomingRoutines()},30000);
-    // fullRefresh()는 listenToHistory → loadDateData에서 자동 호출됨
-    generateWeeklyReport();
+    // fullRefresh(), generateWeeklyReport(), 차트 → 모두 listenToHistory → loadDateData에서 데이터 로드 후 자동 호출
     // 인크레티나 미니 넛지 초기화 + 30분 갱신
     updateMiniNudge();
     setInterval(updateMiniNudge, 1800000);
