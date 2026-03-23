@@ -1017,6 +1017,9 @@
 </div>
 
 <script>
+// ★ v7.1: 앱 준비 플래그 — Firebase 데이터 로드 완료 전까지 모든 저장 차단
+var _appReady = false;
+
 // ============================================================
 // FIREBASE CONFIG
 // ============================================================
@@ -1182,13 +1185,11 @@ auth.onAuthStateChanged(user=>{currentUser=user;if(user){document.getElementById
 // ============================================================
 function userDoc(){return db.collection('users').doc(currentUser.uid)}
 function historyCollection(){return userDoc().collection('dailyRoutines')}
-async function saveProfileToCloud(){if(!currentUser||!_appDataLoaded)return;try{await userDoc().set({email:currentUser.email||'guest',name:document.getElementById('p-name').value,age:document.getElementById('p-age').value,gender:document.getElementById('p-gender').value,start:document.getElementById('p-start').value,h:document.getElementById('p-h').value,sw:document.getElementById('p-sw').value,gw:document.getElementById('p-gw').value,isDiabetic:document.getElementById('p-diabetic').value,exercise:document.getElementById('p-exercise').value,wakeup:document.getElementById('p-wakeup').value,lat:document.getElementById('p-lat').value,updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});showSyncStatus('synced')}catch(e){console.error('Profile save:',e);showSyncStatus('offline')}}
+async function saveProfileToCloud(){if(!currentUser||!_appReady)return;try{await userDoc().set({email:currentUser.email||'guest',name:document.getElementById('p-name').value,age:document.getElementById('p-age').value,gender:document.getElementById('p-gender').value,start:document.getElementById('p-start').value,h:document.getElementById('p-h').value,sw:document.getElementById('p-sw').value,gw:document.getElementById('p-gw').value,isDiabetic:document.getElementById('p-diabetic').value,exercise:document.getElementById('p-exercise').value,wakeup:document.getElementById('p-wakeup').value,lat:document.getElementById('p-lat').value,updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});showSyncStatus('synced')}catch(e){console.error('Profile save:',e);showSyncStatus('offline')}}
 
-let _appDataLoaded=false; // Firebase 데이터 로드 완료 플래그
 let _chartTimer=null; // 차트 갱신 debounce
 async function saveDailyToCloud(){
-    if(!currentUser)return;
-    if(!_appDataLoaded)return; // 데이터 로드 전 저장 차단
+    if(!currentUser||!_appReady)return;
     const dateKey=document.getElementById('target-date').value;
     if(!dateKey)return;
     const checks=routine.map((_,i)=>document.getElementById(`item-${i}`)?.classList.contains('checked')||false);
@@ -1219,7 +1220,7 @@ function loadDateData(){
     if(data&&data.recoveries)data.recoveries.forEach((v,i)=>{recoveryDone[i]=v});else recoveryDone.fill(false);
     document.getElementById('daily-weight').value=(data&&data.weight)?data.weight:'';
     const _ww=document.getElementById('widget-weight');if(_ww)_ww.value=(data&&data.weight)?data.weight:'';
-    _appDataLoaded=true; // Firebase 데이터 로드 완료
+    _appReady=true; // Firebase 데이터 로드 완료 → 이후 저장 허용
     fullRefresh();
     renderWidgetItems();
     // 차트+주간리포트는 debounce로 1회만 갱신 (onSnapshot 캐시+서버 2회 방지)
@@ -1622,7 +1623,7 @@ function launchConfetti() {
 
 // --- GAMIFICATION CLOUD PERSISTENCE ---
 async function saveGamificationToCloud() {
-    if (!currentUser) return;
+    if (!currentUser || !_appReady) return;
     try {
         await userDoc().set({
             xp: _gamification.xp,
@@ -3029,7 +3030,7 @@ function toggleWidgetRisks(){
 
 let _dataChangeTimer=null;
 function onDataChange(){
-    if(!_appDataLoaded)return; // Firebase 데이터 로드 전 모든 변경/저장 차단
+    if(!_appReady)return; // Firebase 데이터 로드 전 모든 변경/저장 차단
     fullRefresh();
     gamificationOnDataChange();
     renderWidgetItems();
