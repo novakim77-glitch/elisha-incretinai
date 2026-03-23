@@ -1184,8 +1184,10 @@ function userDoc(){return db.collection('users').doc(currentUser.uid)}
 function historyCollection(){return userDoc().collection('dailyRoutines')}
 async function saveProfileToCloud(){if(!currentUser)return;try{await userDoc().set({email:currentUser.email||'guest',name:document.getElementById('p-name').value,age:document.getElementById('p-age').value,gender:document.getElementById('p-gender').value,start:document.getElementById('p-start').value,h:document.getElementById('p-h').value,sw:document.getElementById('p-sw').value,gw:document.getElementById('p-gw').value,isDiabetic:document.getElementById('p-diabetic').value,exercise:document.getElementById('p-exercise').value,wakeup:document.getElementById('p-wakeup').value,lat:document.getElementById('p-lat').value,updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});showSyncStatus('synced')}catch(e){console.error('Profile save:',e);showSyncStatus('offline')}}
 
+let _appDataLoaded=false; // Firebase 데이터 로드 완료 플래그
 async function saveDailyToCloud(){
     if(!currentUser)return;
+    if(!_appDataLoaded)return; // 데이터 로드 전 저장 차단
     const dateKey=document.getElementById('target-date').value;
     if(!dateKey)return;
     const checks=routine.map((_,i)=>document.getElementById(`item-${i}`)?.classList.contains('checked')||false);
@@ -1216,9 +1218,12 @@ function loadDateData(){
     if(data&&data.recoveries)data.recoveries.forEach((v,i)=>{recoveryDone[i]=v});else recoveryDone.fill(false);
     document.getElementById('daily-weight').value=(data&&data.weight)?data.weight:'';
     const _ww=document.getElementById('widget-weight');if(_ww)_ww.value=(data&&data.weight)?data.weight:'';
+    _appDataLoaded=true; // Firebase 데이터 로드 완료
     fullRefresh();
-    updateTrendChart();
     renderWidgetItems();
+    // 차트는 데이터 로드 시에만 갱신 (성능 최적화)
+    try{updateTrendChart();}catch(e){}
+    try{runComprehensiveAnalysis();}catch(e){}
 }
 
 // ============================================================
@@ -2666,9 +2671,6 @@ function fullRefresh(){
     refreshStats(score);
     updateTabBadge();
     updateUpcomingRoutines();
-    // v7.0: 대시보드 차트 자동 갱신
-    try{updateTrendChart();}catch(e){}
-    try{runComprehensiveAnalysis();}catch(e){}
 }
 
 // ============================================================
@@ -3020,7 +3022,18 @@ function toggleWidgetRisks(){
     dw.addEventListener('input',function(){ww.value=this.value});
 })();
 
-function onDataChange(){fullRefresh();saveDailyToCloud();saveProfileToCloud();gamificationOnDataChange();renderWidgetItems()}
+let _dataChangeTimer=null;
+function onDataChange(){
+    fullRefresh();
+    gamificationOnDataChange();
+    renderWidgetItems();
+    // debounce 저장: 빠른 연속 클릭 시 마지막 한 번만 저장
+    clearTimeout(_dataChangeTimer);
+    _dataChangeTimer=setTimeout(()=>{
+        saveDailyToCloud();
+        saveProfileToCloud();
+    },500);
+}
 
 function updateTrendChart(){
     const hist=window._cloudHistory||{};
@@ -3190,7 +3203,7 @@ function initApp(){
     renderBadgeInventory();
     listenToProfile();listenToHistory();
     updateBioSyncTimer();setInterval(()=>{updateBioSyncTimer();checkRoutineReminders();updateUpcomingRoutines()},30000);
-    fullRefresh();
+    // fullRefresh()는 listenToHistory → loadDateData에서 자동 호출됨
     generateWeeklyReport();
     // 인크레티나 미니 넛지 초기화 + 30분 갱신
     updateMiniNudge();
