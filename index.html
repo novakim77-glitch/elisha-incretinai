@@ -5,39 +5,39 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>IncretinA i Pro — 인크레틴을 지키는 과학</title>
     <link rel="manifest" href="/elisha-incretinai/manifest.json">
-    <meta name="theme-color" content="#2563eb">
+    <meta name="theme-color" content="#3b82f6">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="apple-touch-icon" href="/elisha-incretinai/icons/icon-192x192.png">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700;800&family=Outfit:wght@300;400;500;600;700;800&family=Noto+Sans+KR:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700;800&family=Noto+Sans+KR:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg: #fafbfe;
+            --bg: #f8fafc;
             --surface: #ffffff;
-            --surface-alt: #f4f6fb;
+            --surface-alt: #f1f5f9;
             --text: #0f172a;
             --text-sub: #64748b;
             --text-light: #94a3b8;
-            --primary: #4f46e5;
-            --primary-light: #818cf8;
-            --primary-glow: rgba(79,70,229,.08);
-            --primary-gradient: linear-gradient(135deg, #4f46e5, #7c3aed);
+            --primary: #3b82f6;
+            --primary-light: #93c5fd;
+            --primary-glow: rgba(59,130,246,.08);
+            --primary-gradient: linear-gradient(135deg, #3b82f6, #0ea5e9);
             --success: #10b981;
             --success-light: #34d399;
             --danger: #ef4444;
             --danger-light: #f87171;
-            --accent: #f59e0b;
-            --accent-light: #fbbf24;
+            --accent: #0ea5e9;
+            --accent-light: #7dd3fc;
             --orange: #f97316;
-            --border: #e8ecf4;
-            --shadow-sm: 0 1px 3px rgba(15,23,42,.04);
-            --shadow: 0 4px 24px rgba(15,23,42,.06);
-            --shadow-lg: 0 12px 48px rgba(15,23,42,.1);
-            --shadow-xl: 0 24px 64px rgba(15,23,42,.12);
-            --card-radius: 24px;
-            --section-radius: 32px;
+            --border: #e2e8f0;
+            --shadow-sm: 0 1px 2px rgba(0,0,0,.03);
+            --shadow: 0 1px 3px rgba(0,0,0,.05), 0 1px 2px rgba(0,0,0,.03);
+            --shadow-lg: 0 4px 12px rgba(0,0,0,.08);
+            --shadow-xl: 0 8px 24px rgba(0,0,0,.1);
+            --card-radius: 16px;
+            --section-radius: 20px;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -54,7 +54,8 @@
         }
 
         h1, h2, h3, h4, h5 {
-            font-family: 'Plus Jakarta Sans', 'Noto Sans KR', sans-serif;
+            font-family: 'Inter', 'Noto Sans KR', sans-serif;
+            font-weight: 700;
             line-height: 1.2;
         }
 
@@ -98,7 +99,7 @@
             justify-content: center;
             text-align: center;
             padding: 60px 24px 80px;
-            background: linear-gradient(180deg, #f0f0ff 0%, #fafbfe 60%, #fff 100%);
+            background: linear-gradient(180deg, #eff6ff 0%, #f8fafc 60%, #fff 100%);
             position: relative;
             overflow: hidden;
         }
@@ -110,7 +111,7 @@
             width: 600px;
             height: 600px;
             border-radius: 50%;
-            background: radial-gradient(circle, rgba(79,70,229,.06) 0%, transparent 70%);
+            background: radial-gradient(circle, rgba(59,130,246,.06) 0%, transparent 70%);
             pointer-events: none;
         }
         .hero::after {
@@ -132,7 +133,7 @@
             padding: 8px 20px;
             border-radius: 100px;
             background: var(--primary-glow);
-            border: 1px solid rgba(79,70,229,.12);
+            border: 1px solid rgba(59,130,246,.12);
             font-size: .78rem;
             font-weight: 700;
             color: var(--primary);
@@ -174,8 +175,8 @@
         }
         .hero-card {
             background: var(--surface);
-            border-radius: 20px;
-            padding: 32px 24px;
+            border-radius: var(--card-radius);
+            padding: 24px 20px;
             border: 1px solid var(--border);
             box-shadow: var(--shadow);
             text-align: left;
@@ -183,14 +184,14 @@
             position: relative;
             overflow: hidden;
         }
-        .hero-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); }
+        .hero-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
         .hero-card::before {
             content: '';
             position: absolute;
             top: 0; left: 0; right: 0;
             height: 4px;
         }
-        .hero-card.drug::before { background: linear-gradient(90deg, #4f46e5, #7c3aed); }
+        .hero-card.drug::before { background: linear-gradient(90deg, #3b82f6, #0ea5e9); }
         .hero-card.natural::before { background: linear-gradient(90deg, #10b981, #34d399); }
         .hero-card-icon {
             width: 52px; height: 52px;
@@ -201,7 +202,7 @@
             font-size: 1.5rem;
             margin-bottom: 16px;
         }
-        .hero-card.drug .hero-card-icon { background: rgba(79,70,229,.08); }
+        .hero-card.drug .hero-card-icon { background: rgba(59,130,246,.08); }
         .hero-card.natural .hero-card-icon { background: rgba(16,185,129,.08); }
         .hero-card h3 {
             font-size: 1.05rem;
@@ -254,7 +255,7 @@
             text-transform: uppercase;
             margin-bottom: 16px;
         }
-        .section-tag.purple { background: rgba(79,70,229,.08); color: var(--primary); }
+        .section-tag.purple { background: rgba(59,130,246,.08); color: var(--primary); }
         .section-tag.green { background: rgba(16,185,129,.08); color: var(--success); }
         .section-tag.orange { background: rgba(249,115,22,.08); color: var(--orange); }
         .section-tag.blue { background: rgba(59,130,246,.08); color: #3b82f6; }
@@ -432,7 +433,7 @@
         }
         .recovery-info .highlight {
             display: inline-block;
-            background: rgba(79,70,229,.08);
+            background: rgba(59,130,246,.08);
             color: var(--primary);
             font-weight: 700;
             padding: 2px 10px;
@@ -466,7 +467,7 @@
             margin: 0 auto 20px;
         }
         .tech-card:nth-child(1) .tech-card-icon { background: linear-gradient(135deg, rgba(249,115,22,.1), rgba(251,191,36,.1)); }
-        .tech-card:nth-child(2) .tech-card-icon { background: linear-gradient(135deg, rgba(79,70,229,.1), rgba(124,58,237,.1)); }
+        .tech-card:nth-child(2) .tech-card-icon { background: linear-gradient(135deg, rgba(59,130,246,.1), rgba(124,58,237,.1)); }
         .tech-card:nth-child(3) .tech-card-icon { background: linear-gradient(135deg, rgba(16,185,129,.1), rgba(52,211,153,.1)); }
         .tech-card h3 {
             font-size: 1.1rem;
@@ -526,7 +527,7 @@
             position: relative;
         }
         .imem-coeff-card:nth-child(1) { background: rgba(249,115,22,.04); border-color: rgba(249,115,22,.15); }
-        .imem-coeff-card:nth-child(2) { background: rgba(79,70,229,.04); border-color: rgba(79,70,229,.15); }
+        .imem-coeff-card:nth-child(2) { background: rgba(59,130,246,.04); border-color: rgba(59,130,246,.15); }
         .imem-coeff-card:nth-child(3) { background: rgba(16,185,129,.04); border-color: rgba(16,185,129,.15); }
         .imem-coeff-symbol {
             font-family: 'JetBrains Mono', monospace;
@@ -781,7 +782,7 @@
             height: 4px;
         }
         .dtx-step-card:nth-child(1)::before { background: linear-gradient(90deg, #f97316, #fbbf24); }
-        .dtx-step-card:nth-child(2)::before { background: linear-gradient(90deg, #4f46e5, #7c3aed); }
+        .dtx-step-card:nth-child(2)::before { background: linear-gradient(90deg, #3b82f6, #0ea5e9); }
         .dtx-step-card:nth-child(3)::before { background: linear-gradient(90deg, #10b981, #34d399); }
         .dtx-step-num {
             font-family: 'JetBrains Mono', monospace;
@@ -801,7 +802,7 @@
             margin: 0 auto 16px;
         }
         .dtx-step-card:nth-child(1) .dtx-step-icon { background: rgba(249,115,22,.08); }
-        .dtx-step-card:nth-child(2) .dtx-step-icon { background: rgba(79,70,229,.08); }
+        .dtx-step-card:nth-child(2) .dtx-step-icon { background: rgba(59,130,246,.08); }
         .dtx-step-card:nth-child(3) .dtx-step-icon { background: rgba(16,185,129,.08); }
         .dtx-step-card h4 {
             font-size: 1.05rem;
@@ -896,7 +897,7 @@
             font-size: .9rem;
             flex-shrink: 0;
         }
-        .dtx-highlight-card:nth-child(1) .dtx-feature-icon { background: rgba(79,70,229,.06); }
+        .dtx-highlight-card:nth-child(1) .dtx-feature-icon { background: rgba(59,130,246,.06); }
         .dtx-highlight-card:nth-child(2) .dtx-feature-icon { background: rgba(16,185,129,.06); }
 
         .dtx-evidence-stat {
@@ -935,7 +936,7 @@
             height: 52px;
         }
         .cover-nav-brand {
-            font-family: 'Outfit', sans-serif;
+            font-family: 'Inter', sans-serif;
             font-weight: 700;
             font-size: 1.1rem;
             color: var(--text);
@@ -1010,11 +1011,11 @@
             font-size: 1.6rem;
             margin-bottom: 16px;
         }
-        .quickstart-card:nth-child(1) .quickstart-icon { background: rgba(79,70,229,.08); }
+        .quickstart-card:nth-child(1) .quickstart-icon { background: rgba(59,130,246,.08); }
         .quickstart-card:nth-child(2) .quickstart-icon { background: rgba(16,185,129,.08); }
         .quickstart-card:nth-child(3) .quickstart-icon { background: rgba(59,130,246,.08); }
         .quickstart-card h3 {
-            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-family: 'Inter', sans-serif;
             font-size: 1.15rem;
             font-weight: 800;
             margin-bottom: 10px;
@@ -1053,20 +1054,20 @@
             display: inline-flex;
             align-items: center;
             gap: 12px;
-            padding: 20px 48px;
-            border-radius: 18px;
-            background: var(--primary-gradient);
+            padding: 18px 40px;
+            border-radius: 12px;
+            background: var(--primary);
             color: #fff;
-            font-family: 'Plus Jakarta Sans', sans-serif;
-            font-size: 1.15rem;
-            font-weight: 800;
+            font-family: 'Inter', sans-serif;
+            font-size: 1.05rem;
+            font-weight: 700;
             text-decoration: none;
-            box-shadow: 0 8px 32px rgba(79,70,229,.3);
+            box-shadow: 0 4px 12px rgba(59,130,246,.25);
             transition: transform .3s, box-shadow .3s;
         }
         .cta-btn:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 12px 40px rgba(79,70,229,.4);
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(59,130,246,.3);
         }
         .cta-btn .arrow {
             font-size: 1.3rem;
@@ -1156,7 +1157,7 @@
                 </filter>
             </defs>
             <text x="230" y="72" text-anchor="middle"
-                  font-family="Outfit, sans-serif" font-size="60" font-weight="700"
+                  font-family="Inter, sans-serif" font-size="60" font-weight="700"
                   fill="#1a1a2e" letter-spacing="-0.5">IncretinAi</text>
             <rect x="389" y="12" width="16" height="22" fill="#f0f0ff" rx="2"/>
             <g transform="translate(397, 22)" filter="url(#heroGlow)">
@@ -1247,8 +1248,8 @@
                 <svg width="180" height="180" viewBox="0 0 180 180">
                     <defs>
                         <linearGradient id="recoveryGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                            <stop offset="0%" stop-color="#4f46e5"/>
-                            <stop offset="100%" stop-color="#7c3aed"/>
+                            <stop offset="0%" stop-color="#3b82f6"/>
+                            <stop offset="100%" stop-color="#0ea5e9"/>
                         </linearGradient>
                     </defs>
                     <circle class="recovery-ring-bg" cx="90" cy="90" r="80"/>
@@ -1291,17 +1292,17 @@
         <div class="tech-card reveal">
             <div class="tech-card-icon">⏰</div>
             <h3>BioSync Engine</h3>
-            <p>일출/일몰 기반 생체리듬 추적으로 인크레틴 호르몬 분비가 최대화되는 골든타임을 안내합니다.</p>
+            <p>일출/일몰 기반 생체리듬 추적으로 골든타임을 안내하며, 개인 기상시간에 맞춰 10개 루틴 시간표가 자동으로 최적화됩니다.</p>
         </div>
         <div class="tech-card reveal reveal-delay-1">
             <div class="tech-card-icon">🧬</div>
             <h3>IMEM v2.0 Engine</h3>
-            <p>시간·식사순서·근육감수성 3대 호르몬 계수로 당신만의 최적 인크레틴 전략을 실시간 계산합니다.</p>
+            <p>시간·식사순서·근육감수성 3대 호르몬 계수를 하나의 <b>인크레틴 활성도 점수</b>로 변환하여, 내 호르몬이 실제로 잘 반응하고 있는지 실시간으로 확인할 수 있습니다.</p>
         </div>
         <div class="tech-card reveal reveal-delay-2">
             <div class="tech-card-icon">🎮</div>
             <h3>Gamification</h3>
-            <p>레벨업·스트릭·일일 퀘스트로 약물 없이도 매일의 루틴을 지속할 수 있도록 습관화합니다.</p>
+            <p>전용 게임 탭에서 배지 컬렉션, 일일 퀘스트, 레벨업, 스트릭을 관리하며 약물 없이도 매일의 루틴을 지속할 수 있도록 습관화합니다.</p>
         </div>
     </div>
 
@@ -1509,7 +1510,7 @@
                 <div class="dtx-step-icon">🎯</div>
                 <h4>행동 감지</h4>
                 <div class="step-en">Detect</div>
-                <p>실시간 루틴 추적(식사시간, 단식주기, 활동량)으로 현재 호르몬 환경을 정량화합니다. IMEM 계수가 인크레틴 분비 효율을 실시간 모니터링합니다.</p>
+                <p>실시간 루틴 추적(식사시간, 단식주기, 활동량)으로 호르몬 환경을 정량화합니다. IMEM 계수를 하나의 인크레틴 활성도 점수로 변환하여, 전날 대비 호르몬 반응 변화를 즉시 확인할 수 있습니다.</p>
                 <div class="step-quote">"언제, 무엇이 인크레틴 분비를 방해하는지 감지"</div>
             </div>
             <div class="dtx-step-card reveal reveal-delay-1">
@@ -1517,7 +1518,7 @@
                 <div class="dtx-step-icon">💡</div>
                 <h4>행동 중재</h4>
                 <div class="step-en">Intervene</div>
-                <p>AI 코치(인크레티나)가 실시간 넛지를 제공합니다. BioSync 기반 최적 타이밍 안내, 식사순서·프리로드 등 과학적 행동 처방을 수행합니다.</p>
+                <p>인크레티나 Talk이 실시간 넛지를 제공하고, 핵심 루틴 완료 시 4주 예측 체중을 즉시 피드백합니다. 기상시간 맞춤 루틴 시간표와 과학적 행동 처방으로 행동 변화를 유도합니다.</p>
                 <div class="step-quote">"약물 대신 소프트웨어가 올바른 행동을 유도"</div>
             </div>
             <div class="dtx-step-card reveal reveal-delay-2">
@@ -1598,19 +1599,19 @@
             <div class="quickstart-step">STEP 01</div>
             <div class="quickstart-icon">📋</div>
             <h3>프로필 설정</h3>
-            <p>체중, 키, 목표 체중을 입력하세요. IMEM 엔진이 개인 맞춤 계수를 자동 계산합니다.</p>
+            <p>체중, 키, 목표 체중, 기상시간을 입력하세요. IMEM 엔진이 개인 맞춤 계수와 루틴 시간표를 자동 계산합니다.</p>
         </div>
         <div class="quickstart-card reveal reveal-delay-1">
             <div class="quickstart-step">STEP 02</div>
             <div class="quickstart-icon">✅</div>
             <h3>매일 루틴 체크</h3>
-            <p>골든타임에 맞춰 플러스 루틴을 실천하세요. 체크할수록 인크레틴 게이지가 올라갑니다.</p>
+            <p>루틴을 탭하면 실행방법과 과학적 근거를 확인하고 Done/Not Done을 선택하세요. 핵심 루틴 완료 시 4주 예측 체중을 바로 확인할 수 있습니다.</p>
         </div>
         <div class="quickstart-card reveal reveal-delay-2">
             <div class="quickstart-step">STEP 03</div>
             <div class="quickstart-icon">📊</div>
             <h3>대시보드 확인</h3>
-            <p>게이지, BMI 변화, 달성률을 확인하세요. 퀘스트 완료로 XP를 모아 레벨업!</p>
+            <p>인크레틴 활성도와 게이지로 오늘의 호르몬 상태를 확인하고, 게임 탭에서 퀘스트와 배지를 모아 레벨업!</p>
         </div>
     </div>
 </div>
@@ -1625,7 +1626,7 @@
         앱 입장하기
         <span class="arrow">→</span>
     </a>
-    <div class="cta-sub reveal reveal-delay-2">IncretinA i Pro v6.0 — Gamification Edition</div>
+    <div class="cta-sub reveal reveal-delay-2">IncretinA i Pro v7.0 — Vitality Edition</div>
 </div>
 
 <!-- Footer -->
@@ -1686,7 +1687,7 @@ function createJourneyChart() {
     const goalLine = labels.map((_, i) => i >= 15 ? (i === 15 ? 84.8 : (i === 16 ? 83.9 : 83)) : null);
 
     const phases = weights.map((w, i) => {
-        if (i <= 6) return 'rgba(79,70,229,.8)';
+        if (i <= 6) return 'rgba(59,130,246,.8)';
         if (i <= 8) return 'rgba(239,68,68,.8)';
         return 'rgba(16,185,129,.8)';
     });
@@ -1707,14 +1708,14 @@ function createJourneyChart() {
                     data: weights,
                     borderColor: (ctx) => {
                         const i = ctx.p0DataIndex;
-                        if (i <= 6) return '#4f46e5';
+                        if (i <= 6) return '#3b82f6';
                         if (i <= 8) return '#ef4444';
                         return '#10b981';
                     },
                     segment: {
                         borderColor: (ctx) => {
                             const i = ctx.p0DataIndex;
-                            if (i < 7) return '#4f46e5';
+                            if (i < 7) return '#3b82f6';
                             if (i < 9) return '#ef4444';
                             return '#10b981';
                         }
@@ -1753,7 +1754,7 @@ function createJourneyChart() {
                 legend: { display: false },
                 tooltip: {
                     backgroundColor: '#0f172a',
-                    titleFont: { family: 'Plus Jakarta Sans', weight: '700', size: 13 },
+                    titleFont: { family: 'Inter', weight: '700', size: 13 },
                     bodyFont: { family: 'JetBrains Mono', weight: '600', size: 12 },
                     padding: 12,
                     cornerRadius: 12,
@@ -1795,7 +1796,7 @@ function createJourneyChart() {
 
                 // Phase backgrounds
                 const phases = [
-                    { start: 0, end: 6, color: 'rgba(79,70,229,.04)', label: '💊 마운자로', labelColor: '#4f46e5' },
+                    { start: 0, end: 6, color: 'rgba(59,130,246,.04)', label: '💊 마운자로', labelColor: '#3b82f6' },
                     { start: 7, end: 8, color: 'rgba(239,68,68,.04)', label: '⚠️ 리바운드', labelColor: '#ef4444' },
                     { start: 9, end: 15, color: 'rgba(16,185,129,.04)', label: '📱 인크레티나', labelColor: '#10b981' }
                 ];
