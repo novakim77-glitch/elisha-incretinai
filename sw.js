@@ -1,5 +1,5 @@
 // IncretinAi PWA Service Worker v1.0
-const CACHE_NAME = 'incretinai-v7.1.0';
+const CACHE_NAME = 'incretinai-v7.2.0';
 const BASE = '/elisha-incretinai';
 const APP_SHELL = [
   BASE + '/IncretinAi_v6.0_Gamification.html',
@@ -45,9 +45,16 @@ self.addEventListener('fetch', e => {
     return;
   }
 
-  // Cache-first for app shell and static assets
+  // Network-first: try network, fall back to cache (ensures latest version)
   e.respondWith(
-    caches.match(e.request).then(cached => cached || fetch(e.request))
+    fetch(e.request).then(response => {
+      // Cache the fresh response for offline use
+      if (response.ok) {
+        const clone = response.clone();
+        caches.open(CACHE_NAME).then(cache => cache.put(e.request, clone));
+      }
+      return response;
+    }).catch(() => caches.match(e.request))
   );
 });
 
