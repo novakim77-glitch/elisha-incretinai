@@ -1707,12 +1707,7 @@ function gamificationOnDataChange() {
 
     // Badge checking (v7.0)
     checkBadges();
-
-    // Weekly report (v7.0)
-    generateWeeklyReport();
-
-    // 미니 넛지 업데이트
-    updateMiniNudge();
+    // (updateMiniNudge는 fullRefresh → updateAIStatus에서 호출되므로 여기서 중복 제거)
 }
 
 // ============================================================
@@ -1927,15 +1922,9 @@ function showTinaToast(msg) {
     }, 2200);
 }
 
-let _miniNudgeTimer=null;
-let _miniNudgeReady=false;
+let _miniNudgeState=''; // 현재 상태 캐시 (상태가 바뀔 때만 메시지 교체)
+let _miniNudgeMsg=''; // 현재 표시 중인 메시지 캐시
 function updateMiniNudge() {
-    // 디바운스: 짧은 시간 내 반복 호출 방지 (앱 초기 로딩 시 다중 호출 차단)
-    clearTimeout(_miniNudgeTimer);
-    _miniNudgeTimer=setTimeout(_doMiniNudge, _miniNudgeReady?100:400);
-}
-function _doMiniNudge() {
-    _miniNudgeReady=true;
     const score = calculateTotalScore();
     const pen = getTotalPenalty();
     const rec = getTotalRecovery();
@@ -1947,14 +1936,18 @@ function _doMiniNudge() {
     else if (score >= 50) state = 'achiever';
     else state = 'reset';
 
-    // v7.0: 30% chance to show personalized trend message
+    // 상태가 동일하면 메시지를 바꾸지 않음 (화면 떨림 방지)
+    const stateKey = mood + '_' + state;
+    if (stateKey === _miniNudgeState && _miniNudgeMsg) return;
+    _miniNudgeState = stateKey;
+
+    // 상태가 변경되었을 때만 새 랜덤 메시지 선택
     let mainMsg = null;
     const trends = analyzeTrends();
     if (trends.totalDays >= 3 && Math.random() < 0.3) {
         const personalMsg = getPersonalizedMessage(trends);
         if (personalMsg) mainMsg = replaceTinaTokens(personalMsg);
     }
-
     if (!mainMsg) {
         const msgs = TINA_MESSAGES[mood] && TINA_MESSAGES[mood][state] ? TINA_MESSAGES[mood][state] : TINA_MESSAGES.healing[state];
         mainMsg = replaceTinaTokens(getRandomItem(msgs));
@@ -1966,10 +1959,8 @@ function _doMiniNudge() {
         const newHTML = greeting
             ? '<span class="tina-greeting">' + replaceTinaTokens(greeting) + '</span>' + mainMsg
             : mainMsg;
-        // 동일 내용이면 DOM 업데이트 스킵
-        if (miniEl.innerHTML !== newHTML) {
-            miniEl.innerHTML = newHTML;
-        }
+        miniEl.innerHTML = newHTML;
+        _miniNudgeMsg = newHTML;
     }
 }
 
