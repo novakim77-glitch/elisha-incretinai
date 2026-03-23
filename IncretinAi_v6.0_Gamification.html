@@ -2450,6 +2450,9 @@ function switchMainTab(tabName){
 }
 
 function showAINudgeModal(){
+    // 모달 열 때는 새 메시지 표시 (캐시 리셋)
+    _aiStatusState='';_aiStatusMsg='';
+    _miniNudgeState='';_miniNudgeMsg='';
     updateAIStatus();
     document.getElementById('ai-modal').classList.add('show');
 }
@@ -2627,6 +2630,8 @@ function updateVitality(){
     }
 }
 
+let _aiStatusState='';
+let _aiStatusMsg='';
 function updateAIStatus(score){
     if(score===undefined)score=calculateTotalScore();
     const pen=getTotalPenalty(),rec=getTotalRecovery();
@@ -2638,19 +2643,25 @@ function updateAIStatus(score){
     else if(score>=50)state='achiever';
     else state='reset';
 
-    const msgs=TINA_MESSAGES[mood]&&TINA_MESSAGES[mood][state]?TINA_MESSAGES[mood][state]:TINA_MESSAGES.healing[state];
-    let msg=replaceTinaTokens(getRandomItem(msgs));
-
-    // 시간대 인사 추가
-    const greeting=getTimeGreeting();
-    const nudgeEl=document.getElementById('ai-nudge');
-    if(greeting){
-        nudgeEl.innerHTML='<div style="font-size:.75rem;color:var(--accent);font-weight:700;margin-bottom:8px">'+replaceTinaTokens(greeting)+'</div>'+msg;
-    }else{
-        nudgeEl.textContent=msg;
+    // 상태가 바뀔 때만 새 메시지 선택 (떨림 방지)
+    const key=mood+'_'+state;
+    if(key!==_aiStatusState||!_aiStatusMsg){
+        _aiStatusState=key;
+        const msgs=TINA_MESSAGES[mood]&&TINA_MESSAGES[mood][state]?TINA_MESSAGES[mood][state]:TINA_MESSAGES.healing[state];
+        _aiStatusMsg=replaceTinaTokens(getRandomItem(msgs));
     }
 
-    // 미니 넛지도 동기화
+    const greeting=getTimeGreeting();
+    const nudgeEl=document.getElementById('ai-nudge');
+    if(nudgeEl){
+        if(greeting){
+            nudgeEl.innerHTML='<div style="font-size:.75rem;color:var(--accent);font-weight:700;margin-bottom:8px">'+replaceTinaTokens(greeting)+'</div>'+_aiStatusMsg;
+        }else{
+            nudgeEl.textContent=_aiStatusMsg;
+        }
+    }
+
+    // 미니 넛지도 동기화 (같은 캐싱 로직 적용됨)
     updateMiniNudge();
 }
 
