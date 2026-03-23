@@ -625,6 +625,20 @@
         .table-badge.low { background: rgba(16,185,129,.08); color: var(--success); }
         .table-badge.med { background: rgba(249,115,22,.08); color: var(--orange); }
 
+        /* IncretinAi 열 강조 */
+        .compare-table thead th:last-child { background: rgba(59,130,246,.06); }
+        .compare-table tbody td:last-child { background: rgba(59,130,246,.03); font-weight: 600; }
+
+        /* 4열 테이블 모바일 가로스크롤 */
+        .compare-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .compare-table { min-width: 600px; }
+
+        /* 차별화 핵심 메시지 */
+        .diff-message { max-width: 680px; margin: 32px auto 0; padding: 24px; background: var(--surface);
+            border-radius: var(--card-radius); border-left: 4px solid var(--primary);
+            font-size: .9rem; line-height: 1.8; color: var(--text-sub); text-align: left; }
+        .diff-message b { color: var(--primary); }
+
         /* ========== SECTION 4: DIGITAL THERAPEUTICS ========== */
         .dtx-section {
             background: linear-gradient(180deg, #fafbfe 0%, #f0f0ff 50%, #fafbfe 100%);
@@ -1131,6 +1145,7 @@
             <a href="#journey">체중 여정</a>
             <a href="#tech">핵심 기술</a>
             <a href="#dtx">DTx</a>
+            <a href="#diff">차별화</a>
             <a href="#guide">가이드</a>
             <a href="#cta">시작하기</a>
         </div>
@@ -1576,6 +1591,83 @@
                 </ul>
             </div>
         </div>
+    </div>
+</div>
+
+<!-- ==================== DIFFERENTIATION SECTION ==================== -->
+<div class="tech-section" id="diff" style="background:var(--bg);">
+    <div class="reveal" style="text-align:center;margin-bottom:48px;">
+        <span class="section-tag blue">Why IncretinAi</span>
+        <h2 class="section-title" style="text-align:center;">기존 체중감량 앱과 무엇이 다른가?</h2>
+        <p class="section-desc" style="margin:0 auto;">칼로리 추적도, 약물 처방도 아닌 — 호르몬 과학 기반의 새로운 접근</p>
+    </div>
+
+    <div class="compare-table-wrap reveal">
+        <table class="compare-table">
+            <thead>
+                <tr>
+                    <th>비교 항목</th>
+                    <th>📱 일반 다이어트 앱</th>
+                    <th>💊 GLP-1 컴패니언 앱</th>
+                    <th>🧬 IncretinAi</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>핵심 접근</td>
+                    <td>칼로리 추적 + CBT 심리학</td>
+                    <td>GLP-1 약물 처방 + 행동 코칭</td>
+                    <td>내인성 인크레틴 호르몬 활성화</td>
+                </tr>
+                <tr>
+                    <td>과학적 기반</td>
+                    <td>인지행동치료 (심리학)</td>
+                    <td>약물 약리학 + 행동심리학</td>
+                    <td>인크레틴 생리학 (α×β×γ IMEM)</td>
+                </tr>
+                <tr>
+                    <td>약물 필요</td>
+                    <td><span class="table-badge low">없음</span></td>
+                    <td><span class="table-badge high">필수</span><br>월 $200~$1,500</td>
+                    <td><span class="table-badge low">없음</span></td>
+                </tr>
+                <tr>
+                    <td>감량 방식</td>
+                    <td>식단 기록 → 칼로리 적자</td>
+                    <td>약물이 식욕 억제 + 행동 보조</td>
+                    <td>호르몬 최적화 → 자연적 대사 전환</td>
+                </tr>
+                <tr>
+                    <td>리바운드 위험</td>
+                    <td><span class="table-badge high">높음</span><br>습관 유지 어려움</td>
+                    <td><span class="table-badge high">높음</span><br>약물 중단 시 2/3 복귀</td>
+                    <td><span class="table-badge low">낮음</span><br>습관 기반 호르몬 환경 유지</td>
+                </tr>
+                <tr>
+                    <td>개인화</td>
+                    <td>칼로리 목표 설정</td>
+                    <td>약물 용량 조절 + 코칭</td>
+                    <td>기상시간 맞춤 시간표 + IMEM 실시간 계수</td>
+                </tr>
+                <tr>
+                    <td>효과 측정</td>
+                    <td>체중·칼로리 기록</td>
+                    <td>체중 + 약물 복용 추적</td>
+                    <td>인크레틴 활성도 점수 + 4주 예측 체중</td>
+                </tr>
+                <tr>
+                    <td>비용</td>
+                    <td><span class="table-badge med">무료~$70/월</span></td>
+                    <td><span class="table-badge high">$149~$199+/월</span><br>+ 약물비 별도</td>
+                    <td><span class="table-badge low">앱 사용료만</span></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="diff-message reveal">
+        Noom은 심리학으로 식습관을 바꿉니다. GLP-1 앱은 약물로 식욕을 억제합니다.<br>
+        <b>IncretinAi는 인크레틴 과학에 기반한 토탈 행동양식 교정으로 호르몬을 바꿉니다.</b>
     </div>
 </div>
 
