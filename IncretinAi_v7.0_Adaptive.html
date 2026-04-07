@@ -888,22 +888,41 @@
         </div>
         <button class="btn btn-primary no-print" onclick="runComprehensiveAnalysis()">🔬 분석 실행 및 데이터 갱신</button>
 
-        <!-- 알림 설정 -->
-        <div class="notif-toggle-row no-print" id="notif-section">
+        <!-- 알림 안내 (텔레그램 봇 기반) -->
+        <div class="notif-toggle-row no-print" id="notif-section" style="flex-direction:column;align-items:stretch;gap:10px;padding:14px 0">
             <div>
-                <div class="notif-toggle-label">🔔 루틴 알림 받기</div>
-                <div class="notif-toggle-sub" id="notif-status-text">골든타임 임박 시 알림을 받습니다</div>
+                <div class="notif-toggle-label">🔔 루틴 알림 (텔레그램 봇)</div>
+                <div class="notif-toggle-sub" id="notif-status-text">알림은 모두 텔레그램 <b>@incretina_ai_bot</b> 으로 발송됩니다.</div>
             </div>
-            <label class="notif-switch">
-                <input type="checkbox" id="notif-toggle" onchange="toggleNotifications(this.checked)">
-                <span class="notif-slider"></span>
-            </label>
+            <div style="background:var(--bg-soft,#f7f9fc);border-radius:10px;padding:12px 14px;font-size:.78rem;line-height:1.7;color:var(--text-sub,#475569)">
+                <div style="font-weight:700;color:var(--text,#0f172a);margin-bottom:6px">📅 매일 자동 알림 스케줄 (KST)</div>
+                <div>☀️ 06:30 · 햇빛 노출 <span style="opacity:.6">(끄기 가능)</span></div>
+                <div>🌅 07:00 · 모닝 브리핑</div>
+                <div>🍽 11:30 · 점심 골든타임 <span style="opacity:.6">(끄기 가능)</span></div>
+                <div>🌇 17:00 · 저녁 골든타임 <span style="opacity:.6">(끄기 가능)</span></div>
+                <div>⏰ 18:30 · 메타볼릭 스위치 콜</div>
+                <div>🌙 22:00 · 일일 리캡</div>
+            </div>
+            <div id="notif-prefs-box">
+                <div style="font-size:.74rem;font-weight:700;color:var(--text-sub,#475569);margin-bottom:6px">선택 알림 끄기</div>
+                <div class="notif-toggle-row" style="padding:6px 0;border:none">
+                    <div class="notif-toggle-label" style="font-size:.8rem">☀️ 06:30 햇빛 노출</div>
+                    <label class="notif-switch"><input type="checkbox" id="pref-morningLight" checked onchange="saveNotifyPref('morningLight',this.checked)"><span class="notif-slider"></span></label>
+                </div>
+                <div class="notif-toggle-row" style="padding:6px 0;border:none">
+                    <div class="notif-toggle-label" style="font-size:.8rem">🍽 11:30 점심 골든타임</div>
+                    <label class="notif-switch"><input type="checkbox" id="pref-lunchGolden" checked onchange="saveNotifyPref('lunchGolden',this.checked)"><span class="notif-slider"></span></label>
+                </div>
+                <div class="notif-toggle-row" style="padding:6px 0;border:none">
+                    <div class="notif-toggle-label" style="font-size:.8rem">🌇 17:00 저녁 골든타임</div>
+                    <label class="notif-switch"><input type="checkbox" id="pref-dinnerGolden" checked onchange="saveNotifyPref('dinnerGolden',this.checked)"><span class="notif-slider"></span></label>
+                </div>
+                <div id="notif-tg-warn" style="display:none;font-size:.72rem;color:#b45309;background:#fef3c7;border-radius:8px;padding:8px 12px;margin-top:6px">
+                    ⚠️ 텔레그램 봇이 아직 연결되지 않았어요. 아래 "텔레그램 코치 봇 연결" 카드에서 코드를 발급받아 연결해 주세요.
+                </div>
+            </div>
         </div>
-        <div class="ios-guide" id="ios-guide">
-            📱 <b>iPhone 사용자 안내</b><br>
-            푸시 알림을 받으려면 먼저 앱을 홈 화면에 추가해야 합니다:<br>
-            Safari 하단 <b>공유 버튼(↑)</b> → <b>"홈 화면에 추가"</b> 탭
-        </div>
+        <div class="ios-guide" id="ios-guide" style="display:none"></div>
 
         <!-- ★ Telegram Bot 연결 카드 (Schema v2) ★ -->
         <div class="notif-toggle-row no-print" id="tg-link-section" style="margin-top:12px;flex-direction:column;align-items:stretch;gap:12px">
@@ -1208,6 +1227,25 @@ async function saveFCMToken(){
         }
     }catch(e){console.warn('FCM token error:',e)}
 }
+// v7.1: Telegram 알림 선호도 저장
+async function saveNotifyPref(key, on){
+    if(!currentUser)return;
+    try{
+        await userDoc().set({notifyPrefs:{[key]:on}},{merge:true});
+        showTinaToast(on?'알림이 켜졌어요':'알림이 꺼졌어요');
+    }catch(e){console.error('notify pref save:',e)}
+}
+function applyNotifyPrefs(prefs){
+    prefs = prefs || {};
+    ['morningLight','lunchGolden','dinnerGolden'].forEach(k=>{
+        const el=document.getElementById('pref-'+k);
+        if(el)el.checked = prefs[k] !== false; // default true
+    });
+}
+function updateTelegramLinkWarning(linked){
+    const w=document.getElementById('notif-tg-warn');
+    if(w)w.style.display = linked ? 'none' : 'block';
+}
 async function toggleNotifications(on){
     if(on){
         if(isIOS()&&!isStandalone()){
@@ -1315,6 +1353,9 @@ function listenToProfile(){if(unsubProfile)unsubProfile();unsubProfile=userDoc()
 // v7.0: Progressive Unlocking & Comeback 데이터
 // 사용자가 프로필에 입력한 시작일(p.start)을 진실의 원천으로 사용. 없으면 legacy userStartDate.
 _userStartDate=p.start||p.userStartDate||null;
+// v7.1: 텔레그램 알림 선호도 + 연결 상태
+applyNotifyPrefs(p.notifyPrefs);
+updateTelegramLinkWarning(!!(p.telegramLinked||p.telegramChatId));
 if(p.lastActiveDate){const last=new Date(p.lastActiveDate);const today=new Date();today.setHours(0,0,0,0);last.setHours(0,0,0,0);window._daysSinceLastUse=Math.max(0,Math.floor((today-last)/(1000*60*60*24)))}else{window._daysSinceLastUse=0}
 // Progressive Unlocking 적용: 주차 변경 시 리렌더
 renderList();renderRiskList();renderWidgetItems();checkUnlockCelebration();
