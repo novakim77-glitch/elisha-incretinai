@@ -756,6 +756,16 @@
         <div class="chart-card" id="sim-view"><span class="chart-title">📉 IMEM v2.0 4주 예측</span><canvas id="simChart" height="200"></canvas></div>
     </div>
 
+    <!-- 오늘의 식사 (텔레그램 봇 사진 분석으로 누적) -->
+    <div class="glass-card" id="meals-card" style="border-left:3px solid var(--primary);padding:14px;margin-bottom:10px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+            <span style="font-size:.78rem;font-weight:800;color:var(--primary)">🍽 오늘의 식사</span>
+            <span style="font-size:.7rem;font-weight:700;color:var(--text-sub)"><span id="meals-kcal">0</span> kcal · <span id="meals-count">0</span>끼</span>
+        </div>
+        <div id="meals-list" style="font-size:.78rem;color:var(--text)"></div>
+        <div id="meals-empty" style="font-size:.72rem;color:var(--text-sub);text-align:center;padding:6px">텔레그램 봇에 음식 사진을 보내면 자동으로 누적돼요.</div>
+    </div>
+
     <!-- v7.0: 코호트 비교 Placeholder -->
     <div style="opacity:.45;pointer-events:none;padding:14px;background:var(--surface);border:1px dashed var(--border);border-radius:var(--card-radius);margin-bottom:10px;text-align:center">
         <div style="font-size:.72rem;font-weight:800;color:var(--text-sub);letter-spacing:.5px;text-transform:uppercase;margin-bottom:6px">📊 이번 주 코호트 비교</div>
@@ -1426,6 +1436,7 @@ function loadDateData(){
     fullRefresh();
     renderWidgetItems();
     renderFocusSummary();
+    try{renderMealsCard();}catch(e){console.error('renderMealsCard:',e)}
     // 차트+주간리포트는 debounce로 1회만 갱신 (onSnapshot 캐시+서버 2회 방지)
     clearTimeout(_chartTimer);
     _chartTimer=setTimeout(()=>{
@@ -3558,6 +3569,7 @@ function onDataChange(){
     try{fullRefresh()}catch(e){console.error('fullRefresh:',e)}
     try{gamificationOnDataChange()}catch(e){console.error('gamification:',e)}
     try{renderWidgetItems()}catch(e){console.error('renderWidgetItems:',e)}
+    try{renderMealsCard()}catch(e){console.error('renderMealsCard:',e)}
     // debounce 저장: 빠른 연속 클릭 시 마지막 한 번만 저장
     clearTimeout(_dataChangeTimer);
     _dataChangeTimer=setTimeout(()=>{
@@ -3572,6 +3584,51 @@ function drawChartPlaceholder(canvasId,msg){
     ctx.clearRect(0,0,w,h);
     ctx.fillStyle='#94a3b8';ctx.font='13px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
     ctx.fillText(msg,w/2,h/2);
+}
+
+function renderMealsCard(){
+    const dateKey=document.getElementById('target-date')?.value;
+    const hist=window._cloudHistory||{};
+    const day=(dateKey&&hist[dateKey])||{};
+    const meals=Array.isArray(day.meals)?day.meals:[];
+    const kcal=meals.reduce((s,m)=>s+(Number(m.kcal)||0),0);
+    const kcalEl=document.getElementById('meals-kcal');
+    const cntEl=document.getElementById('meals-count');
+    const listEl=document.getElementById('meals-list');
+    const emptyEl=document.getElementById('meals-empty');
+    if(!kcalEl||!cntEl||!listEl||!emptyEl)return;
+    kcalEl.textContent=kcal;
+    cntEl.textContent=meals.length;
+    if(meals.length===0){listEl.innerHTML='';emptyEl.style.display='block';return;}
+    emptyEl.style.display='none';
+    listEl.innerHTML=meals.map(m=>{
+        const t=m.time||'';
+        const menu=(m.menu||'식사').replace(/</g,'&lt;');
+        const k=Number(m.kcal)||0;
+        const beta=Number(m.betaScore)||0;
+        const betaTag=beta>=0.7?'<span style="color:var(--success);font-weight:700">β優</span>':beta>=0.4?'<span style="color:var(--accent);font-weight:700">β中</span>':'<span style="color:var(--text-sub)">β低</span>';
+        return `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)"><span style="flex:1;min-width:0"><span style="color:var(--text-sub);font-size:.7rem">${t}</span> ${menu}</span><span style="font-family:'JetBrains Mono',monospace;font-weight:700;white-space:nowrap">${k} kcal ${betaTag}</span><button onclick="deleteMeal(${meals.indexOf(m)})" title="삭제" style="background:none;border:none;color:var(--text-sub);font-size:1rem;cursor:pointer;padding:2px 6px">🗑</button></div>`;
+    }).join('');
+}
+
+async function deleteMeal(index){
+    if(!confirm('이 식사 기록을 삭제할까요?'))return;
+    const dateKey=document.getElementById('target-date')?.value;
+    const hist=window._cloudHistory||{};
+    const day=(dateKey&&hist[dateKey])||{};
+    const meals=Array.isArray(day.meals)?[...day.meals]:[];
+    if(index<0||index>=meals.length)return;
+    meals.splice(index,1);
+    const dailyKcal=meals.reduce((s,m)=>s+(Number(m.kcal)||0),0);
+    if(window._cloudHistory&&window._cloudHistory[dateKey]){
+        window._cloudHistory[dateKey].meals=meals;
+        window._cloudHistory[dateKey].dailyKcal=dailyKcal;
+    }
+    renderMealsCard();
+    try{
+        await historyCollection().doc(dateKey).set({meals,dailyKcal},{merge:true});
+        showSyncStatus('synced');
+    }catch(e){console.error('deleteMeal:',e);showSyncStatus('offline');}
 }
 
 function updateTrendChart(){
