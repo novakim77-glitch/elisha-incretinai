@@ -2109,8 +2109,15 @@ function getTinaContext(score) {
     if (typeof currentSunset !== 'undefined' && currentSunset) {
         const now = new Date();
         const sunsetTime = new Date(now);
-        const sp = currentSunset.split(':');
-        sunsetTime.setHours(parseInt(sp[0]), parseInt(sp[1]), 0);
+        // currentSunset can be either {h,m} object (from calculateSunTimes) or "HH:MM" string (legacy)
+        let sH, sM;
+        if (typeof currentSunset === 'string') {
+            const sp = currentSunset.split(':');
+            sH = parseInt(sp[0]); sM = parseInt(sp[1]);
+        } else {
+            sH = currentSunset.h; sM = currentSunset.m;
+        }
+        sunsetTime.setHours(sH, sM, 0);
         const minToSunset = (sunsetTime - now) / 60000;
         const eveningDone = document.getElementById('item-6') && document.getElementById('item-6').classList.contains('checked');
         if (minToSunset > 0 && minToSunset <= 30 && !eveningDone) return 'urgent';
@@ -3103,6 +3110,16 @@ function getRoutineTime(index){
 
 function renderList(){
     const unlocked = getUnlockedRoutineIndices();
+    // Preserve checked state across re-renders. Source of truth = current DOM
+    // (routineDone adds class immediately, before save), with fallback to the
+    // cached cloud doc for the current target date.
+    const dateKey=document.getElementById('target-date')?.value;
+    const cloudChecks=(window._cloudHistory&&dateKey&&window._cloudHistory[dateKey]&&window._cloudHistory[dateKey].checks)||null;
+    const wasChecked=routine.map((_,i)=>{
+        const el=document.getElementById('item-'+i);
+        if(el)return el.classList.contains('checked');
+        return !!(cloudChecks&&cloudChecks[i]);
+    });
     document.getElementById('routine-list').innerHTML=routine.map((item,i)=>{
         const locked = !unlocked.includes(i);
         if(locked){
@@ -3118,7 +3135,8 @@ function renderList(){
             </div>`;
         }
         const isFocus=_focusRoutines.includes(i);
-        return `<div class="item ${item.crit?'critical':''}" id="item-${i}" onclick="openRoutinePopup(${i})" style="${isFocus?'border-left-color:var(--accent);box-shadow:0 0 0 1px rgba(14,165,233,.15)':''}">
+        const checkedCls=wasChecked[i]?' checked':'';
+        return `<div class="item ${item.crit?'critical':''}${checkedCls}" id="item-${i}" onclick="openRoutinePopup(${i})" style="${isFocus?'border-left-color:var(--accent);box-shadow:0 0 0 1px rgba(14,165,233,.15)':''}">
             <div class="item-icon">${item.icon}</div>
             <div class="item-body">
                 <span class="item-time">${getRoutineTime(i)} · ${item.imem}</span>
@@ -3474,14 +3492,15 @@ function toggleWidgetRisks(){
 let _dataChangeTimer=null;
 function onDataChange(){
     if(!_appReady)return; // Firebase 데이터 로드 전 모든 변경/저장 차단
-    fullRefresh();
-    gamificationOnDataChange();
-    renderWidgetItems();
+    // UI 렌더 단계에서 예외가 나도 저장 단계까지 도달하도록 try/catch로 격리
+    try{fullRefresh()}catch(e){console.error('fullRefresh:',e)}
+    try{gamificationOnDataChange()}catch(e){console.error('gamification:',e)}
+    try{renderWidgetItems()}catch(e){console.error('renderWidgetItems:',e)}
     // debounce 저장: 빠른 연속 클릭 시 마지막 한 번만 저장
     clearTimeout(_dataChangeTimer);
     _dataChangeTimer=setTimeout(()=>{
-        saveDailyToCloud();
-        saveProfileToCloud();
+        try{saveDailyToCloud()}catch(e){console.error('saveDailyToCloud:',e)}
+        try{saveProfileToCloud()}catch(e){console.error('saveProfileToCloud:',e)}
     },600);
 }
 
@@ -3705,10 +3724,7 @@ function initApp(){
     updateMiniNudge();
     setInterval(updateMiniNudge, 1800000);
     // Restore notification toggle state
-    if('Notification' in window && Notification.permission==='granted'){
-        document.getElementById('notif-toggle').checked=true;
-        document.getElementById('notif-status-text').textContent='알림이 활성화되었습니다';
-    }
+    // (legacy FCM toggle removed in v7.1 — notifications now flow through Telegram bot)
     if(isIOS()&&!isStandalone()){
         document.getElementById('ios-guide').style.display='block';
     }
