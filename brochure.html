@@ -1,0 +1,418 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>IncretinA i — 봄처럼 가볍게, 오늘부터</title>
+<link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --petal:#ffd6e0;
+    --petal-deep:#ffb3c6;
+    --sakura:#ffe8ef;
+    --leaf:#a8e6b3;
+    --leaf-deep:#6fc98a;
+    --cream:#fff7e8;
+    --sun:#ffe08a;
+    --ink:#2d2438;
+    --ink-sub:#6b6079;
+    --line:rgba(45,36,56,.08);
+    --card-radius:28px;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0;font-family:'Pretendard',-apple-system,BlinkMacSystemFont,sans-serif;color:var(--ink);background:
+    radial-gradient(ellipse at 20% 0%,var(--sakura) 0%,transparent 55%),
+    radial-gradient(ellipse at 80% 30%,#e8f8ec 0%,transparent 55%),
+    radial-gradient(ellipse at 50% 100%,var(--cream) 0%,transparent 60%),
+    linear-gradient(180deg,#fffaf5 0%,#fff3f7 100%);
+    background-attachment:fixed;
+    min-height:100vh;
+    overflow-x:hidden;
+  }
+  /* 떠다니는 꽃잎 */
+  .petals{position:fixed;inset:0;pointer-events:none;z-index:1;overflow:hidden}
+  .petal{position:absolute;top:-40px;width:18px;height:18px;border-radius:150% 0 150% 0;background:linear-gradient(135deg,var(--petal) 0%,var(--petal-deep) 100%);opacity:.75;animation:fall linear infinite;filter:drop-shadow(0 2px 3px rgba(255,130,160,.25))}
+  @keyframes fall{
+    0%{transform:translate(0,-40px) rotate(0deg)}
+    100%{transform:translate(40px,110vh) rotate(540deg)}
+  }
+  /* 진행 도트 */
+  .progress{position:fixed;top:18px;left:50%;transform:translateX(-50%);display:flex;gap:7px;z-index:50;background:rgba(255,255,255,.7);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);padding:8px 14px;border-radius:999px;box-shadow:0 4px 20px rgba(255,150,170,.15)}
+  .dot{width:7px;height:7px;border-radius:50%;background:rgba(45,36,56,.15);transition:all .4s cubic-bezier(.4,0,.2,1)}
+  .dot.active{background:linear-gradient(135deg,var(--petal-deep),var(--leaf-deep));width:22px;border-radius:999px}
+
+  /* 카드 스테이지 */
+  .stage{
+    scroll-snap-type:y mandatory;
+    height:100vh;
+    overflow-y:scroll;
+    overflow-x:hidden;
+    scroll-behavior:smooth;
+    position:relative;
+    z-index:2;
+    perspective:1400px;
+  }
+  .stage::-webkit-scrollbar{display:none}
+
+  .card-wrap{
+    scroll-snap-align:center;
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:64px 20px 40px;
+    position:relative;
+  }
+  .card{
+    width:100%;
+    max-width:440px;
+    background:rgba(255,255,255,.78);
+    backdrop-filter:blur(24px) saturate(180%);
+    -webkit-backdrop-filter:blur(24px) saturate(180%);
+    border:1px solid rgba(255,255,255,.9);
+    border-radius:var(--card-radius);
+    padding:36px 28px 32px;
+    box-shadow:
+      0 1px 0 rgba(255,255,255,.9) inset,
+      0 30px 60px -20px rgba(255,130,170,.25),
+      0 18px 40px -15px rgba(110,200,140,.18),
+      0 4px 10px rgba(45,36,56,.05);
+    transform:translateY(40px) rotateX(8deg) scale(.96);
+    opacity:0;
+    transition:transform .9s cubic-bezier(.2,.8,.2,1),opacity .7s ease;
+    position:relative;
+  }
+  .card-wrap.in-view .card{transform:translateY(0) rotateX(0) scale(1);opacity:1}
+  .card::before{
+    content:"";position:absolute;inset:0;border-radius:var(--card-radius);
+    background:linear-gradient(135deg,rgba(255,214,224,.5) 0%,transparent 40%,rgba(168,230,179,.35) 100%);
+    pointer-events:none;
+    z-index:-1;
+    filter:blur(20px);
+    transform:scale(1.05);
+  }
+
+  .eyebrow{font-size:.72rem;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:var(--leaf-deep);margin-bottom:10px;display:flex;align-items:center;gap:8px}
+  .eyebrow::before{content:"";width:22px;height:2px;border-radius:2px;background:linear-gradient(90deg,var(--leaf-deep),var(--petal-deep))}
+  h1.title{font-size:1.85rem;font-weight:900;line-height:1.25;margin:0 0 14px;letter-spacing:-.02em}
+  h2.title{font-size:1.55rem;font-weight:900;line-height:1.3;margin:0 0 14px;letter-spacing:-.02em}
+  .lead{font-size:.95rem;line-height:1.7;color:var(--ink-sub);margin:0 0 18px}
+  .accent{background:linear-gradient(120deg,transparent 0%,transparent 50%,var(--sakura) 50%,var(--sakura) 95%,transparent 95%);padding:0 2px}
+  .pink{color:#e25a7c}
+  .green{color:var(--leaf-deep)}
+
+  /* 표지 */
+  .cover{text-align:center}
+  .logo-badge{
+    display:inline-flex;align-items:center;justify-content:center;
+    width:96px;height:96px;border-radius:50%;
+    background:linear-gradient(135deg,#fff 0%,var(--sakura) 60%,var(--petal) 100%);
+    box-shadow:0 15px 35px -10px rgba(255,130,170,.5),0 0 0 1px rgba(255,255,255,.8) inset;
+    margin:0 auto 20px;
+    font-size:2.6rem;
+    animation:float 4s ease-in-out infinite;
+  }
+  @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+  .brand{font-size:2.4rem;font-weight:900;letter-spacing:-.03em;margin:0}
+  .brand .i{background:linear-gradient(135deg,var(--petal-deep),var(--leaf-deep));-webkit-background-clip:text;background-clip:text;color:transparent;font-style:italic}
+  .tagline{font-size:.95rem;color:var(--ink-sub);margin:6px 0 22px;font-weight:500}
+  .hook{font-size:1.25rem;font-weight:800;line-height:1.5;color:var(--ink);margin-top:10px}
+
+  /* 리스트 */
+  .need-list{list-style:none;padding:0;margin:0 0 18px}
+  .need-list li{
+    display:flex;gap:12px;align-items:flex-start;
+    padding:12px 14px;margin-bottom:8px;
+    background:rgba(255,255,255,.6);
+    border-radius:14px;
+    border:1px solid var(--line);
+    font-size:.88rem;line-height:1.5;
+  }
+  .need-list .n{
+    flex-shrink:0;width:26px;height:26px;border-radius:50%;
+    background:linear-gradient(135deg,var(--petal),var(--petal-deep));
+    color:#fff;font-weight:800;font-size:.75rem;
+    display:flex;align-items:center;justify-content:center;
+  }
+
+  /* 사이언스 타임라인 */
+  .timeline{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 8px}
+  .t-step{
+    flex:1 1 calc(33% - 8px);
+    background:linear-gradient(135deg,rgba(255,255,255,.9),rgba(255,232,239,.6));
+    border:1px solid var(--line);border-radius:14px;
+    padding:10px 8px;text-align:center;
+    font-size:.68rem;font-weight:700;color:var(--ink-sub);
+  }
+  .t-step .ic{font-size:1.3rem;display:block;margin-bottom:2px}
+
+  /* IMEM 공식 */
+  .imem-box{
+    background:linear-gradient(135deg,#fff 0%,#fff7fa 100%);
+    border:1px solid var(--line);border-radius:18px;padding:18px 16px;margin:16px 0;
+  }
+  .coeffs{display:flex;justify-content:space-around;margin-bottom:12px}
+  .coeff{text-align:center}
+  .coeff .sym{font-size:1.8rem;font-weight:900;font-family:'JetBrains Mono',monospace;display:block;line-height:1}
+  .coeff .lbl{font-size:.62rem;font-weight:800;color:var(--ink-sub);text-transform:uppercase;letter-spacing:.1em;margin-top:4px;display:block}
+  .coeff.a .sym{color:#e25a7c}
+  .coeff.b .sym{color:var(--leaf-deep)}
+  .coeff.g .sym{color:#d4a017}
+  .formula{font-family:'JetBrains Mono',monospace;font-size:.7rem;text-align:center;color:var(--ink-sub);padding-top:10px;border-top:1px dashed var(--line);line-height:1.7}
+
+  /* 혜택 */
+  .benefits{list-style:none;padding:0;margin:6px 0 0}
+  .benefits li{
+    display:flex;gap:10px;align-items:flex-start;
+    font-size:.9rem;line-height:1.55;padding:9px 0;
+    border-bottom:1px dashed var(--line);
+  }
+  .benefits li:last-child{border-bottom:none}
+  .benefits .ck{
+    flex-shrink:0;width:22px;height:22px;border-radius:50%;
+    background:linear-gradient(135deg,var(--leaf),var(--leaf-deep));
+    color:#fff;font-weight:900;font-size:.72rem;
+    display:flex;align-items:center;justify-content:center;
+    margin-top:1px;
+  }
+
+  /* 사용법 스텝 */
+  .steps{counter-reset:st;list-style:none;padding:0;margin:10px 0 0}
+  .steps li{
+    counter-increment:st;
+    position:relative;padding:12px 14px 12px 48px;
+    background:rgba(255,255,255,.7);border:1px solid var(--line);border-radius:14px;
+    margin-bottom:9px;font-size:.88rem;line-height:1.5;
+  }
+  .steps li::before{
+    content:counter(st);
+    position:absolute;left:12px;top:50%;transform:translateY(-50%);
+    width:26px;height:26px;border-radius:50%;
+    background:linear-gradient(135deg,var(--sun),var(--petal));
+    color:var(--ink);font-weight:900;font-size:.8rem;
+    display:flex;align-items:center;justify-content:center;
+    box-shadow:0 3px 8px rgba(255,180,100,.3);
+  }
+
+  /* CTA */
+  .cta-wrap{text-align:center;margin-top:8px}
+  .btn{
+    display:inline-flex;align-items:center;justify-content:center;gap:8px;
+    width:100%;padding:16px 20px;border-radius:18px;
+    font-size:1rem;font-weight:800;
+    border:none;cursor:pointer;text-decoration:none;
+    transition:transform .2s ease,box-shadow .3s ease;
+    margin-bottom:10px;
+  }
+  .btn-primary{
+    background:linear-gradient(135deg,var(--petal-deep) 0%,#ff7a9f 100%);
+    color:#fff;
+    box-shadow:0 12px 28px -10px rgba(255,100,140,.55),0 2px 0 rgba(255,255,255,.5) inset;
+  }
+  .btn-primary:hover{transform:translateY(-2px);box-shadow:0 16px 32px -10px rgba(255,100,140,.6)}
+  .btn-secondary{
+    background:rgba(255,255,255,.85);color:var(--ink);
+    border:1px solid var(--line);
+  }
+  .closing{font-size:.85rem;color:var(--ink-sub);margin-top:14px;font-weight:500}
+  .closing strong{color:var(--pink)}
+
+  /* 특징 박스 */
+  .feat{
+    background:linear-gradient(135deg,rgba(255,232,239,.5),rgba(232,248,236,.5));
+    border:1px solid var(--line);border-radius:16px;
+    padding:14px;margin-top:12px;font-size:.85rem;line-height:1.55
+  }
+  .persona-chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+  .chip{font-size:.7rem;font-weight:700;padding:6px 10px;border-radius:999px;background:#fff;border:1px solid var(--line)}
+  .chip.p1{color:#e25a7c;border-color:#ffc9d6}
+  .chip.p2{color:var(--leaf-deep);border-color:#c2ebcc}
+  .chip.p3{color:#d4a017;border-color:#f5df9e}
+
+  /* 스크롤 힌트 */
+  .hint{
+    position:absolute;bottom:14px;left:50%;transform:translateX(-50%);
+    font-size:.68rem;color:var(--ink-sub);opacity:.7;
+    display:flex;flex-direction:column;align-items:center;gap:4px;
+    animation:bob 2s ease-in-out infinite;
+  }
+  @keyframes bob{0%,100%{transform:translate(-50%,0)}50%{transform:translate(-50%,6px)}}
+
+  @media (max-width:420px){
+    h1.title{font-size:1.6rem}
+    h2.title{font-size:1.35rem}
+    .card{padding:30px 22px 26px}
+  }
+</style>
+</head>
+<body>
+
+<div class="petals" id="petals"></div>
+
+<div class="progress" id="progress"></div>
+
+<div class="stage" id="stage">
+
+  <!-- 1. COVER -->
+  <section class="card-wrap"><div class="card cover">
+    <div class="logo-badge">🌸</div>
+    <p class="brand">IncretinA <span class="i">i</span></p>
+    <p class="tagline">당신의 GLP-1을 깨우는 대사 파트너</p>
+    <p class="hook">왜 나는 덜 먹어도<br>살이 빠지지 않을까?</p>
+    <div class="hint">아래로 스크롤<br>⌄</div>
+  </div></section>
+
+  <!-- 2. UNMET NEEDS -->
+  <section class="card-wrap"><div class="card">
+    <div class="eyebrow">우리의 현실</div>
+    <h2 class="title">의지의 문제가<br>아니었습니다</h2>
+    <ul class="need-list">
+      <li><span class="n">1</span><div>식욕억제제·GLP-1 주사는 <b>부작용과 비용</b>이 부담돼요</div></li>
+      <li><span class="n">2</span><div>대부분의 앱은 기록만 시키고 <b>"왜 안 빠지는지"</b>를 설명하지 못해요</div></li>
+      <li><span class="n">3</span><div>운동·식단 다 하는데 <b>정체기</b>가 길어져요</div></li>
+      <li><span class="n">4</span><div>낮엔 참다가 <b>밤이면 무너지는 의지력</b></div></li>
+    </ul>
+    <p class="lead" style="margin:0">문제는 의지가 아니라 <span class="accent"><b>호르몬의 타이밍</b></span>이었습니다.</p>
+  </div></section>
+
+  <!-- 3. SCIENCE -->
+  <section class="card-wrap"><div class="card">
+    <div class="eyebrow">사이언스</div>
+    <h2 class="title">GLP-1은 하루 <span class="pink">6번</span><br>깨어날 기회가 있어요</h2>
+    <p class="lead">GLP-1/인크레틴은 위장에서 분비돼 <b>식욕 억제·포만감·인슐린 감수성</b>을 동시에 올리는 핵심 호르몬입니다. 문제는 "언제·어떻게 먹고 움직이는가"에 따라 분비량이 극적으로 달라진다는 것.</p>
+    <div class="timeline">
+      <div class="t-step"><span class="ic">🌅</span>기상<br>리셋</div>
+      <div class="t-step"><span class="ic">🥜</span>프리<br>로드</div>
+      <div class="t-step"><span class="ic">🥗</span>식사<br>시퀀스</div>
+      <div class="t-step"><span class="ic">🚶</span>식후<br>보행</div>
+      <div class="t-step"><span class="ic">⏰</span>저녁<br>마감</div>
+      <div class="t-step"><span class="ic">😴</span>수면<br>복구</div>
+    </div>
+  </div></section>
+
+  <!-- 4. IMEM -->
+  <section class="card-wrap"><div class="card">
+    <div class="eyebrow">차별성 ①</div>
+    <h2 class="title">IMEM v2.0<br>대사 효율 방정식</h2>
+    <p class="lead">세계 최초로 생활 루틴을 <b>GLP-1 분비 효율 계수</b>로 정량화했습니다.</p>
+    <div class="imem-box">
+      <div class="coeffs">
+        <div class="coeff a"><span class="sym">α</span><span class="lbl">Timing</span></div>
+        <div class="coeff b"><span class="sym">β</span><span class="lbl">Sequence</span></div>
+        <div class="coeff g"><span class="sym">γ</span><span class="lbl">Sensitivity</span></div>
+      </div>
+      <div class="formula">ΔWeight = f(BMR) × [α × β × γ] × Compliance</div>
+    </div>
+    <p class="lead" style="margin:0">매일의 α/β/γ 수치로 <b>"왜" 안 빠지는지</b> 답을 받으세요.</p>
+  </div></section>
+
+  <!-- 5. BIO-SYNC -->
+  <section class="card-wrap"><div class="card">
+    <div class="eyebrow">차별성 ②</div>
+    <h2 class="title">Bio-Sync<br>당신의 <span class="green">해</span>에 맞춰</h2>
+    <p class="lead">위치 기반 <b>일출·일몰 골든타임</b>으로 개인 써캐디언 리듬을 동기화합니다. 같은 아침식사도 당신에게 맞는 시간에 먹으면 α 계수가 달라져요.</p>
+    <div class="feat">
+      🌅 기상 10분 내 광노출 → <b>멜라토닌 오프 + 코르티솔 피크</b><br>
+      🌙 일몰 3시간 전 마지막 식사 → <b>메타볼릭 스위치 ON</b>
+    </div>
+  </div></section>
+
+  <!-- 6. AI COACH -->
+  <section class="card-wrap"><div class="card">
+    <div class="eyebrow">차별성 ③</div>
+    <h2 class="title">24시간 AI 코치,<br>텔레그램에 있어요</h2>
+    <p class="lead">Claude Sonnet 4.5 기반. <b>음식 사진 한 장으로 칼로리 + IMEM β 분석 + 자동 기록</b>. 채팅으로 식사 설명하고 "점심 기록해줘" 한마디면 끝.</p>
+    <div class="feat">
+      📸 사진 → 칼로리·매크로·β 평가 · 자동 루틴 체크<br>
+      💬 "남은 루틴 알려줘" "어제 대비 체중 어때?"<br>
+      🔔 골든타임 리마인드 (기상·프리로드·저녁마감)
+    </div>
+    <p style="font-size:.75rem;color:var(--ink-sub);margin:12px 0 6px;font-weight:700">3가지 페르소나</p>
+    <div class="persona-chips">
+      <span class="chip p1">🤗 따뜻한 코치</span>
+      <span class="chip p2">🔬 GLP-1 임상의</span>
+      <span class="chip p3">🔥 강인한 트레이너</span>
+    </div>
+  </div></section>
+
+  <!-- 7. BENEFITS -->
+  <section class="card-wrap"><div class="card">
+    <div class="eyebrow">당신이 얻게 될 것</div>
+    <h2 class="title">주사·약 없이<br>내 몸의 GLP-1을<br>최대로</h2>
+    <ul class="benefits">
+      <li><span class="ck">✓</span><div>의지력이 아닌 <b>타이밍</b>으로 감량</div></li>
+      <li><span class="ck">✓</span><div>매일 α/β/γ로 "<b>왜</b>"에 답을 받음</div></li>
+      <li><span class="ck">✓</span><div>사진·채팅 한 번으로 <b>손쉬운 기록</b></div></li>
+      <li><span class="ck">✓</span><div>주차별 루틴 <b>자동 잠금 해제</b>로 점진적 성장</div></li>
+      <li><span class="ck">✓</span><div>게임화·코호트로 <b>지속 가능한 동기</b></div></li>
+    </ul>
+  </div></section>
+
+  <!-- 8. HOW TO START -->
+  <section class="card-wrap"><div class="card">
+    <div class="eyebrow">지금 바로 시작하기</div>
+    <h2 class="title">5단계면<br>충분합니다</h2>
+    <ol class="steps">
+      <li>홈 화면에 <b>PWA 설치</b> (브라우저에서 "홈 화면에 추가")</li>
+      <li><b>프로필 입력</b> — 키·시작체중·목표·위치</li>
+      <li>텔레그램에서 <b>/link</b> 로 봇 연동</li>
+      <li>매일 <b>루틴 체크 + 식사 사진</b> 전송</li>
+      <li>주 1회 <b>코호트 리포트</b>로 진척 확인</li>
+    </ol>
+  </div></section>
+
+  <!-- 9. CTA -->
+  <section class="card-wrap"><div class="card cover">
+    <div class="logo-badge" style="font-size:2.2rem">🌷</div>
+    <h2 class="title" style="font-size:1.5rem">봄처럼 가볍게,<br>오늘부터.</h2>
+    <p class="lead">당신의 대사는 이미 준비돼 있어요.<br>우리가 함께 깨울게요.</p>
+    <div class="cta-wrap">
+      <a class="btn btn-primary" href="./IncretinAi_v7.0_Adaptive.html">지금 시작하기 →</a>
+      <a class="btn btn-secondary" href="https://t.me/" target="_blank" rel="noopener">텔레그램 봇 열기</a>
+    </div>
+    <p class="closing">© IncretinA <strong>i</strong> · GLP-1 Biosync Platform</p>
+  </div></section>
+
+</div>
+
+<script>
+  // 꽃잎 생성
+  (function(){
+    const box=document.getElementById('petals');
+    const N=14;
+    for(let i=0;i<N;i++){
+      const p=document.createElement('div');
+      p.className='petal';
+      p.style.left=(Math.random()*100)+'vw';
+      p.style.animationDuration=(8+Math.random()*10)+'s';
+      p.style.animationDelay=(Math.random()*12)+'s';
+      p.style.transform='scale('+(0.6+Math.random()*0.9)+')';
+      p.style.opacity=(0.4+Math.random()*0.5);
+      box.appendChild(p);
+    }
+  })();
+
+  // 진행 도트
+  (function(){
+    const cards=document.querySelectorAll('.card-wrap');
+    const prog=document.getElementById('progress');
+    cards.forEach((_,i)=>{
+      const d=document.createElement('div');
+      d.className='dot'+(i===0?' active':'');
+      prog.appendChild(d);
+    });
+    const dots=prog.querySelectorAll('.dot');
+    const io=new IntersectionObserver((entries)=>{
+      entries.forEach(e=>{
+        if(e.isIntersecting){
+          e.target.classList.add('in-view');
+          const idx=[...cards].indexOf(e.target);
+          dots.forEach((d,i)=>d.classList.toggle('active',i===idx));
+        }
+      });
+    },{threshold:.55});
+    cards.forEach(c=>io.observe(c));
+  })();
+</script>
+</body>
+</html>
