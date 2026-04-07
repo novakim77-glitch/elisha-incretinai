@@ -1361,6 +1361,8 @@ updateTelegramLinkWarning(!!(p.telegramLinked||p.telegramChatId));
 if(p.lastActiveDate){const last=new Date(p.lastActiveDate);const today=new Date();today.setHours(0,0,0,0);last.setHours(0,0,0,0);window._daysSinceLastUse=Math.max(0,Math.floor((today-last)/(1000*60*60*24)))}else{window._daysSinceLastUse=0}
 // Progressive Unlocking 적용: 주차 변경 시 리렌더
 renderList();renderRiskList();renderWidgetItems();checkUnlockCelebration();
+// 프로필 로드 직후 차트 갱신 (history snapshot과의 race 방지)
+clearTimeout(_chartTimer);_chartTimer=setTimeout(()=>{try{updateTrendChart();}catch(e){}try{runComprehensiveAnalysis();}catch(e){}},300);
 // v7.0 Comeback: 3일+ 미사용 시 복귀 카드
 setTimeout(()=>showComebackCard(),800);
 }showSyncStatus('synced')},e=>{console.warn('Profile listen:',e);showSyncStatus('offline')})}
@@ -3483,20 +3485,49 @@ function onDataChange(){
     },600);
 }
 
+function drawChartPlaceholder(canvasId,msg){
+    const c=document.getElementById(canvasId);if(!c)return;
+    const ctx=c.getContext('2d');const w=c.width,h=c.height;
+    ctx.clearRect(0,0,w,h);
+    ctx.fillStyle='#94a3b8';ctx.font='13px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(msg,w/2,h/2);
+}
+
 function updateTrendChart(){
     const hist=window._cloudHistory||{};
     const sorted=Object.keys(hist).sort();
-    const wData=sorted.filter(d=>hist[d].weight).map(d=>({date:d.slice(5),weight:parseFloat(hist[d].weight)}));
-    if(wData.length>0){
-        document.getElementById('trend-view').style.display='block';
-        const ctx=document.getElementById('trendChart').getContext('2d');
-        if(trendChart)trendChart.destroy();
-        trendChart=new Chart(ctx,{type:'line',data:{labels:wData.map(d=>d.date),datasets:[{data:wData.map(d=>d.weight),borderColor:'#3b82f6',backgroundColor:'rgba(59,130,246,.08)',fill:true,tension:.35,pointRadius:4,pointBackgroundColor:'#3b82f6',borderWidth:2}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:false,grid:{color:'rgba(0,0,0,.05)'}},x:{grid:{display:false}}}}});
+    let wData=sorted.filter(d=>{const w=hist[d]&&hist[d].weight;const n=typeof w==='number'?w:parseFloat(w);return Number.isFinite(n)&&n>0;}).map(d=>({date:d.slice(5),weight:parseFloat(hist[d].weight)}));
+    // Fallback: synthesize from profile (start weight + today's weight) if no daily-logged weights
+    if(wData.length===0){
+        const sw=parseFloat(document.getElementById('p-sw').value);
+        const cw=parseFloat(document.getElementById('daily-weight').value);
+        const startDate=document.getElementById('p-start').value||'';
+        if(Number.isFinite(sw)){
+            wData.push({date:startDate.slice(5)||'시작',weight:sw});
+            if(Number.isFinite(cw)&&cw!==sw){
+                const today=new Date().toISOString().slice(5,10);
+                wData.push({date:today,weight:cw});
+            }
+        }
     }
+    document.getElementById('trend-view').style.display='block';
+    const ctx=document.getElementById('trendChart').getContext('2d');
+    if(trendChart){trendChart.destroy();trendChart=null;}
+    if(wData.length===0){drawChartPlaceholder('trendChart','프로필에 시작 체중을 입력해 주세요');return;}
+    trendChart=new Chart(ctx,{type:'line',data:{labels:wData.map(d=>d.date),datasets:[{data:wData.map(d=>d.weight),borderColor:'#3b82f6',backgroundColor:'rgba(59,130,246,.08)',fill:true,tension:.35,pointRadius:4,pointBackgroundColor:'#3b82f6',borderWidth:2}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:false,grid:{color:'rgba(0,0,0,.05)'}},x:{grid:{display:false}}}}});
 }
 
 function runComprehensiveAnalysis(){
-    const cw=parseFloat(document.getElementById('daily-weight').value)||parseFloat(document.getElementById('p-sw').value),gw=parseFloat(document.getElementById('p-gw').value);
+    let cw=parseFloat(document.getElementById('daily-weight').value);
+    if(!Number.isFinite(cw))cw=parseFloat(document.getElementById('p-sw').value);
+    let gw=parseFloat(document.getElementById('p-gw').value);
+    if(!Number.isFinite(cw)){
+        document.getElementById('sim-view').style.display='block';
+        if(simChart){simChart.destroy();simChart=null;}
+        drawChartPlaceholder('simChart','프로필에 체중/목표를 입력해 주세요');
+        return;
+    }
+    if(!Number.isFinite(gw))gw=cw-3;
     const imem=calculateIMEM(),compliance=calculateTotalScore()/100;
     const dailyDeficit=300,baseWeeklyLoss=(dailyDeficit*7)/7700;
     const mult=imem.alpha_net*imem.beta_net*imem.gamma_net;
