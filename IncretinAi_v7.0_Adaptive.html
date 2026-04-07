@@ -1400,13 +1400,14 @@ const RISK_UNLOCK_WEEK = 3;
 let _userStartDate = null;
 
 function getUserWeek() {
-    // 기존 사용자 보호: 7일+ 히스토리 → 전체 해제
-    const hist = window._cloudHistory || {};
-    if (Object.keys(hist).length >= 7) return 4;
+    // 프로필의 챌린지 시작일 기준으로만 주차 계산.
+    // 시작일 미설정 시 Week 1 (가장 보수적).
     if (!_userStartDate) return 1;
     const now = new Date(); now.setHours(0,0,0,0);
     const start = new Date(_userStartDate); start.setHours(0,0,0,0);
+    if (isNaN(start.getTime())) return 1;
     const diffDays = Math.floor((now - start) / (1000 * 60 * 60 * 24));
+    if (diffDays < 0) return 1; // 미래 날짜 방어
     return Math.min(4, Math.floor(diffDays / 7) + 1);
 }
 
