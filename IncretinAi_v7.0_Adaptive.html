@@ -1336,9 +1336,9 @@ async function saveDailyToCloud(){
     const recoveries=risks.map((_,i)=>recoveryDone[i]||false);
     const imem=calculateIMEM();
     const score=calculateTotalScore();
+    const wRaw=document.getElementById('daily-weight').value;
     const data={
         score,rawScore:calculateRawScore(),checks,riskChecks,recoveries,
-        weight:document.getElementById('daily-weight').value||'',
         alpha_net:imem.alpha_net,beta_net:imem.beta_net,gamma_net:imem.gamma_net,
         alpha_penalty:imem.alpha_penalty,beta_penalty:imem.beta_penalty,gamma_penalty:imem.gamma_penalty,
         penaltyTotal:getTotalPenalty(),recoveryTotal:getTotalRecovery(),
@@ -1346,7 +1346,9 @@ async function saveDailyToCloud(){
         focusRoutines:_focusRoutines||[],
         updatedAt:firebase.firestore.FieldValue.serverTimestamp()
     };
-    try{await historyCollection().doc(dateKey).set(data);showSyncStatus('synced')}catch(e){console.error('Daily save:',e);showSyncStatus('offline')}
+    // weight: only write when user actually entered a value, so bot-logged weights don't get clobbered
+    if(wRaw&&wRaw.trim()!==''){const wNum=parseFloat(wRaw);if(Number.isFinite(wNum))data.weight=wNum}
+    try{await historyCollection().doc(dateKey).set(data,{merge:true});showSyncStatus('synced')}catch(e){console.error('Daily save:',e);showSyncStatus('offline')}
 }
 function showSyncStatus(s){const b=document.getElementById('sync-badge');if(s==='synced'){b.className='sync-badge';b.innerHTML='<span class="dot"></span> Cloud Synced'}else{b.className='sync-badge offline';b.innerHTML='<span class="dot"></span> Offline'}}
 function listenToProfile(){if(unsubProfile)unsubProfile();unsubProfile=userDoc().onSnapshot(doc=>{if(doc.exists){const p=doc.data();if(p.name)document.getElementById('p-name').value=p.name;if(p.age)document.getElementById('p-age').value=p.age;if(p.gender)document.getElementById('p-gender').value=p.gender;if(p.start)document.getElementById('p-start').value=p.start;if(p.h)document.getElementById('p-h').value=p.h;if(p.sw)document.getElementById('p-sw').value=p.sw;if(p.gw)document.getElementById('p-gw').value=p.gw;if(p.isDiabetic)document.getElementById('p-diabetic').value=p.isDiabetic;if(p.exercise)document.getElementById('p-exercise').value=p.exercise;if(p.wakeup)document.getElementById('p-wakeup').value=p.wakeup;if(p.lat)document.getElementById('p-lat').value=p.lat;loadGamificationFromProfile(p);
