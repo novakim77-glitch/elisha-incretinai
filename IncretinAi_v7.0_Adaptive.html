@@ -1383,10 +1383,13 @@ async function saveDailyToCloud(){
     if(!currentUser||!_appReady)return;
     const dateKey=document.getElementById('target-date').value;
     if(!dateKey)return;
-    // v7.2: 봇과의 호환을 위해 map 형태로 저장 (배열로 쓰면 봇의 map 데이터를 덮어써 버림)
-    const checks={};routine.forEach((_,i)=>{checks[i]=document.getElementById(`item-${i}`)?.classList.contains('checked')||false});
-    const riskChecks={};risks.forEach((_,i)=>{riskChecks[i]=document.getElementById(`risk-${i}`)?.classList.contains('active')||false});
-    const recoveries={};risks.forEach((_,i)=>{recoveries[i]=!!recoveryDone[i]});
+    // v7.2: 봇 마크 보존을 위해 사용자가 이번 세션에서 직접 토글한 인덱스만 저장.
+    // 건드리지 않은 키는 cloud 상태(=봇 마크 포함) 그대로 둠.
+    const touched=window._userTouchedRoutines||new Set();
+    const touchedRisks=window._userTouchedRisks||new Set();
+    const checks={};touched.forEach(i=>{checks[i]=document.getElementById(`item-${i}`)?.classList.contains('checked')||false});
+    const riskChecks={};touchedRisks.forEach(i=>{riskChecks[i]=document.getElementById(`risk-${i}`)?.classList.contains('active')||false});
+    const recoveries={};touchedRisks.forEach(i=>{recoveries[i]=!!recoveryDone[i]});
     const imem=calculateIMEM();
     const score=calculateTotalScore();
     const wRaw=document.getElementById('daily-weight').value;
@@ -3295,6 +3298,7 @@ function routineDone(i){
     const el=document.getElementById('item-'+i);
     const wasNew=!el.classList.contains('checked');
     window._lastUserToggleAt=Date.now();
+    (window._userTouchedRoutines=window._userTouchedRoutines||new Set()).add(i);
     if(wasNew){
         el.classList.add('checked');
         // CRITICAL 루틴 → 예측 체중 피드백, 일반 루틴 → 인크레티나 토스트
@@ -3430,6 +3434,7 @@ function toggleTask(i){
     const el=document.getElementById(`item-${i}`);
     const wasChecked=el.classList.contains('checked');
     window._lastUserToggleAt=Date.now();
+    (window._userTouchedRoutines=window._userTouchedRoutines||new Set()).add(i);
     el.classList.toggle('checked');
     // 체크 시에만 토스트 표시 (해제 시에는 미표시)
     if(!wasChecked&&TINA_TOASTS[i]){
@@ -3441,6 +3446,8 @@ function toggleTask(i){
 function toggleRisk(i){
     const el=document.getElementById(`risk-${i}`);
     const wasActive=el.classList.contains('active');
+    window._lastUserToggleAt=Date.now();
+    (window._userTouchedRisks=window._userTouchedRisks||new Set()).add(i);
     el.classList.toggle('active');
 
     if(!wasActive){
@@ -3871,7 +3878,7 @@ function initApp(){
     // Init FCM token if already permitted
     if(Notification.permission==='granted'&&swRegistration){saveFCMToken()}
 }
-dateInput.addEventListener('change',()=>{recoveryDone.fill(false);_lastDailyXP=0;renderQuests();loadDateData()});
+dateInput.addEventListener('change',()=>{recoveryDone.fill(false);_lastDailyXP=0;window._userTouchedRoutines=new Set();window._userTouchedRisks=new Set();renderQuests();loadDateData()});
 // v7.0: 기상시간 변경 시 루틴 시간표 즉시 갱신
 document.getElementById('p-wakeup').addEventListener('change',()=>{renderList();updateUpcomingRoutines();saveProfileToCloud()});
 // Weight input: sanitize to allow only digits and one decimal point, debounce save
