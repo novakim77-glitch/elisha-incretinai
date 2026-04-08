@@ -1383,9 +1383,10 @@ async function saveDailyToCloud(){
     if(!currentUser||!_appReady)return;
     const dateKey=document.getElementById('target-date').value;
     if(!dateKey)return;
-    const checks=routine.map((_,i)=>document.getElementById(`item-${i}`)?.classList.contains('checked')||false);
-    const riskChecks=risks.map((_,i)=>document.getElementById(`risk-${i}`)?.classList.contains('active')||false);
-    const recoveries=risks.map((_,i)=>recoveryDone[i]||false);
+    // v7.2: 봇과의 호환을 위해 map 형태로 저장 (배열로 쓰면 봇의 map 데이터를 덮어써 버림)
+    const checks={};routine.forEach((_,i)=>{checks[i]=document.getElementById(`item-${i}`)?.classList.contains('checked')||false});
+    const riskChecks={};risks.forEach((_,i)=>{riskChecks[i]=document.getElementById(`risk-${i}`)?.classList.contains('active')||false});
+    const recoveries={};risks.forEach((_,i)=>{recoveries[i]=!!recoveryDone[i]});
     const imem=calculateIMEM();
     const score=calculateTotalScore();
     const wRaw=document.getElementById('daily-weight').value;
@@ -1424,8 +1425,24 @@ function loadDateData(){
     const hist=window._cloudHistory||{};
     const dateKey=document.getElementById('target-date').value;
     const data=hist[dateKey];
-    routine.forEach((_,i)=>{const el=document.getElementById(`item-${i}`);if(el){if(data&&data.checks&&data.checks[i])el.classList.add('checked');else el.classList.remove('checked')}});
-    risks.forEach((_,i)=>{const el=document.getElementById(`risk-${i}`);if(el){if(data&&data.riskChecks&&data.riskChecks[i])el.classList.add('active');else el.classList.remove('active')}});
+    // 사용자가 방금 클릭한 항목은 저장이 commit되기 전에 cloud 값으로 덮어쓰지 않음
+    const freshClick=(Date.now()-(window._lastUserToggleAt||0))<2500;
+    routine.forEach((_,i)=>{
+        const el=document.getElementById(`item-${i}`);
+        if(!el)return;
+        const cloudVal=!!(data&&data.checks&&data.checks[i]);
+        const domVal=el.classList.contains('checked');
+        if(freshClick&&cloudVal!==domVal)return; // in-flight 사용자 변경 보존
+        if(cloudVal)el.classList.add('checked');else el.classList.remove('checked');
+    });
+    risks.forEach((_,i)=>{
+        const el=document.getElementById(`risk-${i}`);
+        if(!el)return;
+        const cloudVal=!!(data&&data.riskChecks&&data.riskChecks[i]);
+        const domVal=el.classList.contains('active');
+        if(freshClick&&cloudVal!==domVal)return;
+        if(cloudVal)el.classList.add('active');else el.classList.remove('active');
+    });
     if(data&&data.recoveries)data.recoveries.forEach((v,i)=>{recoveryDone[i]=v});else recoveryDone.fill(false);
     // v7.0: 포커스 루틴 복원
     _focusRoutines=(data&&Array.isArray(data.focusRoutines))?data.focusRoutines:[];
@@ -3277,6 +3294,7 @@ function openRoutinePopup(i){
 function routineDone(i){
     const el=document.getElementById('item-'+i);
     const wasNew=!el.classList.contains('checked');
+    window._lastUserToggleAt=Date.now();
     if(wasNew){
         el.classList.add('checked');
         // CRITICAL 루틴 → 예측 체중 피드백, 일반 루틴 → 인크레티나 토스트
@@ -3411,6 +3429,7 @@ function toggleModal(id){const m=document.getElementById(id);m.style.display=m.s
 function toggleTask(i){
     const el=document.getElementById(`item-${i}`);
     const wasChecked=el.classList.contains('checked');
+    window._lastUserToggleAt=Date.now();
     el.classList.toggle('checked');
     // 체크 시에만 토스트 표시 (해제 시에는 미표시)
     if(!wasChecked&&TINA_TOASTS[i]){
