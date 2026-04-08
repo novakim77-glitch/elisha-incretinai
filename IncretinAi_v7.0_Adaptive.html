@@ -3972,11 +3972,7 @@ async function generateTelegramLinkCode(){
         console.error('Telegram link code generation:',e);
         let msg='코드 발급 실패';
         if(e && e.message && e.message.indexOf('TIMEOUT')===0){
-            msg='서버 응답이 8초 내에 없었어요.
-
-• 네트워크 상태 확인
-• Service Worker 캐시 삭제 후 새로고침
-• Firestore 보안규칙에서 linkCodes 쓰기 권한 확인';
+            msg='서버 응답이 8초 내에 없었어요.' + String.fromCharCode(10,10) + '• 네트워크 상태 확인' + String.fromCharCode(10) + '• Service Worker 캐시 삭제 후 새로고침' + String.fromCharCode(10) + '• Firestore 보안규칙에서 linkCodes 쓰기 권한 확인';
         }else if(e && e.code==='permission-denied'){
             msg='권한이 없어요. Firestore 보안규칙에서 linkCodes 컬렉션 create 권한을 확인해 주세요.';
         }else if(e && e.code==='unavailable'){
