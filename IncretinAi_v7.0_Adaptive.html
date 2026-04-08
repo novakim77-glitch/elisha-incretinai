@@ -1206,6 +1206,8 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
+// 모바일/통신사 프록시 환경에서 WebChannel(스트리밍)이 hang되는 문제 방지 — long polling 자동 감지
+try{ db.settings({experimentalAutoDetectLongPolling:true, merge:true}); }catch(e){ console.warn('FS settings:',e); }
 db.enablePersistence({synchronizeTabs:true}).catch(e=>console.warn('Persistence:',e.code));
 let currentUser=null,unsubProfile=null,unsubHistory=null;
 const ADMIN_EMAILS=['novakim77@gmail.com'];
@@ -3972,7 +3974,7 @@ async function generateTelegramLinkCode(){
         console.error('Telegram link code generation:',e);
         let msg='코드 발급 실패';
         if(e && e.message && e.message.indexOf('TIMEOUT')===0){
-            msg='서버 응답이 8초 내에 없었어요.' + String.fromCharCode(10,10) + '• 네트워크 상태 확인' + String.fromCharCode(10) + '• Service Worker 캐시 삭제 후 새로고침' + String.fromCharCode(10) + '• Firestore 보안규칙에서 linkCodes 쓰기 권한 확인';
+            msg='서버 응답이 8초 내에 없었어요.' + String.fromCharCode(10,10) + '확인을 누르면 캐시를 초기화하고 자동 새로고침합니다.';
         }else if(e && e.code==='permission-denied'){
             msg='권한이 없어요. Firestore 보안규칙에서 linkCodes 컬렉션 create 권한을 확인해 주세요.';
         }else if(e && e.code==='unavailable'){
@@ -3980,7 +3982,22 @@ async function generateTelegramLinkCode(){
         }else{
             msg='코드 발급 실패: '+(e.code||'')+' '+(e.message||e);
         }
+        const wasTimeout = (e && e.message && e.message.indexOf('TIMEOUT')===0);
         alert(msg);
+        if(wasTimeout){
+            try{
+                if('serviceWorker' in navigator){
+                    const regs = await navigator.serviceWorker.getRegistrations();
+                    for(const r of regs){ await r.unregister(); }
+                }
+                if(window.caches){
+                    const keys = await caches.keys();
+                    await Promise.all(keys.map(k=>caches.delete(k)));
+                }
+            }catch(_){}
+            location.reload();
+            return;
+        }
         btn.disabled=false;btn.textContent='코드 발급';
     }
 }
