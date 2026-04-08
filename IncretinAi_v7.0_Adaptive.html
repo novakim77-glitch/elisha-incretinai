@@ -1206,8 +1206,11 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
-// 모바일/통신사 프록시 환경에서 WebChannel(스트리밍)이 hang되는 문제 방지 — long polling 자동 감지
-try{ db.settings({experimentalAutoDetectLongPolling:true, merge:true}); }catch(e){ console.warn('FS settings:',e); }
+// 모바일/통신사 프록시(KT 5G 등) 환경에서 WebChannel hang을 막기 위해 long polling 강제
+try{
+    db.settings({ experimentalForceLongPolling: true, useFetchStreams: false });
+    console.log('[fs] long polling forced');
+}catch(e){ console.warn('FS settings failed:',e); }
 db.enablePersistence({synchronizeTabs:true}).catch(e=>console.warn('Persistence:',e.code));
 let currentUser=null,unsubProfile=null,unsubHistory=null;
 const ADMIN_EMAILS=['novakim77@gmail.com'];
@@ -3922,14 +3925,14 @@ async function generateTelegramLinkCode(){
     btn.disabled=true;btn.textContent='발급 중...';
     try{
         // 1) Firestore 네트워크 강제 활성화 (이전에 disable됐을 수도)
-        try{await db.enableNetwork()}catch(_){}
+        try{ await db.enableNetwork(); console.log('[link] enableNetwork OK'); }catch(e){ console.warn('[link] enableNetwork:',e); }
         // 2) 인증 토큰 강제 갱신 — 보안규칙 평가가 stale 토큰으로 실패하는 케이스 방지
-        try{await currentUser.getIdToken(true)}catch(_){}
+        try{ const t=await currentUser.getIdToken(true); console.log('[link] token refreshed, len=',t.length); }catch(e){ console.warn('[link] getIdToken:',e); }
         // 6-digit code
         const code=String(Math.floor(100000+Math.random()*900000));
         const now=new Date();
         const expiresAt=new Date(now.getTime()+5*60*1000);
-        console.log('[link] writing code',code,'for uid',currentUser.uid);
+        console.log('[link] step1: writing code',code,'for uid',currentUser.uid,'online=',navigator.onLine);
         // 8s timeout: Firestore set() may hang silently if offline / SW intercept / auth stale
         const writePromise=db.collection('linkCodes').doc(code).set({
             uid:currentUser.uid,
