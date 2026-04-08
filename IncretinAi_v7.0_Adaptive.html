@@ -1446,7 +1446,7 @@ function loadDateData(){
         if(freshClick&&cloudVal!==domVal)return;
         if(cloudVal)el.classList.add('active');else el.classList.remove('active');
     });
-    if(data&&data.recoveries)data.recoveries.forEach((v,i)=>{recoveryDone[i]=v});else recoveryDone.fill(false);
+    recoveryDone.fill(false);if(data&&data.recoveries){if(Array.isArray(data.recoveries))data.recoveries.forEach((v,i)=>{recoveryDone[i]=v});else Object.entries(data.recoveries).forEach(([k,v])=>{const i=Number(k);if(Number.isInteger(i))recoveryDone[i]=!!v})}
     // v7.0: 포커스 루틴 복원
     _focusRoutines=(data&&Array.isArray(data.focusRoutines))?data.focusRoutines:[];
     _focusBonusAwarded=false;
