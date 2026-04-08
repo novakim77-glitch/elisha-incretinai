@@ -1429,7 +1429,29 @@ clearTimeout(_chartTimer);_chartTimer=setTimeout(()=>{try{updateTrendChart();}ca
 // v7.0 Comeback: 3일+ 미사용 시 복귀 카드
 setTimeout(()=>showComebackCard(),800);
 }showSyncStatus('synced')},e=>{console.warn('Profile listen:',e);showSyncStatus('offline')})}
-function listenToHistory(){if(unsubHistory)unsubHistory();unsubHistory=historyCollection().onSnapshot(snap=>{const hist={};snap.forEach(doc=>{hist[doc.id]=doc.data()});window._cloudHistory=hist;loadDateData();showSyncStatus('synced')},e=>{console.warn('History listen:',e);showSyncStatus('offline')})}
+let _snapTimes=[];
+function listenToHistory(){
+    if(unsubHistory)unsubHistory();
+    unsubHistory=historyCollection().onSnapshot(snap=>{
+        // 무한 루프 차단: 5초 안에 snapshot이 10회 이상 발화하면 강제 중단
+        const now=Date.now();
+        _snapTimes=_snapTimes.filter(t=>now-t<5000);
+        _snapTimes.push(now);
+        if(_snapTimes.length>10){
+            console.error('[CIRCUIT BREAKER] history snapshot looped >10x in 5s — listener detached');
+            if(unsubHistory){unsubHistory();unsubHistory=null;}
+            showSyncStatus('offline');
+            alert('데이터 동기화가 비정상적으로 반복되어 자동 차단되었습니다.
+앱을 다시 실행해 주세요.');
+            return;
+        }
+        const hist={};
+        snap.forEach(doc=>{hist[doc.id]=doc.data()});
+        window._cloudHistory=hist;
+        loadDateData();
+        showSyncStatus('synced');
+    },e=>{console.warn('History listen:',e);showSyncStatus('offline')});
+}
 
 function loadDateData(){
     const hist=window._cloudHistory||{};
@@ -3718,7 +3740,8 @@ function runComprehensiveAnalysis(){
     const ctx=document.getElementById('simChart').getContext('2d');
     if(simChart)simChart.destroy();
     simChart=new Chart(ctx,{type:'line',data:{labels,datasets:[{data:weights,borderColor:'#10b981',backgroundColor:'rgba(16,185,129,.08)',borderDash:[6,4],tension:.4,fill:true,pointRadius:5,pointBackgroundColor:'#10b981',borderWidth:2}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:false,grid:{color:'rgba(0,0,0,.05)'}},x:{grid:{display:false}}}}});
-    onDataChange();
+    // ★ CRITICAL: 여기서 onDataChange()를 부르면 snapshot→loadDateData→runComprehensiveAnalysis→onDataChange→save→snapshot 무한 루프가 됨.
+    // 분석 함수는 read-only로 유지. 저장이 필요한 트리거는 호출자가 명시적으로 처리.
 }
 
 function exportToExcel(){
