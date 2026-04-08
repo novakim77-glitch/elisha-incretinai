@@ -3910,7 +3910,7 @@ document.getElementById('p-lat').addEventListener('change',()=>{updateBioSyncTim
 // ============================================================
 let _tgLinkCountdownTimer=null;
 async function generateTelegramLinkCode(){
-    if(!currentUser){alert('먼저 로그인이 필요해요');return}
+    if(!currentUser){alert('먼저 로그인이 필요해요 (currentUser=null)');return}
     const btn=document.getElementById('tg-link-btn');
     btn.disabled=true;btn.textContent='발급 중...';
     try{
@@ -3918,8 +3918,9 @@ async function generateTelegramLinkCode(){
         const code=String(Math.floor(100000+Math.random()*900000));
         const now=new Date();
         const expiresAt=new Date(now.getTime()+5*60*1000);
-        // Schema v2: linkCodes/{code} with _meta
-        await db.collection('linkCodes').doc(code).set({
+        console.log('[link] writing code',code,'for uid',currentUser.uid);
+        // 8s timeout: Firestore set() may hang silently if offline / SW intercept / auth stale
+        const writePromise=db.collection('linkCodes').doc(code).set({
             uid:currentUser.uid,
             createdAt:firebase.firestore.FieldValue.serverTimestamp(),
             expiresAt:firebase.firestore.Timestamp.fromDate(expiresAt),
@@ -3933,6 +3934,9 @@ async function generateTelegramLinkCode(){
                 source:'web_app'
             }
         });
+        const timeoutPromise=new Promise((_,rej)=>setTimeout(()=>rej(new Error('TIMEOUT: Firestore set() did not respond in 8s — 오프라인이거나 보안 규칙/Service Worker 문제일 가능성')),8000));
+        await Promise.race([writePromise,timeoutPromise]);
+        console.log('[link] write OK',code);
         // Display
         document.getElementById('tg-link-code-display').textContent=code;
         document.getElementById('tg-link-code-inline').textContent=code;
