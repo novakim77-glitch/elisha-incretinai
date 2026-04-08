@@ -3911,9 +3911,18 @@ document.getElementById('p-lat').addEventListener('change',()=>{updateBioSyncTim
 let _tgLinkCountdownTimer=null;
 async function generateTelegramLinkCode(){
     if(!currentUser){alert('먼저 로그인이 필요해요 (currentUser=null)');return}
+    // 0) 오프라인 선제 차단 — enablePersistence로 set()이 무한 큐잉되는 문제 방지
+    if(typeof navigator!=='undefined' && navigator.onLine===false){
+        alert('오프라인 상태예요. 네트워크 연결 후 다시 시도해 주세요.');
+        return;
+    }
     const btn=document.getElementById('tg-link-btn');
     btn.disabled=true;btn.textContent='발급 중...';
     try{
+        // 1) Firestore 네트워크 강제 활성화 (이전에 disable됐을 수도)
+        try{await db.enableNetwork()}catch(_){}
+        // 2) 인증 토큰 강제 갱신 — 보안규칙 평가가 stale 토큰으로 실패하는 케이스 방지
+        try{await currentUser.getIdToken(true)}catch(_){}
         // 6-digit code
         const code=String(Math.floor(100000+Math.random()*900000));
         const now=new Date();
@@ -3961,7 +3970,21 @@ async function generateTelegramLinkCode(){
         btn.disabled=false;btn.textContent='재발급';
     }catch(e){
         console.error('Telegram link code generation:',e);
-        alert('코드 발급 실패: '+(e.code||'')+' '+(e.message||e));
+        let msg='코드 발급 실패';
+        if(e && e.message && e.message.indexOf('TIMEOUT')===0){
+            msg='서버 응답이 8초 내에 없었어요.
+
+• 네트워크 상태 확인
+• Service Worker 캐시 삭제 후 새로고침
+• Firestore 보안규칙에서 linkCodes 쓰기 권한 확인';
+        }else if(e && e.code==='permission-denied'){
+            msg='권한이 없어요. Firestore 보안규칙에서 linkCodes 컬렉션 create 권한을 확인해 주세요.';
+        }else if(e && e.code==='unavailable'){
+            msg='Firestore 서버에 연결할 수 없어요. 잠시 후 다시 시도해 주세요.';
+        }else{
+            msg='코드 발급 실패: '+(e.code||'')+' '+(e.message||e);
+        }
+        alert(msg);
         btn.disabled=false;btn.textContent='코드 발급';
     }
 }
