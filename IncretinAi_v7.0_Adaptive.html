@@ -1190,6 +1190,8 @@
 <script>
 // ★ v7.1: 앱 준비 플래그 — Firebase 데이터 로드 완료 전까지 모든 저장 차단
 var _appReady = false;
+// Firestore가 배열을 객체({0:true,1:false,...})로 반환하는 케이스 방어 헬퍼
+function _toArr(x){ return Array.isArray(x) ? x : (x && typeof x==='object' ? Object.values(x) : []); }
 
 // ============================================================
 // FIREBASE CONFIG
@@ -2501,8 +2503,15 @@ function checkBadges() {
     let fullClearCount = 0, totalRecoveries = 0, consecutiveAbove85 = 0, maxConsec85 = 0;
     for (let i = sorted.length - 1; i >= 0; i--) {
         const d = hist[sorted[i]];
-        if (d.checks && d.checks.filter(Boolean).length === 10) fullClearCount++;
-        if (d.recoveries) totalRecoveries += d.recoveries.filter(Boolean).length;
+        // Firestore가 배열을 객체로 반환하는 케이스 방어 — Object.values로 안전 변환
+        if (d.checks) {
+            const arr = Array.isArray(d.checks) ? d.checks : Object.values(d.checks);
+            if (arr.filter(Boolean).length === 10) fullClearCount++;
+        }
+        if (d.recoveries) {
+            const arr = Array.isArray(d.recoveries) ? d.recoveries : Object.values(d.recoveries);
+            totalRecoveries += arr.filter(Boolean).length;
+        }
         if (d.score >= 85) { consecutiveAbove85++; maxConsec85 = Math.max(maxConsec85, consecutiveAbove85); }
         else { consecutiveAbove85 = 0; }
     }
@@ -2567,7 +2576,7 @@ function getWeekData(hist, monday) {
         if (hist[key]) {
             result.daysRecorded++;
             totalScore += (hist[key].score || 0);
-            if (hist[key].checks) { totalChecked += hist[key].checks.filter(Boolean).length; totalPossible += 10; }
+            if (hist[key].checks) { totalChecked += _toArr(hist[key].checks).filter(Boolean).length; totalPossible += 10; }
             const w = parseFloat(hist[key].weight);
             if (w > 0) {
                 if (!result.weightStart) result.weightStart = w;
@@ -2668,9 +2677,12 @@ function analyzeTrends() {
     const routineCounts = new Array(10).fill(0);
     let routineDays = 0;
     for (const d of last14) {
-        if (hist[d].checks && hist[d].checks.length === 10) {
-            routineDays++;
-            hist[d].checks.forEach((c, i) => { if (c) routineCounts[i]++; });
+        if (hist[d].checks) {
+            const arr = _toArr(hist[d].checks);
+            if (arr.length === 10) {
+                routineDays++;
+                arr.forEach((c, i) => { if (c) routineCounts[i]++; });
+            }
         }
     }
     if (routineDays >= 3) {
@@ -3712,11 +3724,11 @@ function runComprehensiveAnalysis(){
 function exportToExcel(){
     const hist=window._cloudHistory||{};const hV=parseFloat(document.getElementById('p-h').value)/100;
     const data=Object.keys(hist).sort().map(date=>{const e=hist[date];const w=parseFloat(e.weight)||0;
-        return{"날짜":date,"게이지점수":e.score,"긍정점수":e.checks?e.checks.filter(Boolean).length:'0',"페널티합계":e.penaltyTotal||0,"회복합계":e.recoveryTotal||0,
+        return{"날짜":date,"게이지점수":e.score,"긍정점수":e.checks?_toArr(e.checks).filter(Boolean).length:'0',"페널티합계":e.penaltyTotal||0,"회복합계":e.recoveryTotal||0,
         "체중(kg)":w,"BMI":w>0?(w/(hV*hV)).toFixed(1):"-","α_net":e.alpha_net||"-","β_net":e.beta_net||"-","γ_net":e.gamma_net||"-",
         "IMEM":(e.alpha_net&&e.beta_net&&e.gamma_net)?(e.alpha_net*e.beta_net*e.gamma_net).toFixed(3):"-",
-        "리스크":e.riskChecks?e.riskChecks.map((c,i)=>c?risks[i].title:null).filter(Boolean).join(", "):"",
-        "회복미션":e.recoveries?e.recoveries.map((c,i)=>c?risks[i].recovery:null).filter(Boolean).join(", "):""}});
+        "리스크":e.riskChecks?_toArr(e.riskChecks).map((c,i)=>c?(risks[i]&&risks[i].title):null).filter(Boolean).join(", "):"",
+        "회복미션":e.recoveries?_toArr(e.recoveries).map((c,i)=>c?(risks[i]&&risks[i].recovery):null).filter(Boolean).join(", "):""}});
     const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(data),"IMEM_v2.0_Log");XLSX.writeFile(wb,'IncretinAi_v7.0.xlsx');
 }
 
@@ -3811,7 +3823,7 @@ function exportAllUsersExcel(){
                 "체중(kg)":w||'-',
                 "BMI":(w>0&&hm>0)?(w/(hm*hm)).toFixed(1):'-',
                 "게이지점수":day.score!=null?day.score:'-',
-                "긍정점수":day.checks?day.checks.filter(Boolean).length:0,
+                "긍정점수":day.checks?_toArr(day.checks).filter(Boolean).length:0,
                 "페널티합계":day.penaltyTotal||0,
                 "회복합계":day.recoveryTotal||0,
                 "α_net":day.alpha_net||'-',
