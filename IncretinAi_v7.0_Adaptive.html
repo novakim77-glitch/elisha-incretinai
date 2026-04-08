@@ -1441,8 +1441,7 @@ function listenToHistory(){
             console.error('[CIRCUIT BREAKER] history snapshot looped >10x in 5s — listener detached');
             if(unsubHistory){unsubHistory();unsubHistory=null;}
             showSyncStatus('offline');
-            alert('데이터 동기화가 비정상적으로 반복되어 자동 차단되었습니다.
-앱을 다시 실행해 주세요.');
+            alert('데이터 동기화가 비정상적으로 반복되어 자동 차단되었습니다.' + String.fromCharCode(10) + '앱을 다시 실행해 주세요.');
             return;
         }
         const hist={};
