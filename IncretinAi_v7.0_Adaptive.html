@@ -1395,12 +1395,21 @@ async function saveDailyToCloud(){
     if(!dateKey)return;
     const touched=window._userTouchedRoutines||new Set();
     const touchedRisks=window._userTouchedRisks||new Set();
+    // 클라우드 현재 상태를 기반으로 사용자가 터치한 항목만 덮어쓴 전체 배열을 생성
+    const cloud=((window._cloudHistory||{})[dateKey])||{};
+    const checks=_normalizeMap(cloud.checks,routine.length);
+    touched.forEach(i=>{checks[i]=document.getElementById(`item-${i}`)?.classList.contains('checked')||false});
+    const riskChecks=_normalizeMap(cloud.riskChecks,risks.length);
+    const recs=_normalizeMap(cloud.recoveries,risks.length);
+    touchedRisks.forEach(i=>{
+        riskChecks[i]=document.getElementById(`risk-${i}`)?.classList.contains('active')||false;
+        recs[i]=!!recoveryDone[i];
+    });
     const imem=calculateIMEM();
     const score=calculateTotalScore();
     const wRaw=document.getElementById('daily-weight').value;
-    // dot notation으로 개별 체크 항목만 업데이트 → 봇/다른 소스가 쓴 체크를 보존
     const data={
-        score,rawScore:calculateRawScore(),
+        score,rawScore:calculateRawScore(),checks,riskChecks,recoveries:recs,
         alpha_net:imem.alpha_net,beta_net:imem.beta_net,gamma_net:imem.gamma_net,
         alpha_penalty:imem.alpha_penalty,beta_penalty:imem.beta_penalty,gamma_penalty:imem.gamma_penalty,
         penaltyTotal:getTotalPenalty(),recoveryTotal:getTotalRecovery(),
@@ -1408,11 +1417,6 @@ async function saveDailyToCloud(){
         focusRoutines:_focusRoutines||[],
         updatedAt:firebase.firestore.FieldValue.serverTimestamp()
     };
-    touched.forEach(i=>{data[`checks.${i}`]=document.getElementById(`item-${i}`)?.classList.contains('checked')||false});
-    touchedRisks.forEach(i=>{
-        data[`riskChecks.${i}`]=document.getElementById(`risk-${i}`)?.classList.contains('active')||false;
-        data[`recoveries.${i}`]=!!recoveryDone[i];
-    });
     if(wRaw&&wRaw.trim()!==''){const wNum=parseFloat(wRaw);if(Number.isFinite(wNum))data.weight=wNum}
     try{await historyCollection().doc(dateKey).set(data,{merge:true});showSyncStatus('synced')}catch(e){console.error('Daily save:',e);showSyncStatus('offline')}
 }
