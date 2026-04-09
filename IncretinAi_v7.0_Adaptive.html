@@ -660,7 +660,62 @@
     <!-- ★ PAGE: DASHBOARD ★ -->
     <div class="main-page active" id="page-dashboard">
 
-    <!-- 1. Bio-Sync Timer (Day Mode) -->
+    <!-- 1. 인크레티나 Talk -->
+    <div class="tina-mini-card" id="tina-mini-card" onclick="showAINudgeModal()">
+        <div class="tina-mini-header">
+            <span class="tina-avatar">👩‍⚕️</span>
+            <span class="tina-mini-title">인크레티나 Talk</span>
+        </div>
+        <div class="tina-mini-msg" id="tina-mini-msg">안녕하세요! 오늘도 함께 건강한 하루 만들어 봐요 😊</div>
+    </div>
+
+    <!-- 2. 다가오는 루틴 리마인더 -->
+    <div class="glass-card" id="upcoming-routines" style="border-left:3px solid var(--primary);padding:16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+            <span style="font-size:.78rem;font-weight:800;color:var(--primary);display:flex;align-items:center;gap:6px">⏰ 다음 루틴</span>
+            <span style="font-size:.6rem;font-weight:700;color:var(--text-sub)" id="upcoming-time-label"></span>
+        </div>
+        <div id="upcoming-list"></div>
+        <div id="upcoming-empty" style="display:none;text-align:center;padding:12px;font-size:.82rem;color:var(--success);font-weight:700">✅ 오늘 남은 루틴이 없습니다!</div>
+    </div>
+
+    <!-- 3. 인크레틴 게이지 -->
+    <div class="gauge-card" id="gauge-card">
+        <div class="streak-bar" id="streak-bar">
+            <span class="streak-fire" id="streak-fire">🔥</span>
+            <span class="streak-count" id="streak-count">0</span>
+            <span class="streak-label">일 연속</span>
+            <span id="streak-milestone-badge"></span>
+            <span class="streak-freeze" id="streak-freeze-badge"></span>
+            <span class="streak-best" id="streak-best">최고: 0일</span>
+        </div>
+        <!-- ★ VITALITY SCORE — v7.0 ★ -->
+        <div class="vitality-score" id="vitality-card">
+            <span class="vitality-icon">🧬</span>
+            <div class="vitality-info">
+                <span class="vitality-label">인크레틴 활성도 <button class="footnote-btn" onclick="event.stopPropagation();showFootnote('vitality')">**</button></span>
+                <span class="vitality-delta" id="vitality-delta"></span>
+            </div>
+            <span class="vitality-value" id="vitality-score">--</span>
+        </div>
+        <div class="gauge-header">
+            <span class="gauge-title">🔋 인크레틴 게이지 <button class="footnote-btn" onclick="event.stopPropagation();showFootnote('gauge')">*</button></span>
+            <span style="font-family:'JetBrains Mono',monospace;font-size:.7rem;font-weight:700;color:var(--text-sub)" id="gauge-detail">+0 / -0</span>
+        </div>
+        <div class="gauge-score-big" id="gauge-score" style="color:var(--success)">100</div>
+        <div class="gauge-bar-outer">
+            <div class="gauge-bar-inner" id="gauge-bar" style="width:100%;background:linear-gradient(90deg,#22c55e,#10b981)">
+                <span class="gauge-bar-label" id="gauge-bar-pct">100%</span>
+            </div>
+        </div>
+        <div style="display:flex;justify-content:center;gap:16px;margin-top:8px;font-size:.7rem;font-weight:700">
+            <span style="color:var(--danger)">페널티 <span style="font-family:'JetBrains Mono',monospace" id="penalty-total">0</span></span>
+            <span style="color:var(--text-sub)">|</span>
+            <span style="color:var(--success)">회복 <span style="font-family:'JetBrains Mono',monospace" id="recovery-total">0</span></span>
+        </div>
+    </div>
+
+    <!-- 4. Bio-Sync Timer (골든타임) -->
     <div class="biosync-card" id="biosync-card">
         <div class="biosync-header">
             <div class="biosync-mode mode-day" id="mode-badge">☀️ DAY MODE — GOLDEN TIME</div>
@@ -693,68 +748,6 @@
         </div>
     </div>
 
-    <!-- 2. 인크레티나 Talk (기존 tina-mini-card, 이름변경) -->
-    <div class="tina-mini-card" id="tina-mini-card" onclick="showAINudgeModal()">
-        <div class="tina-mini-header">
-            <span class="tina-avatar">👩‍⚕️</span>
-            <span class="tina-mini-title">인크레티나 Talk</span>
-        </div>
-        <div class="tina-mini-msg" id="tina-mini-msg">안녕하세요! 오늘도 함께 건강한 하루 만들어 봐요 😊</div>
-    </div>
-
-    <!-- 3. 인크레틴 게이지 (스트릭바 포함 + 페널티/회복 합계) -->
-    <div class="gauge-card" id="gauge-card">
-        <div class="streak-bar" id="streak-bar">
-            <span class="streak-fire" id="streak-fire">🔥</span>
-            <span class="streak-count" id="streak-count">0</span>
-            <span class="streak-label">일 연속</span>
-            <span id="streak-milestone-badge"></span>
-            <span class="streak-freeze" id="streak-freeze-badge"></span>
-            <span class="streak-best" id="streak-best">최고: 0일</span>
-        </div>
-        <!-- ★ VITALITY SCORE — v7.0 ★ -->
-        <div class="vitality-score" id="vitality-card">
-            <span class="vitality-icon">🧬</span>
-            <div class="vitality-info">
-                <span class="vitality-label">인크레틴 활성도 <button class="footnote-btn" onclick="event.stopPropagation();showFootnote('vitality')">**</button></span>
-                <span class="vitality-delta" id="vitality-delta"></span>
-            </div>
-            <span class="vitality-value" id="vitality-score">--</span>
-        </div>
-        <div class="gauge-header">
-            <span class="gauge-title">🔋 인크레틴 게이지 <button class="footnote-btn" onclick="event.stopPropagation();showFootnote('gauge')">*</button></span>
-            <span style="font-family:'JetBrains Mono',monospace;font-size:.7rem;font-weight:700;color:var(--text-sub)" id="gauge-detail">+0 / -0</span>
-        </div>
-        <div class="gauge-score-big" id="gauge-score" style="color:var(--success)">100</div>
-        <div class="gauge-bar-outer">
-            <div class="gauge-bar-inner" id="gauge-bar" style="width:100%;background:linear-gradient(90deg,#22c55e,#10b981)">
-                <span class="gauge-bar-label" id="gauge-bar-pct">100%</span>
-            </div>
-        </div>
-        <div class="gauge-legend">
-            <div class="gauge-legend-item"><span class="gauge-legend-dot" style="background:#ef4444"></span>위험 (&lt;30)</div>
-            <div class="gauge-legend-item"><span class="gauge-legend-dot" style="background:#f97316"></span>주의 (30~49)</div>
-            <div class="gauge-legend-item"><span class="gauge-legend-dot" style="background:#f59e0b"></span>개선 (50~69)</div>
-            <div class="gauge-legend-item"><span class="gauge-legend-dot" style="background:#22c55e"></span>양호 (70~84)</div>
-            <div class="gauge-legend-item"><span class="gauge-legend-dot" style="background:#3b82f6"></span>최적 (85+)</div>
-        </div>
-        <div style="display:flex;gap:8px;margin-top:12px">
-            <div style="flex:1;background:var(--danger-glow);border-radius:10px;padding:10px;text-align:center">
-                <span style="font-size:.6rem;font-weight:700;color:var(--text-sub);display:block">페널티 합계</span>
-                <span style="font-family:'JetBrains Mono',monospace;font-size:1rem;font-weight:700;color:var(--danger)" id="penalty-total">0</span>
-            </div>
-            <div style="flex:1;background:var(--success-glow);border-radius:10px;padding:10px;text-align:center">
-                <span style="font-size:.6rem;font-weight:700;color:var(--text-sub);display:block">회복 합계</span>
-                <span style="font-family:'JetBrains Mono',monospace;font-size:1rem;font-weight:700;color:var(--success)" id="recovery-total">0</span>
-            </div>
-        </div>
-    </div>
-
-    <!-- 4. 차트 그리드 (체중추이 + IMEM 4주 예측) — 프로필에서 이동 -->
-    <div class="dashboard-grid no-print">
-        <div class="chart-card" id="trend-view"><span class="chart-title">📈 실제 체중 추이</span><canvas id="trendChart" height="200"></canvas></div>
-        <div class="chart-card" id="sim-view"><span class="chart-title">📉 IMEM v2.0 4주 예측</span><canvas id="simChart" height="200"></canvas></div>
-    </div>
 
     <!-- 오늘의 식사 (텔레그램 봇 사진 분석으로 누적) -->
     <div class="glass-card" id="meals-card" style="border-left:3px solid var(--primary);padding:14px;margin-bottom:10px">
@@ -765,18 +758,17 @@
         <div id="meals-list" style="font-size:.78rem;color:var(--text)"></div>
         <div id="meals-empty" style="font-size:.72rem;color:var(--text-sub);text-align:center;padding:6px">텔레그램 봇에 음식 사진을 보내면 자동으로 누적돼요.</div>
     </div>
-
-    <!-- v7.0: 코호트 비교 Placeholder -->
-    <div style="opacity:.45;pointer-events:none;padding:14px;background:var(--surface);border:1px dashed var(--border);border-radius:var(--card-radius);margin-bottom:10px;text-align:center">
-        <div style="font-size:.72rem;font-weight:800;color:var(--text-sub);letter-spacing:.5px;text-transform:uppercase;margin-bottom:6px">📊 이번 주 코호트 비교</div>
-        <div style="display:flex;justify-content:center;gap:24px;margin-bottom:6px">
-            <div><span style="font-family:'JetBrains Mono',monospace;font-size:1.4rem;font-weight:700;color:var(--text-sub)">--</span><div style="font-size:.6rem;color:var(--text-sub);margin-top:2px">코호트 평균</div></div>
-            <div><span style="font-family:'JetBrains Mono',monospace;font-size:1.4rem;font-weight:700;color:var(--primary)">--</span><div style="font-size:.6rem;color:var(--text-sub);margin-top:2px">내 평균</div></div>
-        </div>
-        <div style="font-size:.65rem;color:var(--accent);font-weight:600">Coming Soon</div>
+    <!-- 6~7. 상세 분석 (접기) -->
+    <div style="text-align:center;margin-bottom:10px">
+        <button id="detail-toggle-btn" onclick="toggleDetailSection()" style="background:var(--surface-alt);border:1px solid var(--border);border-radius:20px;padding:8px 20px;font-family:'Inter','Noto Sans KR',sans-serif;font-size:.75rem;font-weight:700;color:var(--text-sub);cursor:pointer;transition:all .2s">
+            📊 차트 · IMEM 상세 보기 ▼
+        </button>
     </div>
-
-    <!-- 5. IMEM 실시간 계수 -->
+    <div id="detail-section" style="display:none">
+    <div class="dashboard-grid no-print">
+        <div class="chart-card" id="trend-view"><span class="chart-title">📈 실제 체중 추이</span><canvas id="trendChart" height="200"></canvas></div>
+        <div class="chart-card" id="sim-view"><span class="chart-title">📉 IMEM v2.0 4주 예측</span><canvas id="simChart" height="200"></canvas></div>
+    </div>
     <div class="imem-card">
         <div class="imem-header"><span class="imem-title">📐 IMEM v2.0 실시간 계수 (페널티 반영)</span></div>
         <div class="imem-coefficients">
@@ -803,16 +795,10 @@
             ΔWeight = f(BMR) × [<span style="color:var(--accent);font-weight:700">α_net</span> × <span style="color:var(--primary);font-weight:700">β_net</span> × <span style="color:var(--success);font-weight:700">γ_net</span>] × Compliance
         </div>
     </div>
-
-    <!-- 6. 다가오는 루틴 리마인더 (현재 시간 기준 2개) -->
-    <div class="glass-card" id="upcoming-routines" style="border-left:3px solid var(--primary);padding:16px">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-            <span style="font-size:.78rem;font-weight:800;color:var(--primary);display:flex;align-items:center;gap:6px">⏰ 다음 루틴</span>
-            <span style="font-size:.6rem;font-weight:700;color:var(--text-sub)" id="upcoming-time-label"></span>
-        </div>
-        <div id="upcoming-list"></div>
-        <div id="upcoming-empty" style="display:none;text-align:center;padding:12px;font-size:.82rem;color:var(--success);font-weight:700">✅ 오늘 남은 루틴이 없습니다!</div>
     </div>
+
+
+    <!-- v7.0: 코호트 비교 — 추후 활성화 -->
 
     </div><!-- /page-dashboard -->
 
@@ -826,7 +812,7 @@
     </div>
 
     <div class="glass-card no-print" id="routine-section">
-        <a href="https://t.me/incretina_ai_bot" target="_blank" rel="noopener" class="bot-cta-banner" style="text-decoration:none;background:linear-gradient(135deg,#3b82f6,#0ea5e9);color:#fff;padding:14px 16px;border-radius:12px;margin-bottom:14px;display:flex;align-items:center;gap:12px;font-size:.85rem;line-height:1.4">
+        <a href="https://t.me/incretina_ai_bot" target="_blank" rel="noopener" id="bot-cta-banner" class="bot-cta-banner" style="text-decoration:none;background:linear-gradient(135deg,#3b82f6,#0ea5e9);color:#fff;padding:14px 16px;border-radius:12px;margin-bottom:14px;display:flex;align-items:center;gap:12px;font-size:.85rem;line-height:1.4">
             <div style="font-size:1.6rem">💬</div>
             <div style="flex:1">
                 <div style="font-weight:700;margin-bottom:2px">텔레그램 봇으로 더 빠르게 체크하세요</div>
@@ -1190,8 +1176,6 @@
 <script>
 // ★ v7.1: 앱 준비 플래그 — Firebase 데이터 로드 완료 전까지 모든 저장 차단
 var _appReady = false;
-// Firestore가 배열을 객체({0:true,1:false,...})로 반환하는 케이스 방어 헬퍼
-function _toArr(x){ return Array.isArray(x) ? x : (x && typeof x==='object' ? Object.values(x) : []); }
 
 // ============================================================
 // FIREBASE CONFIG
@@ -1208,11 +1192,6 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
-// 모바일/통신사 프록시(KT 5G 등) 환경에서 WebChannel hang을 막기 위해 long polling 강제
-try{
-    db.settings({ experimentalForceLongPolling: true, useFetchStreams: false });
-    console.log('[fs] long polling forced');
-}catch(e){ console.warn('FS settings failed:',e); }
 db.enablePersistence({synchronizeTabs:true}).catch(e=>console.warn('Persistence:',e.code));
 let currentUser=null,unsubProfile=null,unsubHistory=null;
 const ADMIN_EMAILS=['novakim77@gmail.com'];
@@ -1304,6 +1283,30 @@ function applyNotifyPrefs(prefs){
 function updateTelegramLinkWarning(linked){
     const w=document.getElementById('notif-tg-warn');
     if(w)w.style.display = linked ? 'none' : 'block';
+    // 봇 연결 완료 시 UI 업데이트
+    const btn=document.getElementById('tg-link-btn');
+    const codeBox=document.getElementById('tg-link-code-box');
+    const statusEl=document.getElementById('tg-link-status');
+    if(linked){
+        if(codeBox)codeBox.style.display='none';
+        if(btn){btn.textContent='✅ 연결됨';btn.disabled=true;btn.style.opacity='0.7';}
+        if(statusEl)statusEl.textContent='텔레그램 봇과 연결되었습니다';
+        if(_tgLinkCountdownTimer){clearInterval(_tgLinkCountdownTimer);_tgLinkCountdownTimer=null;}
+    }else{
+        if(btn){btn.textContent='코드 발급';btn.disabled=false;btn.style.opacity='1';}
+        if(statusEl)statusEl.textContent='앱 + 봇을 하나의 계정으로 동기화합니다';
+    }
+    // 루틴 탭 CTA 배너 분기
+    const banner=document.getElementById('bot-cta-banner');
+    if(banner){
+        if(linked){
+            banner.style.background='linear-gradient(135deg,#10b981,#059669)';
+            banner.innerHTML='<div style="font-size:1.6rem">✅</div><div style="flex:1"><div style="font-weight:700;margin-bottom:2px">텔레그램 봇 연동 중</div><div style="opacity:.92;font-size:.78rem">봇에서 체크한 루틴이 여기에 자동 반영됩니다</div></div><div style="font-size:1.2rem;opacity:.8">→</div>';
+        }else{
+            banner.style.background='linear-gradient(135deg,#3b82f6,#0ea5e9)';
+            banner.innerHTML='<div style="font-size:1.6rem">💬</div><div style="flex:1"><div style="font-weight:700;margin-bottom:2px">텔레그램 봇으로 더 빠르게 체크하세요</div><div style="opacity:.92;font-size:.78rem">"아침 루틴 다 했어"처럼 자연어로 말해도 OK · @incretina_ai_bot</div></div><div style="font-size:1.2rem;opacity:.8">→</div>';
+        }
+    }
 }
 async function toggleNotifications(on){
     if(on){
@@ -1390,8 +1393,7 @@ async function saveDailyToCloud(){
     if(!currentUser||!_appReady)return;
     const dateKey=document.getElementById('target-date').value;
     if(!dateKey)return;
-    // v7.2: 봇 마크 보존을 위해 사용자가 이번 세션에서 직접 토글한 인덱스만 저장.
-    // 건드리지 않은 키는 cloud 상태(=봇 마크 포함) 그대로 둠.
+    // v7.2: 봇 마크 보존을 위해 사용자가 이번 세션에서 직접 토글한 인덱스만 저장 (merge:true가 나머지를 보존)
     const touched=window._userTouchedRoutines||new Set();
     const touchedRisks=window._userTouchedRisks||new Set();
     const checks={};touched.forEach(i=>{checks[i]=document.getElementById(`item-${i}`)?.classList.contains('checked')||false});
@@ -1429,28 +1431,7 @@ clearTimeout(_chartTimer);_chartTimer=setTimeout(()=>{try{updateTrendChart();}ca
 // v7.0 Comeback: 3일+ 미사용 시 복귀 카드
 setTimeout(()=>showComebackCard(),800);
 }showSyncStatus('synced')},e=>{console.warn('Profile listen:',e);showSyncStatus('offline')})}
-let _snapTimes=[];
-function listenToHistory(){
-    if(unsubHistory)unsubHistory();
-    unsubHistory=historyCollection().onSnapshot(snap=>{
-        // 무한 루프 차단: 5초 안에 snapshot이 10회 이상 발화하면 강제 중단
-        const now=Date.now();
-        _snapTimes=_snapTimes.filter(t=>now-t<5000);
-        _snapTimes.push(now);
-        if(_snapTimes.length>10){
-            console.error('[CIRCUIT BREAKER] history snapshot looped >10x in 5s — listener detached');
-            if(unsubHistory){unsubHistory();unsubHistory=null;}
-            showSyncStatus('offline');
-            alert('데이터 동기화가 비정상적으로 반복되어 자동 차단되었습니다.' + String.fromCharCode(10) + '앱을 다시 실행해 주세요.');
-            return;
-        }
-        const hist={};
-        snap.forEach(doc=>{hist[doc.id]=doc.data()});
-        window._cloudHistory=hist;
-        loadDateData();
-        showSyncStatus('synced');
-    },e=>{console.warn('History listen:',e);showSyncStatus('offline')});
-}
+function listenToHistory(){if(unsubHistory)unsubHistory();unsubHistory=historyCollection().onSnapshot(snap=>{const hist={};snap.forEach(doc=>{hist[doc.id]=doc.data()});window._cloudHistory=hist;loadDateData();showSyncStatus('synced')},e=>{console.warn('History listen:',e);showSyncStatus('offline')})}
 
 function loadDateData(){
     const hist=window._cloudHistory||{};
@@ -1463,7 +1444,7 @@ function loadDateData(){
         if(!el)return;
         const cloudVal=!!(data&&data.checks&&data.checks[i]);
         const domVal=el.classList.contains('checked');
-        if(freshClick&&cloudVal!==domVal)return; // in-flight 사용자 변경 보존
+        if(freshClick&&cloudVal!==domVal)return;
         if(cloudVal)el.classList.add('checked');else el.classList.remove('checked');
     });
     risks.forEach((_,i)=>{
@@ -2524,15 +2505,10 @@ function checkBadges() {
     let fullClearCount = 0, totalRecoveries = 0, consecutiveAbove85 = 0, maxConsec85 = 0;
     for (let i = sorted.length - 1; i >= 0; i--) {
         const d = hist[sorted[i]];
-        // Firestore가 배열을 객체로 반환하는 케이스 방어 — Object.values로 안전 변환
-        if (d.checks) {
-            const arr = Array.isArray(d.checks) ? d.checks : Object.values(d.checks);
-            if (arr.filter(Boolean).length === 10) fullClearCount++;
-        }
-        if (d.recoveries) {
-            const arr = Array.isArray(d.recoveries) ? d.recoveries : Object.values(d.recoveries);
-            totalRecoveries += arr.filter(Boolean).length;
-        }
+        const checksArr = d.checks ? (Array.isArray(d.checks) ? d.checks : Object.values(d.checks)) : [];
+        const recArr = d.recoveries ? (Array.isArray(d.recoveries) ? d.recoveries : Object.values(d.recoveries)) : [];
+        if (checksArr.filter(Boolean).length === 10) fullClearCount++;
+        totalRecoveries += recArr.filter(Boolean).length;
         if (d.score >= 85) { consecutiveAbove85++; maxConsec85 = Math.max(maxConsec85, consecutiveAbove85); }
         else { consecutiveAbove85 = 0; }
     }
@@ -2597,7 +2573,7 @@ function getWeekData(hist, monday) {
         if (hist[key]) {
             result.daysRecorded++;
             totalScore += (hist[key].score || 0);
-            if (hist[key].checks) { totalChecked += _toArr(hist[key].checks).filter(Boolean).length; totalPossible += 10; }
+            if (hist[key].checks) { totalChecked += hist[key].checks.filter(Boolean).length; totalPossible += 10; }
             const w = parseFloat(hist[key].weight);
             if (w > 0) {
                 if (!result.weightStart) result.weightStart = w;
@@ -2698,12 +2674,9 @@ function analyzeTrends() {
     const routineCounts = new Array(10).fill(0);
     let routineDays = 0;
     for (const d of last14) {
-        if (hist[d].checks) {
-            const arr = _toArr(hist[d].checks);
-            if (arr.length === 10) {
-                routineDays++;
-                arr.forEach((c, i) => { if (c) routineCounts[i]++; });
-            }
+        if (hist[d].checks && hist[d].checks.length === 10) {
+            routineDays++;
+            hist[d].checks.forEach((c, i) => { if (c) routineCounts[i]++; });
         }
     }
     if (routineDays >= 3) {
@@ -3204,6 +3177,17 @@ function refreshStats(score){
     if(sw&&gw&&cw&&sw!==gw){const ach=Math.max(0,Math.min(100,((sw-cw)/(sw-gw))*100));const el=document.getElementById('ach-v');el.textContent=ach.toFixed(1)+'%';el.style.color=ach>=50?'var(--success)':(ach>=25?'var(--accent)':'var(--danger)')}
 }
 
+function toggleDetailSection(){
+    const sec=document.getElementById('detail-section');
+    const btn=document.getElementById('detail-toggle-btn');
+    const showing=sec.style.display==='none';
+    sec.style.display=showing?'block':'none';
+    btn.innerHTML=showing?'📊 차트 · IMEM 상세 접기 ▲':'📊 차트 · IMEM 상세 보기 ▼';
+    if(showing){
+        try{updateTrendChart()}catch(e){}
+        try{runComprehensiveAnalysis()}catch(e){}
+    }
+}
 function fullRefresh(){
     const imem=updateIMEMDisplay();
     const score=calculateTotalScore();
@@ -3665,13 +3649,13 @@ function renderMealsCard(){
     cntEl.textContent=meals.length;
     if(meals.length===0){listEl.innerHTML='';emptyEl.style.display='block';return;}
     emptyEl.style.display='none';
-    listEl.innerHTML=meals.map(m=>{
+    listEl.innerHTML=meals.map((m,i)=>{
         const t=m.time||'';
         const menu=(m.menu||'식사').replace(/</g,'&lt;');
         const k=Number(m.kcal)||0;
         const beta=Number(m.betaScore)||0;
         const betaTag=beta>=0.7?'<span style="color:var(--success);font-weight:700">β優</span>':beta>=0.4?'<span style="color:var(--accent);font-weight:700">β中</span>':'<span style="color:var(--text-sub)">β低</span>';
-        return `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)"><span style="flex:1;min-width:0"><span style="color:var(--text-sub);font-size:.7rem">${t}</span> ${menu}</span><span style="font-family:'JetBrains Mono',monospace;font-weight:700;white-space:nowrap">${k} kcal ${betaTag}</span><button onclick="deleteMeal(${meals.indexOf(m)})" title="삭제" style="background:none;border:none;color:var(--text-sub);font-size:1rem;cursor:pointer;padding:2px 6px">🗑</button></div>`;
+        return `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)"><span style="flex:1;min-width:0"><span style="color:var(--text-sub);font-size:.7rem">${t}</span> ${menu}</span><span style="font-family:'JetBrains Mono',monospace;font-weight:700;white-space:nowrap">${k} kcal ${betaTag}</span><button onclick="deleteMeal(${i})" title="삭제" style="background:none;border:none;color:var(--text-sub);font-size:1rem;cursor:pointer;padding:2px 6px">🗑</button></div>`;
     }).join('');
 }
 
@@ -3739,18 +3723,17 @@ function runComprehensiveAnalysis(){
     const ctx=document.getElementById('simChart').getContext('2d');
     if(simChart)simChart.destroy();
     simChart=new Chart(ctx,{type:'line',data:{labels,datasets:[{data:weights,borderColor:'#10b981',backgroundColor:'rgba(16,185,129,.08)',borderDash:[6,4],tension:.4,fill:true,pointRadius:5,pointBackgroundColor:'#10b981',borderWidth:2}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:false,grid:{color:'rgba(0,0,0,.05)'}},x:{grid:{display:false}}}}});
-    // ★ CRITICAL: 여기서 onDataChange()를 부르면 snapshot→loadDateData→runComprehensiveAnalysis→onDataChange→save→snapshot 무한 루프가 됨.
-    // 분석 함수는 read-only로 유지. 저장이 필요한 트리거는 호출자가 명시적으로 처리.
+    onDataChange();
 }
 
 function exportToExcel(){
     const hist=window._cloudHistory||{};const hV=parseFloat(document.getElementById('p-h').value)/100;
     const data=Object.keys(hist).sort().map(date=>{const e=hist[date];const w=parseFloat(e.weight)||0;
-        return{"날짜":date,"게이지점수":e.score,"긍정점수":e.checks?_toArr(e.checks).filter(Boolean).length:'0',"페널티합계":e.penaltyTotal||0,"회복합계":e.recoveryTotal||0,
+        return{"날짜":date,"게이지점수":e.score,"긍정점수":e.checks?e.checks.filter(Boolean).length:'0',"페널티합계":e.penaltyTotal||0,"회복합계":e.recoveryTotal||0,
         "체중(kg)":w,"BMI":w>0?(w/(hV*hV)).toFixed(1):"-","α_net":e.alpha_net||"-","β_net":e.beta_net||"-","γ_net":e.gamma_net||"-",
         "IMEM":(e.alpha_net&&e.beta_net&&e.gamma_net)?(e.alpha_net*e.beta_net*e.gamma_net).toFixed(3):"-",
-        "리스크":e.riskChecks?_toArr(e.riskChecks).map((c,i)=>c?(risks[i]&&risks[i].title):null).filter(Boolean).join(", "):"",
-        "회복미션":e.recoveries?_toArr(e.recoveries).map((c,i)=>c?(risks[i]&&risks[i].recovery):null).filter(Boolean).join(", "):""}});
+        "리스크":e.riskChecks?e.riskChecks.map((c,i)=>c?risks[i].title:null).filter(Boolean).join(", "):"",
+        "회복미션":e.recoveries?e.recoveries.map((c,i)=>c?risks[i].recovery:null).filter(Boolean).join(", "):""}});
     const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(data),"IMEM_v2.0_Log");XLSX.writeFile(wb,'IncretinAi_v7.0.xlsx');
 }
 
@@ -3845,7 +3828,7 @@ function exportAllUsersExcel(){
                 "체중(kg)":w||'-',
                 "BMI":(w>0&&hm>0)?(w/(hm*hm)).toFixed(1):'-',
                 "게이지점수":day.score!=null?day.score:'-',
-                "긍정점수":day.checks?_toArr(day.checks).filter(Boolean).length:0,
+                "긍정점수":day.checks?day.checks.filter(Boolean).length:0,
                 "페널티합계":day.penaltyTotal||0,
                 "회복합계":day.recoveryTotal||0,
                 "α_net":day.alpha_net||'-',
@@ -3902,6 +3885,12 @@ function initApp(){
     updateLevelDisplay();
     renderBadgeInventory();
     listenToProfile();listenToHistory();
+    // 네트워크 복귀 시 Firestore 재연결 + 동기화 상태 표시
+    window.addEventListener('online',()=>{
+        showSyncStatus('synced');
+        try{db.enableNetwork()}catch(_){}
+    });
+    window.addEventListener('offline',()=>{showSyncStatus('offline')});
     updateBioSyncTimer();setInterval(()=>{updateBioSyncTimer();checkRoutineReminders();updateUpcomingRoutines()},30000);
     // fullRefresh(), generateWeeklyReport(), 차트 → 모두 listenToHistory → loadDateData에서 데이터 로드 후 자동 호출
     // 인크레티나 미니 넛지 초기화 + 30분 갱신
@@ -3949,8 +3938,8 @@ document.getElementById('p-lat').addEventListener('change',()=>{updateBioSyncTim
 // ============================================================
 let _tgLinkCountdownTimer=null;
 async function generateTelegramLinkCode(){
-    if(!currentUser){alert('먼저 로그인이 필요해요 (currentUser=null)');return}
-    // 0) 오프라인 선제 차단 — enablePersistence로 set()이 무한 큐잉되는 문제 방지
+    if(!currentUser){alert('먼저 로그인이 필요해요');return}
+    // 0) 오프라인 선제 차단 — enablePersistence 때문에 set()이 무한 큐잉되는 문제 방지
     if(typeof navigator!=='undefined' && navigator.onLine===false){
         alert('오프라인 상태예요. 네트워크 연결 후 다시 시도해 주세요.');
         return;
@@ -3958,17 +3947,16 @@ async function generateTelegramLinkCode(){
     const btn=document.getElementById('tg-link-btn');
     btn.disabled=true;btn.textContent='발급 중...';
     try{
-        // 1) Firestore 네트워크 강제 활성화 (이전에 disable됐을 수도)
-        try{ await db.enableNetwork(); console.log('[link] enableNetwork OK'); }catch(e){ console.warn('[link] enableNetwork:',e); }
-        // 2) 인증 토큰 강제 갱신 — 보안규칙 평가가 stale 토큰으로 실패하는 케이스 방지
-        try{ const t=await currentUser.getIdToken(true); console.log('[link] token refreshed, len=',t.length); }catch(e){ console.warn('[link] getIdToken:',e); }
+        // 1) Firestore 네트워크 강제 활성화 (이전에 disable된 상태 대비)
+        try{await db.enableNetwork()}catch(_){}
+        // 2) 토큰 강제 갱신 — 보안규칙이 신선한 토큰 요구 시 대비
+        try{await currentUser.getIdToken(true)}catch(_){}
         // 6-digit code
         const code=String(Math.floor(100000+Math.random()*900000));
         const now=new Date();
         const expiresAt=new Date(now.getTime()+5*60*1000);
-        console.log('[link] step1: writing code',code,'for uid',currentUser.uid,'online=',navigator.onLine);
-        // 8s timeout: Firestore set() may hang silently if offline / SW intercept / auth stale
-        const writePromise=db.collection('linkCodes').doc(code).set({
+        // 3) Schema v2: linkCodes/{code} with _meta — 8초 타임아웃 레이스
+        const setPromise=db.collection('linkCodes').doc(code).set({
             uid:currentUser.uid,
             createdAt:firebase.firestore.FieldValue.serverTimestamp(),
             expiresAt:firebase.firestore.Timestamp.fromDate(expiresAt),
@@ -3982,9 +3970,10 @@ async function generateTelegramLinkCode(){
                 source:'web_app'
             }
         });
-        const timeoutPromise=new Promise((_,rej)=>setTimeout(()=>rej(new Error('TIMEOUT: Firestore set() did not respond in 8s — 오프라인이거나 보안 규칙/Service Worker 문제일 가능성')),8000));
-        await Promise.race([writePromise,timeoutPromise]);
-        console.log('[link] write OK',code);
+        await Promise.race([
+            setPromise,
+            new Promise((_,reject)=>setTimeout(()=>reject(new Error('TIMEOUT_8S')),8000))
+        ]);
         // Display
         document.getElementById('tg-link-code-display').textContent=code;
         document.getElementById('tg-link-code-inline').textContent=code;
@@ -4010,31 +3999,20 @@ async function generateTelegramLinkCode(){
     }catch(e){
         console.error('Telegram link code generation:',e);
         let msg='코드 발급 실패';
-        if(e && e.message && e.message.indexOf('TIMEOUT')===0){
-            msg='서버 응답이 8초 내에 없었어요.' + String.fromCharCode(10,10) + '확인을 누르면 캐시를 초기화하고 자동 새로고침합니다.';
+        if(e && e.message==='TIMEOUT_8S'){
+            msg='서버 응답이 지연되고 있어요 (8초 초과).
+
+• 네트워크 상태 확인
+• Service Worker 캐시 삭제 후 새로고침
+• 보안규칙에서 linkCodes 쓰기 권한 확인';
         }else if(e && e.code==='permission-denied'){
-            msg='권한이 없어요. Firestore 보안규칙에서 linkCodes 컬렉션 create 권한을 확인해 주세요.';
+            msg='권한이 없어요. Firestore 보안규칙에서 linkCodes 컬렉션 쓰기 권한을 확인해 주세요.';
         }else if(e && e.code==='unavailable'){
             msg='Firestore 서버에 연결할 수 없어요. 잠시 후 다시 시도해 주세요.';
         }else{
             msg='코드 발급 실패: '+(e.code||'')+' '+(e.message||e);
         }
-        const wasTimeout = (e && e.message && e.message.indexOf('TIMEOUT')===0);
         alert(msg);
-        if(wasTimeout){
-            try{
-                if('serviceWorker' in navigator){
-                    const regs = await navigator.serviceWorker.getRegistrations();
-                    for(const r of regs){ await r.unregister(); }
-                }
-                if(window.caches){
-                    const keys = await caches.keys();
-                    await Promise.all(keys.map(k=>caches.delete(k)));
-                }
-            }catch(_){}
-            location.reload();
-            return;
-        }
         btn.disabled=false;btn.textContent='코드 발급';
     }
 }
