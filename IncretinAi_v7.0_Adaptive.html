@@ -1393,17 +1393,14 @@ async function saveDailyToCloud(){
     if(!currentUser||!_appReady)return;
     const dateKey=document.getElementById('target-date').value;
     if(!dateKey)return;
-    // v7.2: 봇 마크 보존을 위해 사용자가 이번 세션에서 직접 토글한 인덱스만 저장 (merge:true가 나머지를 보존)
     const touched=window._userTouchedRoutines||new Set();
     const touchedRisks=window._userTouchedRisks||new Set();
-    const checks={};touched.forEach(i=>{checks[i]=document.getElementById(`item-${i}`)?.classList.contains('checked')||false});
-    const riskChecks={};touchedRisks.forEach(i=>{riskChecks[i]=document.getElementById(`risk-${i}`)?.classList.contains('active')||false});
-    const recoveries={};touchedRisks.forEach(i=>{recoveries[i]=!!recoveryDone[i]});
     const imem=calculateIMEM();
     const score=calculateTotalScore();
     const wRaw=document.getElementById('daily-weight').value;
+    // dot notation으로 개별 체크 항목만 업데이트 → 봇/다른 소스가 쓴 체크를 보존
     const data={
-        score,rawScore:calculateRawScore(),checks,riskChecks,recoveries,
+        score,rawScore:calculateRawScore(),
         alpha_net:imem.alpha_net,beta_net:imem.beta_net,gamma_net:imem.gamma_net,
         alpha_penalty:imem.alpha_penalty,beta_penalty:imem.beta_penalty,gamma_penalty:imem.gamma_penalty,
         penaltyTotal:getTotalPenalty(),recoveryTotal:getTotalRecovery(),
@@ -1411,7 +1408,11 @@ async function saveDailyToCloud(){
         focusRoutines:_focusRoutines||[],
         updatedAt:firebase.firestore.FieldValue.serverTimestamp()
     };
-    // weight: only write when user actually entered a value, so bot-logged weights don't get clobbered
+    touched.forEach(i=>{data[`checks.${i}`]=document.getElementById(`item-${i}`)?.classList.contains('checked')||false});
+    touchedRisks.forEach(i=>{
+        data[`riskChecks.${i}`]=document.getElementById(`risk-${i}`)?.classList.contains('active')||false;
+        data[`recoveries.${i}`]=!!recoveryDone[i];
+    });
     if(wRaw&&wRaw.trim()!==''){const wNum=parseFloat(wRaw);if(Number.isFinite(wNum))data.weight=wNum}
     try{await historyCollection().doc(dateKey).set(data,{merge:true});showSyncStatus('synced')}catch(e){console.error('Daily save:',e);showSyncStatus('offline')}
 }
@@ -1433,16 +1434,25 @@ setTimeout(()=>showComebackCard(),800);
 }showSyncStatus('synced')},e=>{console.warn('Profile listen:',e);showSyncStatus('offline')})}
 function listenToHistory(){if(unsubHistory)unsubHistory();unsubHistory=historyCollection().onSnapshot(snap=>{const hist={};snap.forEach(doc=>{hist[doc.id]=doc.data()});window._cloudHistory=hist;loadDateData();showSyncStatus('synced')},e=>{console.warn('History listen:',e);showSyncStatus('offline')})}
 
+function _normalizeMap(raw,len){
+    if(!raw)return new Array(len).fill(false);
+    if(Array.isArray(raw)){const a=[...raw];while(a.length<len)a.push(false);return a.map(v=>!!v)}
+    const a=new Array(len).fill(false);
+    Object.entries(raw).forEach(([k,v])=>{const i=Number(k);if(i>=0&&i<len)a[i]=!!v});
+    return a;
+}
 function loadDateData(){
     const hist=window._cloudHistory||{};
     const dateKey=document.getElementById('target-date').value;
     const data=hist[dateKey];
-    // 사용자가 방금 클릭한 항목은 저장이 commit되기 전에 cloud 값으로 덮어쓰지 않음
     const freshClick=(Date.now()-(window._lastUserToggleAt||0))<2500;
+    const checksArr=_normalizeMap(data&&data.checks,routine.length);
+    const riskArr=_normalizeMap(data&&data.riskChecks,risks.length);
+    const recArr=_normalizeMap(data&&data.recoveries,risks.length);
     routine.forEach((_,i)=>{
         const el=document.getElementById(`item-${i}`);
         if(!el)return;
-        const cloudVal=!!(data&&data.checks&&data.checks[i]);
+        const cloudVal=checksArr[i];
         const domVal=el.classList.contains('checked');
         if(freshClick&&cloudVal!==domVal)return;
         if(cloudVal)el.classList.add('checked');else el.classList.remove('checked');
@@ -1450,12 +1460,12 @@ function loadDateData(){
     risks.forEach((_,i)=>{
         const el=document.getElementById(`risk-${i}`);
         if(!el)return;
-        const cloudVal=!!(data&&data.riskChecks&&data.riskChecks[i]);
+        const cloudVal=riskArr[i];
         const domVal=el.classList.contains('active');
         if(freshClick&&cloudVal!==domVal)return;
         if(cloudVal)el.classList.add('active');else el.classList.remove('active');
     });
-    recoveryDone.fill(false);if(data&&data.recoveries){if(Array.isArray(data.recoveries))data.recoveries.forEach((v,i)=>{recoveryDone[i]=v});else Object.entries(data.recoveries).forEach(([k,v])=>{const i=Number(k);if(Number.isInteger(i))recoveryDone[i]=!!v})}
+    recoveryDone=recArr;
     // v7.0: 포커스 루틴 복원
     _focusRoutines=(data&&Array.isArray(data.focusRoutines))?data.focusRoutines:[];
     _focusBonusAwarded=false;
