@@ -4000,11 +4000,7 @@ async function generateTelegramLinkCode(){
         console.error('Telegram link code generation:',e);
         let msg='코드 발급 실패';
         if(e && e.message==='TIMEOUT_8S'){
-            msg='서버 응답이 지연되고 있어요 (8초 초과).
-
-• 네트워크 상태 확인
-• Service Worker 캐시 삭제 후 새로고침
-• 보안규칙에서 linkCodes 쓰기 권한 확인';
+            msg='서버 응답이 지연되고 있어요 (8초 초과).\n\n• 네트워크 상태 확인\n• Service Worker 캐시 삭제 후 새로고침\n• 보안규칙에서 linkCodes 쓰기 권한 확인';
         }else if(e && e.code==='permission-denied'){
             msg='권한이 없어요. Firestore 보안규칙에서 linkCodes 컬렉션 쓰기 권한을 확인해 주세요.';
         }else if(e && e.code==='unavailable'){
