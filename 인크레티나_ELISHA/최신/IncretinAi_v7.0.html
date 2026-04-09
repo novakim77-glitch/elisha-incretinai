@@ -660,7 +660,62 @@
     <!-- ★ PAGE: DASHBOARD ★ -->
     <div class="main-page active" id="page-dashboard">
 
-    <!-- 1. Bio-Sync Timer (Day Mode) -->
+    <!-- 1. 인크레티나 Talk -->
+    <div class="tina-mini-card" id="tina-mini-card" onclick="showAINudgeModal()">
+        <div class="tina-mini-header">
+            <span class="tina-avatar">👩‍⚕️</span>
+            <span class="tina-mini-title">인크레티나 Talk</span>
+        </div>
+        <div class="tina-mini-msg" id="tina-mini-msg">안녕하세요! 오늘도 함께 건강한 하루 만들어 봐요 😊</div>
+    </div>
+
+    <!-- 2. 다가오는 루틴 리마인더 -->
+    <div class="glass-card" id="upcoming-routines" style="border-left:3px solid var(--primary);padding:16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+            <span style="font-size:.78rem;font-weight:800;color:var(--primary);display:flex;align-items:center;gap:6px">⏰ 다음 루틴</span>
+            <span style="font-size:.6rem;font-weight:700;color:var(--text-sub)" id="upcoming-time-label"></span>
+        </div>
+        <div id="upcoming-list"></div>
+        <div id="upcoming-empty" style="display:none;text-align:center;padding:12px;font-size:.82rem;color:var(--success);font-weight:700">✅ 오늘 남은 루틴이 없습니다!</div>
+    </div>
+
+    <!-- 3. 인크레틴 게이지 -->
+    <div class="gauge-card" id="gauge-card">
+        <div class="streak-bar" id="streak-bar">
+            <span class="streak-fire" id="streak-fire">🔥</span>
+            <span class="streak-count" id="streak-count">0</span>
+            <span class="streak-label">일 연속</span>
+            <span id="streak-milestone-badge"></span>
+            <span class="streak-freeze" id="streak-freeze-badge"></span>
+            <span class="streak-best" id="streak-best">최고: 0일</span>
+        </div>
+        <!-- ★ VITALITY SCORE — v7.0 ★ -->
+        <div class="vitality-score" id="vitality-card">
+            <span class="vitality-icon">🧬</span>
+            <div class="vitality-info">
+                <span class="vitality-label">인크레틴 활성도 <button class="footnote-btn" onclick="event.stopPropagation();showFootnote('vitality')">**</button></span>
+                <span class="vitality-delta" id="vitality-delta"></span>
+            </div>
+            <span class="vitality-value" id="vitality-score">--</span>
+        </div>
+        <div class="gauge-header">
+            <span class="gauge-title">🔋 인크레틴 게이지 <button class="footnote-btn" onclick="event.stopPropagation();showFootnote('gauge')">*</button></span>
+            <span style="font-family:'JetBrains Mono',monospace;font-size:.7rem;font-weight:700;color:var(--text-sub)" id="gauge-detail">+0 / -0</span>
+        </div>
+        <div class="gauge-score-big" id="gauge-score" style="color:var(--success)">100</div>
+        <div class="gauge-bar-outer">
+            <div class="gauge-bar-inner" id="gauge-bar" style="width:100%;background:linear-gradient(90deg,#22c55e,#10b981)">
+                <span class="gauge-bar-label" id="gauge-bar-pct">100%</span>
+            </div>
+        </div>
+        <div style="display:flex;justify-content:center;gap:16px;margin-top:8px;font-size:.7rem;font-weight:700">
+            <span style="color:var(--danger)">페널티 <span style="font-family:'JetBrains Mono',monospace" id="penalty-total">0</span></span>
+            <span style="color:var(--text-sub)">|</span>
+            <span style="color:var(--success)">회복 <span style="font-family:'JetBrains Mono',monospace" id="recovery-total">0</span></span>
+        </div>
+    </div>
+
+    <!-- 4. Bio-Sync Timer (골든타임) -->
     <div class="biosync-card" id="biosync-card">
         <div class="biosync-header">
             <div class="biosync-mode mode-day" id="mode-badge">☀️ DAY MODE — GOLDEN TIME</div>
@@ -693,68 +748,6 @@
         </div>
     </div>
 
-    <!-- 2. 인크레티나 Talk (기존 tina-mini-card, 이름변경) -->
-    <div class="tina-mini-card" id="tina-mini-card" onclick="showAINudgeModal()">
-        <div class="tina-mini-header">
-            <span class="tina-avatar">👩‍⚕️</span>
-            <span class="tina-mini-title">인크레티나 Talk</span>
-        </div>
-        <div class="tina-mini-msg" id="tina-mini-msg">안녕하세요! 오늘도 함께 건강한 하루 만들어 봐요 😊</div>
-    </div>
-
-    <!-- 3. 인크레틴 게이지 (스트릭바 포함 + 페널티/회복 합계) -->
-    <div class="gauge-card" id="gauge-card">
-        <div class="streak-bar" id="streak-bar">
-            <span class="streak-fire" id="streak-fire">🔥</span>
-            <span class="streak-count" id="streak-count">0</span>
-            <span class="streak-label">일 연속</span>
-            <span id="streak-milestone-badge"></span>
-            <span class="streak-freeze" id="streak-freeze-badge"></span>
-            <span class="streak-best" id="streak-best">최고: 0일</span>
-        </div>
-        <!-- ★ VITALITY SCORE — v7.0 ★ -->
-        <div class="vitality-score" id="vitality-card">
-            <span class="vitality-icon">🧬</span>
-            <div class="vitality-info">
-                <span class="vitality-label">인크레틴 활성도 <button class="footnote-btn" onclick="event.stopPropagation();showFootnote('vitality')">**</button></span>
-                <span class="vitality-delta" id="vitality-delta"></span>
-            </div>
-            <span class="vitality-value" id="vitality-score">--</span>
-        </div>
-        <div class="gauge-header">
-            <span class="gauge-title">🔋 인크레틴 게이지 <button class="footnote-btn" onclick="event.stopPropagation();showFootnote('gauge')">*</button></span>
-            <span style="font-family:'JetBrains Mono',monospace;font-size:.7rem;font-weight:700;color:var(--text-sub)" id="gauge-detail">+0 / -0</span>
-        </div>
-        <div class="gauge-score-big" id="gauge-score" style="color:var(--success)">100</div>
-        <div class="gauge-bar-outer">
-            <div class="gauge-bar-inner" id="gauge-bar" style="width:100%;background:linear-gradient(90deg,#22c55e,#10b981)">
-                <span class="gauge-bar-label" id="gauge-bar-pct">100%</span>
-            </div>
-        </div>
-        <div class="gauge-legend">
-            <div class="gauge-legend-item"><span class="gauge-legend-dot" style="background:#ef4444"></span>위험 (&lt;30)</div>
-            <div class="gauge-legend-item"><span class="gauge-legend-dot" style="background:#f97316"></span>주의 (30~49)</div>
-            <div class="gauge-legend-item"><span class="gauge-legend-dot" style="background:#f59e0b"></span>개선 (50~69)</div>
-            <div class="gauge-legend-item"><span class="gauge-legend-dot" style="background:#22c55e"></span>양호 (70~84)</div>
-            <div class="gauge-legend-item"><span class="gauge-legend-dot" style="background:#3b82f6"></span>최적 (85+)</div>
-        </div>
-        <div style="display:flex;gap:8px;margin-top:12px">
-            <div style="flex:1;background:var(--danger-glow);border-radius:10px;padding:10px;text-align:center">
-                <span style="font-size:.6rem;font-weight:700;color:var(--text-sub);display:block">페널티 합계</span>
-                <span style="font-family:'JetBrains Mono',monospace;font-size:1rem;font-weight:700;color:var(--danger)" id="penalty-total">0</span>
-            </div>
-            <div style="flex:1;background:var(--success-glow);border-radius:10px;padding:10px;text-align:center">
-                <span style="font-size:.6rem;font-weight:700;color:var(--text-sub);display:block">회복 합계</span>
-                <span style="font-family:'JetBrains Mono',monospace;font-size:1rem;font-weight:700;color:var(--success)" id="recovery-total">0</span>
-            </div>
-        </div>
-    </div>
-
-    <!-- 4. 차트 그리드 (체중추이 + IMEM 4주 예측) — 프로필에서 이동 -->
-    <div class="dashboard-grid no-print">
-        <div class="chart-card" id="trend-view"><span class="chart-title">📈 실제 체중 추이</span><canvas id="trendChart" height="200"></canvas></div>
-        <div class="chart-card" id="sim-view"><span class="chart-title">📉 IMEM v2.0 4주 예측</span><canvas id="simChart" height="200"></canvas></div>
-    </div>
 
     <!-- 오늘의 식사 (텔레그램 봇 사진 분석으로 누적) -->
     <div class="glass-card" id="meals-card" style="border-left:3px solid var(--primary);padding:14px;margin-bottom:10px">
@@ -765,18 +758,17 @@
         <div id="meals-list" style="font-size:.78rem;color:var(--text)"></div>
         <div id="meals-empty" style="font-size:.72rem;color:var(--text-sub);text-align:center;padding:6px">텔레그램 봇에 음식 사진을 보내면 자동으로 누적돼요.</div>
     </div>
-
-    <!-- v7.0: 코호트 비교 Placeholder -->
-    <div style="opacity:.45;pointer-events:none;padding:14px;background:var(--surface);border:1px dashed var(--border);border-radius:var(--card-radius);margin-bottom:10px;text-align:center">
-        <div style="font-size:.72rem;font-weight:800;color:var(--text-sub);letter-spacing:.5px;text-transform:uppercase;margin-bottom:6px">📊 이번 주 코호트 비교</div>
-        <div style="display:flex;justify-content:center;gap:24px;margin-bottom:6px">
-            <div><span style="font-family:'JetBrains Mono',monospace;font-size:1.4rem;font-weight:700;color:var(--text-sub)">--</span><div style="font-size:.6rem;color:var(--text-sub);margin-top:2px">코호트 평균</div></div>
-            <div><span style="font-family:'JetBrains Mono',monospace;font-size:1.4rem;font-weight:700;color:var(--primary)">--</span><div style="font-size:.6rem;color:var(--text-sub);margin-top:2px">내 평균</div></div>
-        </div>
-        <div style="font-size:.65rem;color:var(--accent);font-weight:600">Coming Soon</div>
+    <!-- 6~7. 상세 분석 (접기) -->
+    <div style="text-align:center;margin-bottom:10px">
+        <button id="detail-toggle-btn" onclick="toggleDetailSection()" style="background:var(--surface-alt);border:1px solid var(--border);border-radius:20px;padding:8px 20px;font-family:'Inter','Noto Sans KR',sans-serif;font-size:.75rem;font-weight:700;color:var(--text-sub);cursor:pointer;transition:all .2s">
+            📊 차트 · IMEM 상세 보기 ▼
+        </button>
     </div>
-
-    <!-- 5. IMEM 실시간 계수 -->
+    <div id="detail-section" style="display:none">
+    <div class="dashboard-grid no-print">
+        <div class="chart-card" id="trend-view"><span class="chart-title">📈 실제 체중 추이</span><canvas id="trendChart" height="200"></canvas></div>
+        <div class="chart-card" id="sim-view"><span class="chart-title">📉 IMEM v2.0 4주 예측</span><canvas id="simChart" height="200"></canvas></div>
+    </div>
     <div class="imem-card">
         <div class="imem-header"><span class="imem-title">📐 IMEM v2.0 실시간 계수 (페널티 반영)</span></div>
         <div class="imem-coefficients">
@@ -803,16 +795,10 @@
             ΔWeight = f(BMR) × [<span style="color:var(--accent);font-weight:700">α_net</span> × <span style="color:var(--primary);font-weight:700">β_net</span> × <span style="color:var(--success);font-weight:700">γ_net</span>] × Compliance
         </div>
     </div>
-
-    <!-- 6. 다가오는 루틴 리마인더 (현재 시간 기준 2개) -->
-    <div class="glass-card" id="upcoming-routines" style="border-left:3px solid var(--primary);padding:16px">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-            <span style="font-size:.78rem;font-weight:800;color:var(--primary);display:flex;align-items:center;gap:6px">⏰ 다음 루틴</span>
-            <span style="font-size:.6rem;font-weight:700;color:var(--text-sub)" id="upcoming-time-label"></span>
-        </div>
-        <div id="upcoming-list"></div>
-        <div id="upcoming-empty" style="display:none;text-align:center;padding:12px;font-size:.82rem;color:var(--success);font-weight:700">✅ 오늘 남은 루틴이 없습니다!</div>
     </div>
+
+
+    <!-- v7.0: 코호트 비교 — 추후 활성화 -->
 
     </div><!-- /page-dashboard -->
 
@@ -826,7 +812,7 @@
     </div>
 
     <div class="glass-card no-print" id="routine-section">
-        <a href="https://t.me/incretina_ai_bot" target="_blank" rel="noopener" class="bot-cta-banner" style="text-decoration:none;background:linear-gradient(135deg,#3b82f6,#0ea5e9);color:#fff;padding:14px 16px;border-radius:12px;margin-bottom:14px;display:flex;align-items:center;gap:12px;font-size:.85rem;line-height:1.4">
+        <a href="https://t.me/incretina_ai_bot" target="_blank" rel="noopener" id="bot-cta-banner" class="bot-cta-banner" style="text-decoration:none;background:linear-gradient(135deg,#3b82f6,#0ea5e9);color:#fff;padding:14px 16px;border-radius:12px;margin-bottom:14px;display:flex;align-items:center;gap:12px;font-size:.85rem;line-height:1.4">
             <div style="font-size:1.6rem">💬</div>
             <div style="flex:1">
                 <div style="font-weight:700;margin-bottom:2px">텔레그램 봇으로 더 빠르게 체크하세요</div>
@@ -1309,6 +1295,17 @@ function updateTelegramLinkWarning(linked){
     }else{
         if(btn){btn.textContent='코드 발급';btn.disabled=false;btn.style.opacity='1';}
         if(statusEl)statusEl.textContent='앱 + 봇을 하나의 계정으로 동기화합니다';
+    }
+    // 루틴 탭 CTA 배너 분기
+    const banner=document.getElementById('bot-cta-banner');
+    if(banner){
+        if(linked){
+            banner.style.background='linear-gradient(135deg,#10b981,#059669)';
+            banner.innerHTML='<div style="font-size:1.6rem">✅</div><div style="flex:1"><div style="font-weight:700;margin-bottom:2px">텔레그램 봇 연동 중</div><div style="opacity:.92;font-size:.78rem">봇에서 체크한 루틴이 여기에 자동 반영됩니다</div></div><div style="font-size:1.2rem;opacity:.8">→</div>';
+        }else{
+            banner.style.background='linear-gradient(135deg,#3b82f6,#0ea5e9)';
+            banner.innerHTML='<div style="font-size:1.6rem">💬</div><div style="flex:1"><div style="font-weight:700;margin-bottom:2px">텔레그램 봇으로 더 빠르게 체크하세요</div><div style="opacity:.92;font-size:.78rem">"아침 루틴 다 했어"처럼 자연어로 말해도 OK · @incretina_ai_bot</div></div><div style="font-size:1.2rem;opacity:.8">→</div>';
+        }
     }
 }
 async function toggleNotifications(on){
@@ -3180,6 +3177,17 @@ function refreshStats(score){
     if(sw&&gw&&cw&&sw!==gw){const ach=Math.max(0,Math.min(100,((sw-cw)/(sw-gw))*100));const el=document.getElementById('ach-v');el.textContent=ach.toFixed(1)+'%';el.style.color=ach>=50?'var(--success)':(ach>=25?'var(--accent)':'var(--danger)')}
 }
 
+function toggleDetailSection(){
+    const sec=document.getElementById('detail-section');
+    const btn=document.getElementById('detail-toggle-btn');
+    const showing=sec.style.display==='none';
+    sec.style.display=showing?'block':'none';
+    btn.innerHTML=showing?'📊 차트 · IMEM 상세 접기 ▲':'📊 차트 · IMEM 상세 보기 ▼';
+    if(showing){
+        try{updateTrendChart()}catch(e){}
+        try{runComprehensiveAnalysis()}catch(e){}
+    }
+}
 function fullRefresh(){
     const imem=updateIMEMDisplay();
     const score=calculateTotalScore();
