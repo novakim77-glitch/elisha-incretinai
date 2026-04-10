@@ -1,0 +1,19 @@
+app = "incretina-bot"
+primary_region = "nrt"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  BOT_MODE = "polling"
+  FIREBASE_PROJECT_ID = "incretina-i-pro"
+  TZ = "Asia/Seoul"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"
+
+# No [http_service] — polling-mode bot does not expose HTTP.
+# Single instance only (cron + polling must not be duplicated).
+[deploy]
+  strategy = "immediate"

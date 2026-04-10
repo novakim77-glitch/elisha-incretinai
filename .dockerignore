@@ -1,0 +1,13 @@
+._*
+**/._*
+.claude
+.DS_Store
+**/node_modules
+**/.env
+**/firebase-service-account.json
+.git
+*.md
+*.docx
+*.pptx
+*.html
+icons

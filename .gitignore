@@ -13,6 +13,7 @@ ELISHA_Startup_Checklist.xlsx
 
 # OS files
 .DS_Store
+._*
 Thumbs.db
 desktop.ini
 
@@ -21,8 +22,13 @@ desktop.ini
 *.bak
 ~$*
 
-# Node modules (if added later)
+# Node modules
 node_modules/
+
+# Secrets (bot)
+.env
+.env.*
+firebase-service-account.json
 
 # Python
 __pycache__/
