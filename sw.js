@@ -1,8 +1,8 @@
 // IncretinAi PWA Service Worker v1.0
-const CACHE_NAME = 'incretinai-v7.2.0';
+const CACHE_NAME = 'incretinai-v7.3.0';
 const BASE = '/elisha-incretinai';
 const APP_SHELL = [
-  BASE + '/IncretinAi_v6.0_Gamification.html',
+  BASE + '/IncretinAi_v7.0_Adaptive.html',
   BASE + '/icons/icon-192x192.png',
   BASE + '/icons/icon-512x512.png'
 ];
@@ -93,7 +93,7 @@ self.addEventListener('notificationclick', e => {
         for (const client of clientList) {
           if (client.url.includes('IncretinAi') && 'focus' in client) return client.focus();
         }
-        return clients.openWindow(BASE + '/IncretinAi_v6.0_Gamification.html');
+        return clients.openWindow(BASE + '/IncretinAi_v7.0_Adaptive.html');
       })
   );
 });

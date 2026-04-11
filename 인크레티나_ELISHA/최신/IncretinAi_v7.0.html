@@ -1332,7 +1332,7 @@ function checkRoutineReminders(){
     if(Notification.permission!=='granted')return;
     const now=new Date();
     const nowM=now.getHours()*60+now.getMinutes();
-    const today=now.toISOString().slice(0,10);
+    const today=toLocalDateStr(now);
     if(_reminderFlags._date!==today){_reminderFlags={_date:today}}
 
     // Golden time end reminder (15 min before)
@@ -1385,8 +1385,8 @@ auth.onAuthStateChanged(user=>{currentUser=user;if(user){document.getElementById
 // ============================================================
 function userDoc(){return db.collection('users').doc(currentUser.uid)}
 function historyCollection(){return userDoc().collection('dailyRoutines')}
-async function saveProfileToCloud(){if(!currentUser||!_appReady)return;try{const profileData={email:currentUser.email||'guest',name:document.getElementById('p-name').value,age:document.getElementById('p-age').value,gender:document.getElementById('p-gender').value,start:document.getElementById('p-start').value,h:document.getElementById('p-h').value,sw:document.getElementById('p-sw').value,gw:document.getElementById('p-gw').value,isDiabetic:document.getElementById('p-diabetic').value,exercise:document.getElementById('p-exercise').value,wakeup:document.getElementById('p-wakeup').value,lat:document.getElementById('p-lat').value,lastActiveDate:new Date().toISOString().split('T')[0],updatedAt:firebase.firestore.FieldValue.serverTimestamp()};// 챌린지 시작일은 항상 프로필 입력(p-start) 기준으로 동기화. 비어 있으면 오늘.
-profileData.userStartDate=document.getElementById('p-start').value||new Date().toISOString().split('T')[0];await userDoc().set(profileData,{merge:true});showSyncStatus('synced')}catch(e){console.error('Profile save:',e);showSyncStatus('offline')}}
+async function saveProfileToCloud(){if(!currentUser||!_appReady)return;try{const profileData={email:currentUser.email||'guest',name:document.getElementById('p-name').value,age:document.getElementById('p-age').value,gender:document.getElementById('p-gender').value,start:document.getElementById('p-start').value,h:document.getElementById('p-h').value,sw:document.getElementById('p-sw').value,gw:document.getElementById('p-gw').value,isDiabetic:document.getElementById('p-diabetic').value,exercise:document.getElementById('p-exercise').value,wakeup:document.getElementById('p-wakeup').value,lat:document.getElementById('p-lat').value,lastActiveDate:toLocalDateStr(),updatedAt:firebase.firestore.FieldValue.serverTimestamp()};// 챌린지 시작일은 항상 프로필 입력(p-start) 기준으로 동기화. 비어 있으면 오늘.
+profileData.userStartDate=document.getElementById('p-start').value||toLocalDateStr();await userDoc().set(profileData,{merge:true});showSyncStatus('synced')}catch(e){console.error('Profile save:',e);showSyncStatus('offline')}}
 
 let _chartTimer=null; // 차트 갱신 debounce
 async function saveDailyToCloud(){
@@ -1438,6 +1438,7 @@ setTimeout(()=>showComebackCard(),800);
 }showSyncStatus('synced')},e=>{console.warn('Profile listen:',e);showSyncStatus('offline')})}
 function listenToHistory(){if(unsubHistory)unsubHistory();unsubHistory=historyCollection().onSnapshot(snap=>{const hist={};snap.forEach(doc=>{hist[doc.id]=doc.data()});window._cloudHistory=hist;loadDateData();showSyncStatus('synced')},e=>{console.warn('History listen:',e);showSyncStatus('offline')})}
 
+function toLocalDateStr(d){if(!d)d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
 function _normalizeMap(raw,len){
     if(!raw)return new Array(len).fill(false);
     if(Array.isArray(raw)){const a=[...raw];while(a.length<len)a.push(false);return a.map(v=>!!v)}
@@ -1669,7 +1670,7 @@ function showComebackCard() {
 function dismissComeback(dontShowAgain) {
     document.getElementById('comeback-overlay').classList.remove('show');
     if (dontShowAgain) {
-        localStorage.setItem('_comebackDismissed', new Date().toISOString().split('T')[0]);
+        localStorage.setItem('_comebackDismissed', toLocalDateStr());
     }
 }
 
@@ -1826,7 +1827,7 @@ function calculateStreak() {
     }
 
     for (let i = 0; i < 365; i++) {
-        const key = checkDate.toISOString().split('T')[0];
+        const key = toLocalDateStr(checkDate);
         if (hist[key] && hist[key].score >= 70) {
             streak++;
             checkDate.setDate(checkDate.getDate() - 1);
@@ -1834,7 +1835,7 @@ function calculateStreak() {
             // Streak freeze: bridge 1-day gap if streak >= 7
             const prevDate = new Date(checkDate);
             prevDate.setDate(prevDate.getDate() - 1);
-            const prevKey = prevDate.toISOString().split('T')[0];
+            const prevKey = toLocalDateStr(prevDate);
             if (hist[prevKey] && hist[prevKey].score >= 70) {
                 freezeUsed = true;
                 _gamification.streakFreezeDate = key;
@@ -2583,11 +2584,11 @@ function getWeekData(hist, monday) {
     for (let i = 0; i < 7; i++) {
         const d = new Date(monday);
         d.setDate(monday.getDate() + i);
-        const key = d.toISOString().split('T')[0];
+        const key = toLocalDateStr(d);
         if (hist[key]) {
             result.daysRecorded++;
             totalScore += (hist[key].score || 0);
-            if (hist[key].checks) { totalChecked += hist[key].checks.filter(Boolean).length; totalPossible += 10; }
+            if (hist[key].checks) { const _c=_normalizeMap(hist[key].checks,10); totalChecked += _c.filter(Boolean).length; totalPossible += 10; }
             const w = parseFloat(hist[key].weight);
             if (w > 0) {
                 if (!result.weightStart) result.weightStart = w;
@@ -2688,10 +2689,10 @@ function analyzeTrends() {
     const routineCounts = new Array(10).fill(0);
     let routineDays = 0;
     for (const d of last14) {
-        if (hist[d].checks && hist[d].checks.length === 10) {
+        if (hist[d].checks) { const _chk=_normalizeMap(hist[d].checks,10); if(_chk.length===10){
             routineDays++;
-            hist[d].checks.forEach((c, i) => { if (c) routineCounts[i]++; });
-        }
+            _chk.forEach((c, i) => { if (c) routineCounts[i]++; });
+        }}
     }
     if (routineDays >= 3) {
         let maxRate = 0, minRate = 100, bestI = 0, worstI = 0;
@@ -3139,7 +3140,7 @@ function updateVitality(){
     const hist=window._cloudHistory||{};
     const yesterday=new Date();
     yesterday.setDate(yesterday.getDate()-1);
-    const yKey=yesterday.toISOString().split('T')[0];
+    const yKey=toLocalDateStr(yesterday);
     const yData=hist[yKey];
     if(yData&&yData.alpha_net){
         const yProduct=yData.alpha_net*yData.beta_net*yData.gamma_net;
@@ -3217,7 +3218,7 @@ function fullRefresh(){
 // ============================================================
 let simChart,trendChart;
 const dateInput=document.getElementById('target-date');
-dateInput.value=new Date().toISOString().split('T')[0];
+dateInput.value=toLocalDateStr();
 
 /* ★ v7.0: 기상시간 기반 루틴 시간 개인화 ★ */
 function getRoutineTime(index){
@@ -3243,7 +3244,7 @@ function renderList(){
     // (routineDone adds class immediately, before save), with fallback to the
     // cached cloud doc for the current target date.
     const dateKey=document.getElementById('target-date')?.value;
-    const cloudChecks=(window._cloudHistory&&dateKey&&window._cloudHistory[dateKey]&&window._cloudHistory[dateKey].checks)||null;
+    const cloudChecks=(window._cloudHistory&&dateKey&&window._cloudHistory[dateKey]&&window._cloudHistory[dateKey].checks)?_normalizeMap(window._cloudHistory[dateKey].checks,routine.length):null;
     const wasChecked=routine.map((_,i)=>{
         const el=document.getElementById('item-'+i);
         if(el)return el.classList.contains('checked');
@@ -3743,7 +3744,7 @@ function runComprehensiveAnalysis(){
 function exportToExcel(){
     const hist=window._cloudHistory||{};const hV=parseFloat(document.getElementById('p-h').value)/100;
     const data=Object.keys(hist).sort().map(date=>{const e=hist[date];const w=parseFloat(e.weight)||0;
-        return{"날짜":date,"게이지점수":e.score,"긍정점수":e.checks?e.checks.filter(Boolean).length:'0',"페널티합계":e.penaltyTotal||0,"회복합계":e.recoveryTotal||0,
+        return{"날짜":date,"게이지점수":e.score,"긍정점수":e.checks?_normalizeMap(e.checks,10).filter(Boolean).length:'0',"페널티합계":e.penaltyTotal||0,"회복합계":e.recoveryTotal||0,
         "체중(kg)":w,"BMI":w>0?(w/(hV*hV)).toFixed(1):"-","α_net":e.alpha_net||"-","β_net":e.beta_net||"-","γ_net":e.gamma_net||"-",
         "IMEM":(e.alpha_net&&e.beta_net&&e.gamma_net)?(e.alpha_net*e.beta_net*e.gamma_net).toFixed(3):"-",
         "리스크":e.riskChecks?e.riskChecks.map((c,i)=>c?risks[i].title:null).filter(Boolean).join(", "):"",
@@ -3842,7 +3843,7 @@ function exportAllUsersExcel(){
                 "체중(kg)":w||'-',
                 "BMI":(w>0&&hm>0)?(w/(hm*hm)).toFixed(1):'-',
                 "게이지점수":day.score!=null?day.score:'-',
-                "긍정점수":day.checks?day.checks.filter(Boolean).length:0,
+                "긍정점수":day.checks?_normalizeMap(day.checks,10).filter(Boolean).length:0,
                 "페널티합계":day.penaltyTotal||0,
                 "회복합계":day.recoveryTotal||0,
                 "α_net":day.alpha_net||'-',
