@@ -81,6 +81,11 @@ async function consumeLinkCode({ code, chatId, username, firstName }) {
     }),
   );
 
+  // Auto-activate R-06 (late meal) if lateNight
+  if (meal.mealType === 'lateNight') {
+    batch.set(ref, { riskActive: { 5: true } }, { merge: true });
+  }
+
   await batch.commit();
   return { ok: true, uid };
 }
@@ -152,7 +157,7 @@ async function getProfile(uid) {
 async function getDailyRoutine(uid, date) {
   const snap = await db().doc(paths.dailyRoutine(uid, date)).get();
   if (!snap.exists) {
-    return { checks: {}, riskActive: {}, recoveryDone: {}, weight: null };
+    return { checks: {}, riskActive: {}, recoveryDone: {}, weight: null, meals: [] };
   }
   const d = snap.data();
   return {
@@ -160,6 +165,7 @@ async function getDailyRoutine(uid, date) {
     riskActive: d.riskActive || {},
     recoveryDone: d.recoveryDone || {},
     weight: d.weight ?? null,
+    meals: d.meals || [],
   };
 }
 
@@ -278,6 +284,9 @@ async function appendMeal(uid, date, meal) {
   const now = new Date();
   const snap = await ref.get();
   const prev = snap.exists ? (snap.data().meals || []) : [];
+  // Auto-classify meal type from time
+  const { classifyMealType: _classify } = require('imem-core');
+  meal.mealType = _classify(meal.time);
   const next = [...prev, meal];
   const dailyKcal = next.reduce((s, m) => s + (Number(m.kcal) || 0), 0);
   const lastMealAt = meal.ts || now;
@@ -315,7 +324,7 @@ async function appendMeal(uid, date, meal) {
   );
 
   await batch.commit();
-  return { dailyKcal, mealCount: next.length };
+  return { dailyKcal, mealCount: next.length, mealType: meal.mealType, meals: next };
 }
 
 /**

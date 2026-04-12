@@ -38,6 +38,7 @@ function buildIMEMContext({ profile, today, historyDays = 0, now = new Date() })
     profile: { isDiabetic: profile.isDiabetic, exCount: profile.exCount },
     sunset: sun.sunset,
     isNightMode: !isWithinGoldenTime(sun, now),
+    meals: today.meals || [],
   });
 
   const score = calculateScore({
@@ -86,6 +87,11 @@ function buildIMEMContext({ profile, today, historyDays = 0, now = new Date() })
     // Routine status
     completedRoutines: completed,
     pendingRoutines: pending,
+
+    // Meal data
+    betaMeal: imem.beta_meal,
+    mealCount: (today.meals || []).length,
+    dailyKcal: (today.meals || []).reduce(function(s, m) { return s + (Number(m.kcal) || 0); }, 0),
 
     // Persona for system prompt selection
     persona: profile.persona || 'clinical',

@@ -7,6 +7,7 @@ const {
 } = require('imem-core');
 const { getDailyRoutine, getWeightHistory, toLogicalDate } = require('./store');
 const { resolveUser, checksObjToArray, riskObjToArray } = require('./commands/_shared');
+const { analyzeMealDay, classifyMealType, MEAL_TYPE_KR } = require('imem-core');
 
 // ────────────────────
 // Intent detection patterns (Korean)
@@ -31,6 +32,7 @@ async function tryLocalRoute(text, ctx) {
   if (PATTERNS.score.test(trimmed)) return handleScore(ctx);
   if (PATTERNS.weight.test(trimmed)) return handleWeightHistory(ctx);
   if (PATTERNS.weightSimple.test(trimmed)) return handleWeightHistory(ctx);
+  if (PATTERNS.meal && PATTERNS.meal.test(trimmed)) return handleMealSummary(ctx);
 
   return null;
 }
@@ -113,7 +115,8 @@ async function handleScore(ctx) {
   const recoveryDone = riskObjToArray(daily.recoveryDone);
   const lat = profile.lat || 37.5665;
   const sun = calculateSunTimes(lat);
-  const imem = calculateIMEM({ checks, riskActive, recoveryDone, profile, sunset: sun.sunset });
+  const meals = daily.meals || [];
+  const imem = calculateIMEM({ checks, riskActive, recoveryDone, profile, sunset: sun.sunset, meals });
   const score = calculateScore({ checks, riskActive, recoveryDone, week });
   const eff = totalEfficiency(imem);
 
@@ -141,6 +144,11 @@ async function handleScore(ctx) {
   if (coeffs.val < 0.9) {
     lines.push('');
     lines.push('\ud83d\udca1 ' + coeffs.tip);
+  }
+
+  if (imem.beta_meal !== undefined && imem.beta_meal !== 1.0) {
+    lines.push('');
+    lines.push('\ud83c\udf7d\ufe0f \u03b2_meal \ubcf4\uc815: ' + imem.beta_meal.toFixed(3) + ' (\uc2dd\uc0ac ' + meals.length + '\ub07c \uae30\ubc18)');
   }
 
   return lines.join('\n');

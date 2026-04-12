@@ -3,6 +3,7 @@
 
 const {
   calculateIMEM, totalEfficiency, calculateScore, calculateSunTimes, constants,
+  analyzeMealDay, classifyMealType, getMealBudget, calculateTargetCalories, MEAL_TYPE_KR,
 } = require('imem-core');
 const {
   getDailyRoutine, setRoutineChecks, logWeight, getWeightHistory, toLogicalDate,
@@ -17,6 +18,65 @@ const {
 const { tryLocalRoute } = require('../localRouter');
 
 const MAX_TOOL_LOOPS = 5;
+// ─────────────────────────────────────────────
+// Meal feedback builder (called after each meal save)
+// ─────────────────────────────────────────────
+
+function buildMealFeedback(meal, allMeals, profile) {
+  const analysis = analyzeMealDay(allMeals, profile);
+  if (!analysis) return '';
+
+  const mealType = classifyMealType(meal.time);
+  const mealTypeKr = MEAL_TYPE_KR[mealType] || '식사';
+  const lines = [];
+
+  // Cumulative calorie status
+  if (analysis.remaining > 0) {
+    lines.push(mealTypeKr + '까지 누적 ' + analysis.totalKcal + 'kcal — 남은 여유 약 ' + analysis.remaining + 'kcal');
+  } else {
+    lines.push(mealTypeKr + '까지 누적 ' + analysis.totalKcal + 'kcal — 목표 초과 ' + Math.abs(analysis.remaining) + 'kcal');
+  }
+
+  // Next meal suggestion
+  if (mealType === 'breakfast' || mealType === 'lunch') {
+    const nextType = mealType === 'breakfast' ? 'lunch' : 'dinner';
+    const nextKr = MEAL_TYPE_KR[nextType];
+    const budget = getMealBudget(analysis.dailyTarget, nextType);
+    lines.push(nextKr + '은 ' + budget + 'kcal 이내 추천');
+  }
+
+  // Protein check
+  if (analysis.proteinGap > 20) {
+    lines.push('단백질 ' + analysis.proteinGap + 'g 더 필요 (목표 ' + analysis.proteinTarget + 'g)');
+  }
+
+  // Macro imbalance warning
+  if (analysis.isHighCarb) {
+    lines.push('탄수화물 비중이 높아요. 다음 식사에서 단백질/채소 비중을 높여보세요.');
+  } else if (analysis.isLowProtein) {
+    lines.push('단백질이 부족해요. 닭가슴살/계란/두부 추가 추천!');
+  }
+
+  // Late night warning
+  if (mealType === 'lateNight') {
+    lines.push('19시 이후 식사 — R-06 페널티 적용. 내일 아침 단식 1시간 연장으로 회복 가능!');
+  }
+
+  // Exercise suggestion if over target
+  if (analysis.remaining < -200) {
+    const walkMins = Math.round(Math.abs(analysis.remaining) / 5);
+    lines.push('칼로리 초과분 소모: 빠른 걷기 약 ' + walkMins + '분 추천');
+  }
+
+  // Beta score coaching
+  if (typeof meal.betaScore === 'number' && meal.betaScore < 0.5) {
+    lines.push('식사 순서(채소→단백질→탄수) 개선으로 β 점수를 높일 수 있어요.');
+  }
+
+  return lines.join('\n');
+}
+
+
 
 // ─────────────────────────────────────────────
 // Tool dispatcher
@@ -149,7 +209,8 @@ async function runTool(name, input, sess) {
           await setRoutineChecks(uid, date, updates);
           Object.keys(updates).forEach((i) => marked.push(Number(i) + 1));
         }
-        return { ok: true, dailyKcal: r.dailyKcal, mealCount: r.mealCount, markedRoutines: marked };
+        const _feedback = buildMealFeedback(meal, r.meals || [], sess.profile || profile);
+      return { ok: true, dailyKcal: r.dailyKcal, mealCount: r.mealCount, markedRoutines: marked, mealType: r.mealType, feedback: _feedback };
       } catch (e) {
         console.error('log_meal error:', e);
         return { ok: false, error: '저장 실패' };
@@ -162,7 +223,7 @@ async function runTool(name, input, sess) {
       const recoveryDone = riskObjToArray(sess.recoveryDone);
       const lat = profile.lat || 37.5665;
       const sun = calculateSunTimes(lat);
-      const imem = calculateIMEM({ checks, riskActive, recoveryDone, profile, sunset: sun.sunset });
+      const imem = calculateIMEM({ checks, riskActive, recoveryDone, profile, sunset: sun.sunset, meals: sess.meals || [] });
       const score = calculateScore({ checks, riskActive, recoveryDone, week });
       const eff = totalEfficiency(imem);
       return {
@@ -171,6 +232,7 @@ async function runTool(name, input, sess) {
         alpha: Number(imem.alpha_net.toFixed(2)),
         beta: Number(imem.beta_net.toFixed(2)),
         gamma: Number(imem.gamma_net.toFixed(2)),
+        betaMeal: Number((imem.beta_meal || 1).toFixed(3)),
       };
     }
 
@@ -233,6 +295,7 @@ async function chatHandler(ctx) {
       recoveryDone: daily.recoveryDone,
       weight: daily.weight,
       profileWeight: resolved.profile.weight,
+    meals: daily.meals || [],
       persona: settings.persona || 'empathetic',
     };
   } catch (e) {
@@ -622,9 +685,11 @@ async function mealCallbackHandler(ctx) {
       await ctx.answerCallbackQuery({ text: '기록 완료' });
       try { await ctx.editMessageReplyMarkup({ reply_markup: undefined }); } catch (_) {}
       const markedTxt = marked.length > 0 ? `\n자동 체크: 루틴 ${marked.join(', ')}` : '';
+      const _photoFeedback = buildMealFeedback(entry.meal, r.meals || [], entry.profile || {});
+      const photoFeedbackTxt = _photoFeedback ? '\n\n' + _photoFeedback : '';
       await ctx.api.sendMessage(
         entry.chatId,
-        `✅ 기록 완료 — 오늘 누적 ${r.dailyKcal} kcal (${r.mealCount}끼)${markedTxt}`,
+        `✅ 기록 완료 — 오늘 누적 ${r.dailyKcal} kcal (${r.mealCount}끼)${markedTxt}${photoFeedbackTxt}`,
       );
     } catch (e) {
       console.error('meal save error:', e);
