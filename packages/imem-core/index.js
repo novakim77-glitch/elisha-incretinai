@@ -6,6 +6,7 @@ module.exports = {
   ...require('./prediction'),
   ...require('./context-builder'),
   ...require('./meal-utils'),
+  ...require('./interpret'),
   constants: require('./constants'),
   schema: require('./schema'),
 };

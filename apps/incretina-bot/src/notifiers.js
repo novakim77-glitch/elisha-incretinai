@@ -3,7 +3,7 @@
 // All sends are also logged as `notification_sent` events (schema v2).
 
 const {
-  calculateIMEM, calculateScore, calculateSunTimes,
+  calculateIMEM, calculateScore, calculateSunTimes, interpretIMEM,
   getUserWeek, getUnlockedRoutineIndices, getMinutesToSunset,
   constants,
 } = require('imem-core');
@@ -142,12 +142,22 @@ async function sendDailyRecap(bot) {
     const missed = unlocked.find((i) => !checks[i]);
     const focus = missed != null ? constants.routine[missed] : null;
 
+    const interp = interpretIMEM(imem, score);
+
     const text = [
       `🌙 *오늘의 리캡* — ${date}`,
       ``,
-      `점수: *${score}* / 100`,
+      `점수: *${score}* / 100  —  ${interp.score}`,
       `루틴: *${doneCount}/${unlocked.length}* 완료`,
-      `α ${imem.alpha_net.toFixed(2)} · β ${imem.beta_net.toFixed(2)} · γ ${imem.gamma_net.toFixed(2)}`,
+      ``,
+      `🔹 α 일주기 리듬 ${imem.alpha_net.toFixed(2)}`,
+      `   ${interp.alpha}`,
+      `🔹 β 영양 시퀀스 ${imem.beta_net.toFixed(2)}`,
+      `   ${interp.beta}`,
+      `🔹 γ 신체 활동 ${imem.gamma_net.toFixed(2)}`,
+      `   ${interp.gamma}`,
+      ``,
+      `📊 ${interp.efficiency}`,
       ``,
       focus
         ? `🎯 *내일 집중*: ${focus.icon} ${focus.title}\n_${focus.action}_`

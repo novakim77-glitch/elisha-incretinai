@@ -125,14 +125,20 @@ async function handleScore(ctx) {
     return '\u2588'.repeat(filled) + '\u2591'.repeat(10 - filled);
   };
 
+  var interp = interpretIMEM(imem, score);
+
   const lines = [
     '\ud83c\udfaf 오늘의 IMEM 점수',
     '',
-    '종합 점수: ' + score + '점  |  효율: ' + (eff * 100).toFixed(1) + '%',
+    '종합 점수: ' + score + '점  —  ' + interp.score,
+    '효율: ' + (eff * 100).toFixed(1) + '%  —  ' + interp.efficiency,
     '',
-    '\u03b1 일주기 리듬: ' + imem.alpha_net.toFixed(2) + '  ' + bar(imem.alpha_net),
-    '\u03b2 영양 시퀀스: ' + imem.beta_net.toFixed(2) + '  ' + bar(imem.beta_net),
-    '\u03b3 신체 활동: ' + imem.gamma_net.toFixed(2) + '  ' + bar(imem.gamma_net),
+    '\ud83d\udd39 \u03b1 일주기 리듬: ' + imem.alpha_net.toFixed(2) + '  ' + bar(imem.alpha_net),
+    '   ' + interp.alpha,
+    '\ud83d\udd39 \u03b2 영양 시퀀스: ' + imem.beta_net.toFixed(2) + '  ' + bar(imem.beta_net),
+    '   ' + interp.beta,
+    '\ud83d\udd39 \u03b3 신체 활동: ' + imem.gamma_net.toFixed(2) + '  ' + bar(imem.gamma_net),
+    '   ' + interp.gamma,
   ];
 
   const coeffs = [
