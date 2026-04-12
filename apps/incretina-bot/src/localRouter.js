@@ -45,16 +45,30 @@ async function handleStatus(ctx) {
   const daily = await getDailyRoutine(uid, date);
   const checks = daily.checks || {};
 
+  // Current time in KST (HH:MM) for time-based filtering
+  const now = new Date();
+  const kst = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
+  const nowMins = kst.getHours() * 60 + kst.getMinutes();
+
   const completed = [];
-  const remaining = [];
+  const upcoming = [];  // unchecked + time still ahead (can still do)
+  const missed = [];    // unchecked + time already passed
 
   for (const i of unlocked) {
     const r = constants.routine[i] || {};
     if (checks[i]) {
       completed.push('  ' + r.icon + ' ' + r.title);
     } else {
+      // Parse routine time "HH:MM" to minutes
+      const parts = (r.t || '00:00').split(':');
+      const rMins = Number(parts[0]) * 60 + Number(parts[1]);
       const critMark = r.crit ? '\u26a0\ufe0f ' : '';
-      remaining.push('  ' + critMark + r.t + ' ' + r.icon + ' ' + r.title + '\n     \u2192 ' + r.action);
+      const line = '  ' + critMark + r.t + ' ' + r.icon + ' ' + r.title + '\n     \u2192 ' + r.action;
+      if (nowMins < rMins + 60) {
+        upcoming.push(line);  // still within 1hr window
+      } else {
+        missed.push(line);
+      }
     }
   }
 
@@ -66,10 +80,18 @@ async function handleStatus(ctx) {
     lines.push('');
   }
 
-  if (remaining.length > 0) {
-    lines.push('\ud83d\udcdd 남은 루틴 (' + remaining.length + '개)');
-    remaining.forEach(function(r) { lines.push(r); });
-  } else {
+  if (upcoming.length > 0) {
+    lines.push('\ud83d\udcdd 남은 루틴 (' + upcoming.length + '개)');
+    upcoming.forEach(function(r) { lines.push(r); });
+    lines.push('');
+  }
+
+  if (missed.length > 0) {
+    lines.push('\u23f0 놓친 루틴 (' + missed.length + '개)');
+    missed.forEach(function(r) { lines.push(r); });
+  }
+
+  if (upcoming.length === 0 && missed.length === 0) {
     lines.push('\ud83c\udf89 오늘 루틴을 모두 완료했어요!');
   }
 
