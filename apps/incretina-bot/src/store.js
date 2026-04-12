@@ -409,11 +409,23 @@ async function getRecentMessages(uid, limit = 20) {
     .map((m) => ({ role: m.role, content: m.content }));
 }
 
+
+/**
+ * Update user timezone and latitude.
+ */
+async function updateUserLocation(uid, timezone, lat) {
+  const update = {};
+  if (timezone) update.timezone = timezone;
+  if (lat !== undefined) update.lat = lat;
+  await db().doc(paths.user(uid)).set(update, { merge: true });
+}
+
 module.exports = {
   findUidByChatId,
   consumeLinkCode,
   ensureStandaloneUser,
   toLogicalDate,
+  updateUserLocation,
   getProfile,
   getDailyRoutine,
   setRoutineChecks,

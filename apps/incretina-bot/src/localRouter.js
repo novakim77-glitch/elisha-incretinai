@@ -32,6 +32,7 @@ async function tryLocalRoute(text, ctx) {
   if (PATTERNS.score.test(trimmed)) return handleScore(ctx);
   if (PATTERNS.weight.test(trimmed)) return handleWeightHistory(ctx);
   if (PATTERNS.weightSimple.test(trimmed)) return handleWeightHistory(ctx);
+  if (PATTERNS.timezone && PATTERNS.timezone.test(text)) return handleTimezone(ctx, text);
   if (PATTERNS.meal && PATTERNS.meal.test(trimmed)) return handleMealSummary(ctx);
 
   return null;
@@ -107,7 +108,8 @@ async function handleStatus(ctx) {
 
 async function handleScore(ctx) {
   const { uid, profile, week } = await resolveUser(ctx);
-  const date = toLogicalDate(new Date());
+  const tz = profile.timezone || 'Asia/Seoul';
+  const date = toLogicalDate(new Date(), tz);
   const daily = await getDailyRoutine(uid, date);
 
   const checks = checksObjToArray(daily.checks);

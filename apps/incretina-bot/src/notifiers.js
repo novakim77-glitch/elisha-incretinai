@@ -118,7 +118,8 @@ async function sendDailyRecap(bot) {
   console.log(`[notify] daily recap → ${users.length} users`);
   for (const { uid, chatId } of users) {
     const profile = (await getProfile(uid)) || {};
-    const date = toLogicalDate(new Date());
+    const tz = profile.timezone || 'Asia/Seoul';
+    const date = toLogicalDate(new Date(), tz);
     const daily = await getDailyRoutine(uid, date);
     const historyDays = await countHistoryDays(uid);
     const week = getUserWeek({

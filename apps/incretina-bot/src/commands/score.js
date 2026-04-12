@@ -8,7 +8,8 @@ const { resolveUser, checksObjToArray, riskObjToArray } = require('./_shared');
 
 async function scoreCommand(ctx) {
   const { uid, profile, week } = await resolveUser(ctx);
-  const date = toLogicalDate(new Date());
+  const tz = profile.timezone || 'Asia/Seoul';
+  const date = toLogicalDate(new Date(), tz);
   const daily = await getDailyRoutine(uid, date);
 
   const checks       = checksObjToArray(daily.checks);
