@@ -4,7 +4,7 @@ const { logWeight, toLogicalDate, getProfile } = require('../store');
 const { resolveUser } = require('./_shared');
 
 async function weightCommand(ctx) {
-  const { uid } = await resolveUser(ctx);
+  const { uid, profile } = await resolveUser(ctx);
   const raw = (ctx.match || '').trim();
 
   if (!raw) {
@@ -21,7 +21,8 @@ async function weightCommand(ctx) {
     return ctx.reply('⚠️ 25~300 사이의 숫자(kg)로 입력해 주세요. 예: `/weight 72.5`', { parse_mode: 'Markdown' });
   }
 
-  const date = toLogicalDate(new Date());
+  const tz = (profile && profile.timezone) || 'Asia/Seoul';
+  const date = toLogicalDate(new Date(), tz);
   await logWeight(uid, date, w);
   return ctx.reply(
     `✅ 오늘 체중 *${w} kg* 기록 완료 (${date}).\n예측을 보시려면 /predict`,

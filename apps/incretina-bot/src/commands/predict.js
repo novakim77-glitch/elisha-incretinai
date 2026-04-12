@@ -24,7 +24,8 @@ async function predictCommand(ctx) {
     );
   }
 
-  const date = toLogicalDate(new Date());
+  const tz = profile.timezone || 'Asia/Seoul';
+  const date = toLogicalDate(new Date(), tz);
   const daily = await getDailyRoutine(uid, date);
   const checks       = checksObjToArray(daily.checks);
   const riskActive   = riskObjToArray(daily.riskActive);

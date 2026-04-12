@@ -84,7 +84,8 @@ function buildMealFeedback(meal, allMeals, profile) {
 
 async function runTool(name, input, sess) {
   const { uid, profile, week, unlocked } = sess;
-  const date = toLogicalDate(new Date());
+  const tz = profile.timezone || 'Asia/Seoul';
+  const date = toLogicalDate(new Date(), tz);
 
   switch (name) {
     case 'mark_routine':
@@ -284,7 +285,8 @@ async function chatHandler(ctx) {
         return ctx.reply('저장 중 오류가 났어요.');
       }
     }
-    const date = toLogicalDate(new Date());
+    const _tz = (resolved.profile && resolved.profile.timezone) || 'Asia/Seoul';
+    const date = toLogicalDate(new Date(), _tz);
     const daily = await getDailyRoutine(resolved.uid, date);
     const settings = await getBotSettings(resolved.uid);
 
@@ -601,7 +603,8 @@ async function photoHandler(ctx) {
   let sess;
   try {
     const resolved = await resolveUser(ctx);
-    const date = toLogicalDate(new Date());
+    const tz = resolved.profile.timezone || 'Asia/Seoul';
+    const date = toLogicalDate(new Date(), tz);
     const daily = await getDailyRoutine(resolved.uid, date);
     sess = { ...resolved, checks: daily.checks, date };
   } catch (e) {

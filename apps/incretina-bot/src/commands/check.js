@@ -8,8 +8,9 @@ const { getDailyRoutine, setRoutineChecks, toLogicalDate } = require('../store')
 const { resolveUser } = require('./_shared');
 
 async function checkCommand(ctx) {
-  const { uid, week, unlocked } = await resolveUser(ctx);
-  const date = toLogicalDate(new Date());
+  const { uid, profile, week, unlocked } = await resolveUser(ctx);
+  const tz = profile.timezone || 'Asia/Seoul';
+  const date = toLogicalDate(new Date(), tz);
   const daily = await getDailyRoutine(uid, date);
 
   const args = (ctx.match || '').trim().split(/\s+/).filter(Boolean);
