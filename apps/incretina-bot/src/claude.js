@@ -5,7 +5,14 @@
 const Anthropic = require('@anthropic-ai/sdk');
 
 const MODEL = process.env.CLAUDE_MODEL || 'claude-sonnet-4-5';
+const FALLBACK_MODEL = process.env.CLAUDE_FALLBACK_MODEL || 'claude-haiku-4-5-20251001';
 const MAX_TURNS = 10; // history window per user
+
+// Last-resort message when all AI models fail
+const BASIC_FALLBACK_MSG = '죄송해요, AI 서버가 일시적으로 불안정해요.\n'
+  + '직접 루틴을 확인하려면: /check\n'
+  + '점수 확인: "점수" 또는 "현황" 입력\n'
+  + '잠시 후 다시 말씀해 주세요!';
 
 // ─────────────────────────────────────────────
 // Client (singleton) — timeout + retries built-in
@@ -214,4 +221,6 @@ module.exports = {
   PERSONAS,
   systemPrompt,
   TOOLS,
+  FALLBACK_MODEL,
+  BASIC_FALLBACK_MSG,
 };

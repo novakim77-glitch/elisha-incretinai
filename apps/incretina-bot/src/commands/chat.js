@@ -11,8 +11,10 @@ const {
 const { InlineKeyboard } = require('grammy');
 const { resolveUser, checksObjToArray, riskObjToArray } = require('./_shared');
 const {
-  getClient, MODEL, MAX_TURNS, systemPrompt, TOOLS, classifyApiError,
+  getClient, MODEL, FALLBACK_MODEL, BASIC_FALLBACK_MSG,
+  MAX_TURNS, systemPrompt, TOOLS, classifyApiError,
 } = require('../claude');
+const { tryLocalRoute } = require('../localRouter');
 
 const MAX_TOOL_LOOPS = 5;
 
@@ -194,6 +196,20 @@ async function chatHandler(ctx) {
     }
     // Intercept: pending kcal edit?
     const hit = tryConsumeKcalEdit(resolved.uid, text);
+    // ── Local router: handle simple queries without AI ──
+    if (!hit) {
+      try {
+        const localReply = await tryLocalRoute(text, ctx);
+        if (localReply) {
+          await appendMessage(resolved.uid, 'user', text).catch(() => {});
+          await appendMessage(resolved.uid, 'assistant', localReply).catch(() => {});
+          return ctx.reply(localReply);
+        }
+      } catch (e) {
+        console.warn('localRouter error (falling through to AI):', e.message);
+        // Fall through to AI on any error — never break the user experience
+      }
+    }
     if (hit) {
       try {
         const r = await appendMeal(hit.entry.uid, hit.entry.date, hit.entry.meal);
@@ -290,7 +306,32 @@ async function chatHandler(ctx) {
   } catch (e) {
     const classified = classifyApiError(e);
     console.error(`Claude API [${classified.logTag}]:`, e?.status || '', e?.message || e);
-    return ctx.reply(classified.userMsg);
+    // ── Phase 2: Fallback to Haiku if retryable ──
+    if (classified.retryable && FALLBACK_MODEL !== MODEL) {
+      try {
+        console.log(`Fallback: retrying with ${FALLBACK_MODEL}...`);
+        const fallbackResp = await client.messages.create({
+          model: FALLBACK_MODEL,
+          max_tokens: 1024,
+          system: sys,
+          messages: [...history, userTurn],
+        });
+        const fbText = fallbackResp.content
+          .filter((b) => b.type === 'text')
+          .map((b) => b.text)
+          .join('\n')
+          .trim();
+        if (fbText) {
+          console.log('Fallback succeeded (Haiku)');
+          await appendMessage(session.uid, 'assistant', fbText).catch(() => {});
+          return ctx.reply(fbText);
+        }
+      } catch (e2) {
+        console.error('Fallback also failed:', e2?.status || '', e2?.message || e2);
+      }
+    }
+    // ── Phase 2: Last resort — basic response ──
+    return ctx.reply(classified.retryable ? BASIC_FALLBACK_MSG : classified.userMsg);
   }
 
   if (!finalText) finalText = '...';
@@ -480,7 +521,7 @@ async function photoHandler(ctx) {
   } catch (e) {
     const classified = classifyApiError(e);
     console.error(`Claude Vision [${classified.logTag}]:`, e?.status || '', e?.message || e);
-    return ctx.reply(classified.userMsg);
+    return ctx.reply(classified.retryable ? BASIC_FALLBACK_MSG : classified.userMsg);
   }
 
   if (!finalText) finalText = '사진을 분석하지 못했어요. 다시 한 번 보내주실래요?';
