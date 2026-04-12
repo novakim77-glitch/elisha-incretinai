@@ -11,7 +11,7 @@ const {
 const { InlineKeyboard } = require('grammy');
 const { resolveUser, checksObjToArray, riskObjToArray } = require('./_shared');
 const {
-  getClient, MODEL, MAX_TURNS, systemPrompt, TOOLS,
+  getClient, MODEL, MAX_TURNS, systemPrompt, TOOLS, classifyApiError,
 } = require('../claude');
 
 const MAX_TOOL_LOOPS = 5;
@@ -288,8 +288,9 @@ async function chatHandler(ctx) {
       .join('\n')
       .trim();
   } catch (e) {
-    console.error('Claude API error:', e);
-    return ctx.reply('AI 응답 중 오류가 났어요. 잠시 후 다시 시도해 주세요.');
+    const classified = classifyApiError(e);
+    console.error(`Claude API [${classified.logTag}]:`, e?.status || '', e?.message || e);
+    return ctx.reply(classified.userMsg);
   }
 
   if (!finalText) finalText = '...';
@@ -477,8 +478,9 @@ async function photoHandler(ctx) {
     });
     finalText = resp.content.filter((b) => b.type === 'text').map((b) => b.text).join('\n').trim();
   } catch (e) {
-    console.error('Claude vision error:', e);
-    return ctx.reply('AI 분석 중 오류가 났어요. 잠시 후 다시 시도해 주세요.');
+    const classified = classifyApiError(e);
+    console.error(`Claude Vision [${classified.logTag}]:`, e?.status || '', e?.message || e);
+    return ctx.reply(classified.userMsg);
   }
 
   if (!finalText) finalText = '사진을 분석하지 못했어요. 다시 한 번 보내주실래요?';

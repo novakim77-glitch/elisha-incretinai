@@ -13,6 +13,7 @@ const { scoreCommand } = require('./commands/score');
 const { goldenCommand } = require('./commands/golden');
 const { predictCommand } = require('./commands/predict');
 const { chatHandler, personaCommand, photoHandler, mealCallbackHandler, personaCallbackHandler } = require('./commands/chat');
+const { validateClient } = require('./claude');
 const { startScheduler, runManualTrigger } = require('./scheduler');
 
 const TOKEN = process.env.TELEGRAM_BOT_TOKEN;
@@ -22,6 +23,13 @@ if (!TOKEN) {
 }
 
 initFirebase();
+
+// Validate Anthropic API key early — fail fast if misconfigured
+try {
+  validateClient();
+} catch (e) {
+  console.error('\u274c', e.message, '\u2014 bot will start but AI chat will not work.');
+}
 
 const bot = new Bot(TOKEN);
 

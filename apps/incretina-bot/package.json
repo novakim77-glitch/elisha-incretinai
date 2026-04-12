@@ -9,7 +9,7 @@
     "dev": "node --watch src/index.js"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.82.0",
+    "@anthropic-ai/sdk": "^0.52.0 || ^1.0.0",
     "dotenv": "^16.4.5",
     "firebase-admin": "^12.6.0",
     "grammy": "^1.30.0",

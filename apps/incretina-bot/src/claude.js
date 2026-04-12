@@ -1,10 +1,15 @@
 // Claude API integration — natural-language coaching for IncretinA i bot.
 // Phase 3: Sonnet 4.6 with persona system + tool calling.
+// Includes: timeout, auto-retry, error classification.
 
 const Anthropic = require('@anthropic-ai/sdk');
 
 const MODEL = process.env.CLAUDE_MODEL || 'claude-sonnet-4-5';
 const MAX_TURNS = 10; // history window per user
+
+// ─────────────────────────────────────────────
+// Client (singleton) — timeout + retries built-in
+// ─────────────────────────────────────────────
 
 let client = null;
 function getClient() {
@@ -12,14 +17,55 @@ function getClient() {
     if (!process.env.ANTHROPIC_API_KEY) {
       throw new Error('ANTHROPIC_API_KEY not set');
     }
-    client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+    client = new Anthropic({
+      apiKey: process.env.ANTHROPIC_API_KEY,
+      timeout: 45_000,   // 45 s per request
+      maxRetries: 2,     // SDK auto-retries on 429/5xx (with back-off)
+    });
   }
   return client;
 }
 
+/**
+ * Validate that the API key is set and the client can be constructed.
+ * Call once at boot; throws synchronously if key is missing.
+ */
+function validateClient() {
+  getClient();
+  console.log('\u2705 Anthropic client ready \u2014 model:', MODEL);
+}
+
 // ─────────────────────────────────────────────
-// Personas
+// Error classification helper
 // ─────────────────────────────────────────────
+
+function classifyApiError(err) {
+  const status = err?.status ?? err?.error?.status ?? 0;
+  const msg = err?.message ?? '';
+
+  if (status === 401 || /authentication|unauthorized/i.test(msg)) {
+    return { userMsg: 'AI 서비스 인증에 문제가 있어요. 관리자에게 알려주세요.', logTag: 'AUTH_ERROR', retryable: false };
+  }
+  if (status === 403 || /permission|forbidden/i.test(msg)) {
+    return { userMsg: 'AI 서비스 접근 권한에 문제가 있어요. 관리자에게 알려주세요.', logTag: 'PERMISSION_ERROR', retryable: false };
+  }
+  if (status === 429 || /rate.?limit|too.?many/i.test(msg)) {
+    return { userMsg: '지금 요청이 많아요. 30초 후에 다시 말씀해 주세요.', logTag: 'RATE_LIMIT', retryable: true };
+  }
+  if (status === 529 || /overloaded/i.test(msg)) {
+    return { userMsg: 'AI 서버가 일시적으로 바빠요. 잠시 후 다시 시도해 주세요.', logTag: 'OVERLOADED', retryable: true };
+  }
+  if (status >= 500 || /internal.?server|server.?error/i.test(msg)) {
+    return { userMsg: 'AI 서버에 일시적인 문제가 있어요. 잠시 후 다시 시도해 주세요.', logTag: 'SERVER_ERROR', retryable: true };
+  }
+  if (/timeout|timed?.?out|ECONNRESET|ENOTFOUND|fetch.?failed/i.test(msg)) {
+    return { userMsg: 'AI 응답이 지연되고 있어요. 잠시 후 다시 시도해 주세요.', logTag: 'TIMEOUT', retryable: true };
+  }
+  if (status === 400 || /invalid|bad.?request/i.test(msg)) {
+    return { userMsg: '요청 처리 중 문제가 생겼어요. 다시 한 번 말씀해 주세요.', logTag: 'BAD_REQUEST', retryable: false };
+  }
+  return { userMsg: 'AI 응답 중 문제가 생겼어요. 잠시 후 다시 시도해 주세요.', logTag: 'UNKNOWN', retryable: false };
+}
 
 const PERSONAS = {
   empathetic: `당신은 IncretinA i의 따뜻한 대사 코치입니다.
@@ -161,6 +207,8 @@ const TOOLS = [
 
 module.exports = {
   getClient,
+  validateClient,
+  classifyApiError,
   MODEL,
   MAX_TURNS,
   PERSONAS,
