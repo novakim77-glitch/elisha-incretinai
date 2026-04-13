@@ -51,7 +51,8 @@ function getMealBudget(dailyTarget, mealType) {
     snack: 0.05,
     lateNight: 0,
   };
-  return Math.round(dailyTarget * (ratios[mealType] || 0.05));
+  var r = ratios[mealType];
+  return Math.round(dailyTarget * (r !== undefined ? r : 0.05));
 }
 
 /**
