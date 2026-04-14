@@ -26,12 +26,19 @@ function classifyMealType(time) {
  */
 function calculateTargetCalories(profile, deficitKcal) {
   if (deficitKcal === undefined) deficitKcal = 500;
-  var cw = profile.cw, h = profile.h, age = profile.age, gender = profile.gender;
-  if (!cw || !h || h <= 0) return null;
+  // Normalize fields: app stores h in cm (string), weight/sw instead of cw
+  var cw = Number(profile.cw) || Number(profile.weight) || Number(profile.sw) || 0;
+  var rawH = Number(profile.h) || 0;
+  // Auto-detect unit: if h > 3 it's cm, otherwise meters
+  var heightCm = rawH > 3 ? rawH : rawH * 100;
+  var age = Number(profile.age) || 30;
+  var gender = profile.gender;
+  if (!cw || !heightCm || heightCm <= 0) return null;
 
+  // Mifflin-St Jeor: height in cm
   var bmr = gender === 'male'
-    ? 10 * cw + 6.25 * (h * 100) - 5 * age + 5
-    : 10 * cw + 6.25 * (h * 100) - 5 * age - 161;
+    ? 10 * cw + 6.25 * heightCm - 5 * age + 5
+    : 10 * cw + 6.25 * heightCm - 5 * age - 161;
 
   var tdee = Math.round(bmr * 1.2);
   var target = Math.max(1200, tdee - deficitKcal);
@@ -74,7 +81,8 @@ function analyzeMealDay(meals, profile) {
   var totalFat = meals.reduce(function(s, m) { return s + (Number(m.macros && m.macros.fat) || 0); }, 0);
 
   // Protein target: 1.4 g/kg body weight
-  var proteinTarget = Math.round(profile.cw * 1.4);
+  var cw = Number(profile.cw) || Number(profile.weight) || Number(profile.sw) || 70;
+  var proteinTarget = Math.round(cw * 1.4);
   var proteinGap = proteinTarget - totalProtein;
 
   // Classify each meal
