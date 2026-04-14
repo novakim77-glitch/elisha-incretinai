@@ -81,11 +81,6 @@ async function consumeLinkCode({ code, chatId, username, firstName }) {
     }),
   );
 
-  // Auto-activate R-06 (late meal) if lateNight
-  if (meal.mealType === 'lateNight') {
-    batch.set(ref, { riskActive: { 5: true } }, { merge: true });
-  }
-
   await batch.commit();
   return { ok: true, uid };
 }

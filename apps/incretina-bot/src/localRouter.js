@@ -44,14 +44,15 @@ async function tryLocalRoute(text, ctx) {
 
 async function handleStatus(ctx) {
   const { uid, profile, week, unlocked } = await resolveUser(ctx);
-  const date = toLogicalDate(new Date());
+  const tz = profile.timezone || 'Asia/Seoul';
+  const date = toLogicalDate(new Date(), tz);
   const daily = await getDailyRoutine(uid, date);
   const checks = daily.checks || {};
 
-  // Current time in KST (HH:MM) for time-based filtering
+  // Current time in user's timezone for time-based filtering
   const now = new Date();
-  const kst = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
-  const nowMins = kst.getHours() * 60 + kst.getMinutes();
+  const local = new Date(now.toLocaleString('en-US', { timeZone: tz }));
+  const nowMins = local.getHours() * 60 + local.getMinutes();
 
   const completed = [];
   const upcoming = [];  // unchecked + time still ahead (can still do)

@@ -181,7 +181,7 @@ async function runTool(name, input, sess) {
       }
       const now = new Date();
       const time = input.time || new Intl.DateTimeFormat('ko-KR', {
-        hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Seoul',
+        hour: '2-digit', minute: '2-digit', hour12: false, timeZone: tz,
       }).format(now);
       const meal = {
         menu: String(input.menu || '식사'),
@@ -562,8 +562,9 @@ async function photoHandler(ctx) {
   try {
     const { profile } = await resolveUser(ctx);
     const now = new Date();
-    const hh = new Intl.DateTimeFormat('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Seoul' }).format(now);
-    contextLine = `현재 시각(KST): ${hh}. 사용자 이름: ${profile.name || '회원'}님.`;
+    const userTz = profile.timezone || 'Asia/Seoul';
+    const hh = new Intl.DateTimeFormat('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: userTz }).format(now);
+    contextLine = `현재 시각: ${hh}. 사용자 이름: ${profile.name || '회원'}님.`;
   } catch (_) { /* non-fatal */ }
 
   const userPrompt = caption
@@ -609,7 +610,7 @@ async function photoHandler(ctx) {
     const tz = resolved.profile.timezone || 'Asia/Seoul';
     const date = toLogicalDate(new Date(), tz);
     const daily = await getDailyRoutine(resolved.uid, date);
-    sess = { ...resolved, checks: daily.checks, date };
+    sess = { ...resolved, checks: daily.checks, date, tz };
   } catch (e) {
     return ctx.reply(visibleText);
   }
@@ -624,7 +625,7 @@ async function photoHandler(ctx) {
     hasProtein: !!parsed.hasProtein,
     betaScore: Number(parsed.betaScore) || 0,
     ts: new Date(),
-    time: new Intl.DateTimeFormat('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Seoul' }).format(new Date()),
+    time: new Intl.DateTimeFormat('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: (sess && sess.tz) || 'Asia/Seoul' }).format(new Date()),
   };
 
   const kb = new InlineKeyboard()

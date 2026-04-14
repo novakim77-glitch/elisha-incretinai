@@ -36,21 +36,17 @@ function _normalizeMap(raw, len) {
   return a;
 }
 
-// ─── saveDailyToCloud 로직 시뮬레이션 (수정 후) ───
+// ─── saveDailyToCloud 로직 시뮬레이션 (수정 후 — dot notation) ───
 function simulateSaveDailyToCloud_NEW(touched, domState, touchedRisks, riskDomState, recDomState) {
-  const checksMap = {};
-  touched.forEach((i) => {
-    checksMap[String(i)] = domState[i] || false;
-  });
-  const riskMap = {};
-  const recMap = {};
-  touchedRisks.forEach((i) => {
-    riskMap[String(i)] = riskDomState[i] || false;
-    recMap[String(i)] = recDomState[i] || false;
-  });
   const data = { score: 50, _source: 'app' };
-  if (touched.size > 0) data.checks = checksMap;
-  if (touchedRisks.size > 0) { data.riskChecks = riskMap; data.recoveries = recMap; }
+  // dot notation: "checks.0", "checks.1" 등으로 개별 키만 전송
+  touched.forEach((i) => {
+    data['checks.' + i] = domState[i] || false;
+  });
+  touchedRisks.forEach((i) => {
+    data['riskChecks.' + i] = riskDomState[i] || false;
+    data['recoveries.' + i] = recDomState[i] || false;
+  });
   return data;
 }
 
@@ -64,15 +60,25 @@ function simulateSaveDailyToCloud_OLD(touched, domState, cloudChecks, len) {
 }
 
 // ─── Firestore merge:true 시뮬레이션 ───
+// Firestore의 실제 동작: set({merge:true})에서
+// - 일반 필드 (checks: {...}): 해당 필드 전체를 교체 (deep merge 아님!)
+// - dot notation 필드 (checks.0: true): 해당 키만 업데이트, 나머지 보존
 function firebaseMerge(existing, incoming) {
-  const result = { ...existing };
+  const result = JSON.parse(JSON.stringify(existing)); // deep clone
   for (const [key, val] of Object.entries(incoming)) {
-    if (val !== null && typeof val === 'object' && !Array.isArray(val) &&
-        result[key] !== null && typeof result[key] === 'object' && !Array.isArray(result[key])) {
-      // nested object merge (map 필드)
-      result[key] = { ...result[key], ...val };
+    if (key.includes('.')) {
+      // dot notation: "checks.0" → result.checks["0"] = val
+      const parts = key.split('.');
+      const parent = parts[0];
+      const child = parts[1];
+      if (!result[parent] || typeof result[parent] !== 'object') {
+        result[parent] = {};
+      }
+      result[parent][child] = val;
+    } else if (val !== null && typeof val === 'object' && !Array.isArray(val)) {
+      // nested object without dot notation → REPLACES entire field (Firestore 실제 동작)
+      result[key] = val;
     } else {
-      // scalar, array → overwrite
       result[key] = val;
     }
   }
@@ -134,10 +140,9 @@ console.log('\n2️⃣  Phase A: 봇이 쓴 checks를 앱이 덮어쓰지 않음
   const domState = [true, false, false, false, false]; // index 0 = true
 
   const appWrite = simulateSaveDailyToCloud_NEW(touched, domState, new Set(), [], []);
-  // 앱이 보내는 데이터: { checks: { "0": true } }
-  assert(Object.keys(appWrite.checks).length === 1, '앱은 touched 인덱스(0)만 전송');
-  assert(appWrite.checks['0'] === true, 'index 0 = true');
-  assert(appWrite.checks['3'] === undefined, 'index 3은 전송하지 않음 (봇 데이터 보존)');
+  // 앱이 보내는 데이터: { "checks.0": true } (dot notation)
+  assert(appWrite['checks.0'] === true, '앱은 dot notation으로 index 0만 전송');
+  assert(appWrite['checks.3'] === undefined, 'index 3은 전송하지 않음 (봇 데이터 보존)');
 
   // Firestore merge 시뮬레이션
   const afterMerge = firebaseMerge(firestoreState, appWrite);
@@ -188,7 +193,8 @@ console.log('\n5️⃣  Phase C: touched-set 비어있으면 checks 전송 안 �
   const touched = new Set(); // 아무것도 안 터치
   const domState = [false, false, false, false, false];
   const appWrite = simulateSaveDailyToCloud_NEW(touched, domState, new Set(), [], []);
-  assert(appWrite.checks === undefined, 'checks 필드 자체가 없음 → Firestore 쓰기 안 함');
+  const hasChecksKey = Object.keys(appWrite).some(k => k.startsWith('checks.'));
+  assert(!hasChecksKey, 'checks dot notation 키 없음 → Firestore에 checks 쓰기 안 함');
   assert(appWrite._source === 'app', '_source 태그 존재');
 }
 
@@ -200,12 +206,13 @@ console.log('\n6️⃣  복합: 봇이 3,5를 체크 → 앱에서 0,1을 체크
   const touched = new Set([0, 1]);
   const domState = [true, true, false, false, false, false, false, false, false, false];
   const appWrite = simulateSaveDailyToCloud_NEW(touched, domState, new Set(), [], []);
+  // appWrite = { "checks.0": true, "checks.1": true, ... }
 
   const afterMerge = firebaseMerge(firestoreState, appWrite);
-  assert(afterMerge.checks['0'] === true, '앱의 index 0 반영');
-  assert(afterMerge.checks['1'] === true, '앱의 index 1 반영');
-  assert(afterMerge.checks['3'] === true, '봇의 index 3 보존');
-  assert(afterMerge.checks['5'] === true, '봇의 index 5 보존');
+  assert(afterMerge.checks[0] === true || afterMerge.checks['0'] === true, '앱의 index 0 반영');
+  assert(afterMerge.checks[1] === true || afterMerge.checks['1'] === true, '앱의 index 1 반영');
+  assert(afterMerge.checks[3] === true || afterMerge.checks['3'] === true, '봇의 index 3 보존');
+  assert(afterMerge.checks[5] === true || afterMerge.checks['5'] === true, '봇의 index 5 보존');
 }
 
 // ─── 7. 앱이 루틴을 끈 경우 (uncheck) ───
@@ -219,8 +226,8 @@ console.log('\n7️⃣  앱에서 루틴 해제: touched 인덱스의 false도 �
   const appWrite = simulateSaveDailyToCloud_NEW(touched, domState, new Set(), [], []);
 
   const afterMerge = firebaseMerge(firestoreState, appWrite);
-  assert(afterMerge.checks['0'] === false, '앱이 끈 index 0 = false 반영');
-  assert(afterMerge.checks['3'] === true, '봇의 index 3 보존');
+  assert(afterMerge.checks[0] === false || afterMerge.checks['0'] === false, '앱이 끈 index 0 = false 반영');
+  assert(afterMerge.checks[3] === true || afterMerge.checks['3'] === true, '봇의 index 3 보존');
 }
 
 // ─── 8. 봇이 checks를 map으로 쓰고 앱이 map으로 읽기 ───
@@ -235,7 +242,7 @@ console.log('\n8️⃣  봇 map → _normalizeMap → 앱 UI 정상 표시');
 }
 
 // ─── 9. Risk checks도 동일한 map 방식 ───
-console.log('\n9️⃣  riskChecks/recoveries도 map 방식 보존');
+console.log('\n9️⃣  riskChecks/recoveries도 dot notation 보존');
 {
   let firestoreState = { riskChecks: { 2: true }, recoveries: { 2: true } };
 
@@ -243,12 +250,13 @@ console.log('\n9️⃣  riskChecks/recoveries도 map 방식 보존');
   const riskDom = [false, false, false, false, false, true, false, false];
   const recDom = [false, false, false, false, false, true, false, false];
   const appWrite = simulateSaveDailyToCloud_NEW(new Set(), [], touchedRisks, riskDom, recDom);
+  // appWrite = { "riskChecks.5": true, "recoveries.5": true, ... }
 
   const afterMerge = firebaseMerge(firestoreState, appWrite);
-  assert(afterMerge.riskChecks['2'] === true, '기존 risk index 2 보존');
-  assert(afterMerge.riskChecks['5'] === true, '앱의 risk index 5 반영');
-  assert(afterMerge.recoveries['2'] === true, '기존 recovery 보존');
-  assert(afterMerge.recoveries['5'] === true, '앱의 recovery 반영');
+  assert(afterMerge.riskChecks[2] === true || afterMerge.riskChecks['2'] === true, '기존 risk index 2 보존');
+  assert(afterMerge.riskChecks[5] === true || afterMerge.riskChecks['5'] === true, '앱의 risk index 5 반영');
+  assert(afterMerge.recoveries[2] === true || afterMerge.recoveries['2'] === true, '기존 recovery 보존');
+  assert(afterMerge.recoveries[5] === true || afterMerge.recoveries['5'] === true, '앱의 recovery 반영');
 }
 
 // ─── 10. 레거시 배열 데이터 하위 호환 ───
@@ -267,12 +275,8 @@ console.log('\n🔟  레거시: 기존 배열 데이터 읽기 호환');
   const touched = new Set([4]);
   const domState = [true, false, true, false, true];
   const appWrite = simulateSaveDailyToCloud_NEW(touched, domState, new Set(), [], []);
-  // 이 경우 checks: { "4": true } 만 전송
-  // Firestore는 checks 필드를 { "4": true }로 교체? 아니면 배열 위에 merge?
-  // → merge:true에서 checks가 기존에 array이고 incoming이 object이면:
-  //   Firestore는 array를 object로 교체함 (array index → map key 변환)
-  // → 이는 레거시 데이터 마이그레이션 효과!
-  assert(appWrite.checks['4'] === true, '레거시 위에 map 쓰기 가능');
+  // dot notation: "checks.4" = true → 레거시 배열도 map으로 자동 변환됨
+  assert(appWrite['checks.4'] === true, '레거시 위에 dot notation 쓰기 가능');
 }
 
 // ─── 11. date 변경 시 touched-set 리셋 후 안전성 ───
@@ -283,8 +287,8 @@ console.log('\n1️⃣1️⃣  날짜 변경 후 touched-set 빈 상태 → 불�
   const touchedRisks = new Set();
   const domState = [false, false, false, false, false];
   const appWrite = simulateSaveDailyToCloud_NEW(touched, domState, touchedRisks, [], []);
-  const hasChecks = 'checks' in appWrite;
-  const hasRisks = 'riskChecks' in appWrite;
+  const hasChecks = Object.keys(appWrite).some(k => k.startsWith('checks.'));
+  const hasRisks = Object.keys(appWrite).some(k => k.startsWith('riskChecks.'));
   assert(!hasChecks, 'touched 빈 상태: checks 미전송');
   assert(!hasRisks, 'touched 빈 상태: riskChecks 미전송');
 }

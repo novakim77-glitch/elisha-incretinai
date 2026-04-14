@@ -1395,18 +1395,10 @@ async function saveDailyToCloud(){
     if(!dateKey)return;
     const touched=window._userTouchedRoutines||new Set();
     const touchedRisks=window._userTouchedRisks||new Set();
-    // Phase A: touched 인덱스만 map으로 저장 → merge:true가 키 레벨로 동작 → 봇 데이터 보존
-    const checksMap={};
-    touched.forEach(i=>{checksMap[String(i)]=document.getElementById(`item-${i}`)?.classList.contains('checked')||false});
-    const riskMap={};
-    const recMap={};
-    touchedRisks.forEach(i=>{
-        riskMap[String(i)]=document.getElementById(`risk-${i}`)?.classList.contains('active')||false;
-        recMap[String(i)]=!!recoveryDone[i];
-    });
     const imem=calculateIMEM();
     const score=calculateTotalScore();
     const wRaw=document.getElementById('daily-weight').value;
+    // dot notation으로 개별 키만 업데이트 → Firestore가 다른 키를 보존
     const data={
         score,rawScore:calculateRawScore(),
         alpha_net:imem.alpha_net,beta_net:imem.beta_net,gamma_net:imem.gamma_net,
@@ -1417,9 +1409,14 @@ async function saveDailyToCloud(){
         updatedAt:firebase.firestore.FieldValue.serverTimestamp(),
         _source:'app'
     };
-    // checks/riskChecks/recoveries: touched된 키만 포함 → merge:true로 해당 키만 업데이트
-    if(touched.size>0) data.checks=checksMap;
-    if(touchedRisks.size>0){data.riskChecks=riskMap;data.recoveries=recMap}
+    // checks: dot notation (checks.0, checks.1, ...) → 봇이 쓴 다른 키는 Firestore에서 보존
+    touched.forEach(i=>{
+        data['checks.'+i]=document.getElementById(`item-${i}`)?.classList.contains('checked')||false;
+    });
+    touchedRisks.forEach(i=>{
+        data['riskChecks.'+i]=document.getElementById(`risk-${i}`)?.classList.contains('active')||false;
+        data['recoveries.'+i]=!!recoveryDone[i];
+    });
     if(wRaw&&wRaw.trim()!==''){const wNum=parseFloat(wRaw);if(Number.isFinite(wNum))data.weight=wNum}
     try{await historyCollection().doc(dateKey).set(data,{merge:true});showSyncStatus('synced')}catch(e){console.error('Daily save:',e);showSyncStatus('offline')}
 }
