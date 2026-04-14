@@ -1414,6 +1414,7 @@ async function saveProfileToCloud(){if(!currentUser||!_appReady)return;try{const
 profileData.userStartDate=document.getElementById('p-start').value||toLocalDateStr();await userDoc().set(profileData,{merge:true});showSyncStatus('synced')}catch(e){console.error('Profile save:',e);showSyncStatus('offline')}}
 
 let _chartTimer=null; // 차트 갱신 debounce
+window._savePending=false; // saveDailyToCloud 진행 중 플래그 — loadDateData가 덮어쓰기 방지
 async function saveDailyToCloud(){
     if(!currentUser||!_appReady)return;
     const dateKey=document.getElementById('target-date').value;
@@ -1443,7 +1444,15 @@ async function saveDailyToCloud(){
         data['recoveries.'+i]=!!recoveryDone[i];
     });
     if(wRaw&&wRaw.trim()!==''){const wNum=parseFloat(wRaw);if(Number.isFinite(wNum))data.weight=wNum}
-    try{await historyCollection().doc(dateKey).set(data,{merge:true});showSyncStatus('synced')}catch(e){console.error('Daily save:',e);showSyncStatus('offline')}
+    window._savePending=true;
+    try{
+        await historyCollection().doc(dateKey).set(data,{merge:true});
+        showSyncStatus('synced');
+        // Save 완료 후에만 touched-set 클리어 — 이 전까지는 loadDateData가 보호
+        window._userTouchedRoutines=new Set();
+        window._userTouchedRisks=new Set();
+    }catch(e){console.error('Daily save:',e);showSyncStatus('offline')}
+    finally{window._savePending=false}
 }
 function showSyncStatus(s){const b=document.getElementById('sync-badge');if(s==='synced'){b.className='sync-badge';b.innerHTML='<span class="dot"></span> Cloud Synced'}else{b.className='sync-badge offline';b.innerHTML='<span class="dot"></span> Offline'}}
 function listenToProfile(){if(unsubProfile)unsubProfile();unsubProfile=userDoc().onSnapshot(doc=>{if(doc.exists){const p=doc.data();if(p.name)document.getElementById('p-name').value=p.name;if(p.age)document.getElementById('p-age').value=p.age;if(p.gender)document.getElementById('p-gender').value=p.gender;if(p.start)document.getElementById('p-start').value=p.start;if(p.h)document.getElementById('p-h').value=p.h;if(p.sw)document.getElementById('p-sw').value=p.sw;if(p.gw)document.getElementById('p-gw').value=p.gw;if(p.isDiabetic)document.getElementById('p-diabetic').value=p.isDiabetic;if(p.exercise)document.getElementById('p-exercise').value=p.exercise;if(p.wakeup)document.getElementById('p-wakeup').value=p.wakeup;if(p.lat)document.getElementById('p-lat').value=p.lat;loadGamificationFromProfile(p);
@@ -1475,19 +1484,20 @@ function loadDateData(){
     const hist=window._cloudHistory||{};
     const dateKey=document.getElementById('target-date').value;
     const data=hist[dateKey];
-    const freshClick=(Date.now()-(window._lastUserToggleAt||0))<2500;
     const checksArr=_normalizeMap(data&&data.checks,routine.length);
     const riskArr=_normalizeMap(data&&data.riskChecks,risks.length);
     const recArr=_normalizeMap(data&&data.recoveries,risks.length);
-    // Phase B: freshClick 시 사용자가 직접 터치한 인덱스만 보호, 봇이 쓴 다른 인덱스는 즉시 반영
+    // 보호 조건: save 진행 중이거나 touched-set에 아직 저장 안 된 인덱스가 있으면
+    // 해당 인덱스는 클라우드 값으로 덮어쓰지 않음 (낙관적 UI 보호)
     const touchedR=window._userTouchedRoutines||new Set();
     const touchedK=window._userTouchedRisks||new Set();
+    const protecting=window._savePending||touchedR.size>0||touchedK.size>0;
     routine.forEach((_,i)=>{
         const el=document.getElementById(`item-${i}`);
         if(!el)return;
         const cloudVal=checksArr[i];
         const domVal=el.classList.contains('checked');
-        if(freshClick&&touchedR.has(i)&&cloudVal!==domVal)return;
+        if(protecting&&touchedR.has(i)&&cloudVal!==domVal)return;
         if(cloudVal)el.classList.add('checked');else el.classList.remove('checked');
     });
     risks.forEach((_,i)=>{
@@ -1495,7 +1505,7 @@ function loadDateData(){
         if(!el)return;
         const cloudVal=riskArr[i];
         const domVal=el.classList.contains('active');
-        if(freshClick&&touchedK.has(i)&&cloudVal!==domVal)return;
+        if(protecting&&touchedK.has(i)&&cloudVal!==domVal)return;
         if(cloudVal)el.classList.add('active');else el.classList.remove('active');
     });
     recoveryDone=recArr;
@@ -3663,12 +3673,12 @@ function onDataChange(){
     try{renderMealsCard()}catch(e){console.error('renderMealsCard:',e)}
     // debounce 저장: 빠른 연속 클릭 시 마지막 한 번만 저장
     clearTimeout(_dataChangeTimer);
-    _dataChangeTimer=setTimeout(()=>{
+    _dataChangeTimer=setTimeout(async()=>{
         // Phase C: touched-set이 비어있고 체중도 변경 안 했으면 불필요한 Firestore 쓰기 방지
         const _t=window._userTouchedRoutines||new Set();
         const _k=window._userTouchedRisks||new Set();
         if(_t.size>0||_k.size>0||window._weightChanged){
-            try{saveDailyToCloud()}catch(e){console.error('saveDailyToCloud:',e)}
+            try{await saveDailyToCloud()}catch(e){console.error('saveDailyToCloud:',e)}
             window._weightChanged=false;
         }
         try{saveProfileToCloud()}catch(e){console.error('saveProfileToCloud:',e)}
