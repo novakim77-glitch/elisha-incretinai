@@ -1,5 +1,5 @@
 // IncretinAi PWA Service Worker v1.0
-const CACHE_NAME = 'incretinai-v7.3.0';
+const CACHE_NAME = 'incretinai-v7.3.1';
 const BASE = '/elisha-incretinai';
 const APP_SHELL = [
   BASE + '/IncretinAi_v7.0_Adaptive.html',

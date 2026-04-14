@@ -1208,6 +1208,19 @@ if('serviceWorker' in navigator){
     navigator.serviceWorker.register('/elisha-incretinai/sw.js',{scope:'/elisha-incretinai/'}).then(reg=>{
         swRegistration=reg;
         console.log('SW registered');
+        // Auto-reload when new SW activates (ensures latest code)
+        reg.addEventListener('updatefound',()=>{
+            const nw=reg.installing;
+            if(!nw)return;
+            nw.addEventListener('statechange',()=>{
+                if(nw.state==='activated'&&navigator.serviceWorker.controller){
+                    console.log('New SW activated, reloading...');
+                    window.location.reload();
+                }
+            });
+        });
+        // Check for updates every 30 min
+        setInterval(()=>{reg.update().catch(()=>{})},30*60*1000);
     }).catch(err=>console.warn('SW fail:',err));
 }
 
