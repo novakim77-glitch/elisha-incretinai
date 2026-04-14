@@ -1205,23 +1205,35 @@ let deferredPrompt=null;
 const VAPID_KEY='BHOWoTxFmqizl_9nf1owOr5EUg0u0yY81-NfnmF_TJ1tryAfd8i7sO97dSjox2ld84qa9xr_9R94RobUFH9nye8';
 
 if('serviceWorker' in navigator){
-    navigator.serviceWorker.register('/elisha-incretinai/sw.js',{scope:'/elisha-incretinai/'}).then(reg=>{
+    // Force re-fetch sw.js from network (bypass HTTP cache) on every page load
+    navigator.serviceWorker.register('/elisha-incretinai/sw.js',{scope:'/elisha-incretinai/',updateViaCache:'none'}).then(reg=>{
         swRegistration=reg;
         console.log('SW registered');
-        // Auto-reload when new SW activates (ensures latest code)
+        // When a new SW is found, show update banner and auto-apply
         reg.addEventListener('updatefound',()=>{
             const nw=reg.installing;
             if(!nw)return;
             nw.addEventListener('statechange',()=>{
-                if(nw.state==='activated'&&navigator.serviceWorker.controller){
-                    console.log('New SW activated, reloading...');
-                    window.location.reload();
+                if(nw.state==='installed'&&navigator.serviceWorker.controller){
+                    // New version ready — show non-blocking toast, reload after 1.5s
+                    showTinaToast('🔄 새 버전이 적용됩니다...');
+                    setTimeout(()=>window.location.reload(),1500);
                 }
             });
         });
-        // Check for updates every 30 min
-        setInterval(()=>{reg.update().catch(()=>{})},30*60*1000);
+        // Check for SW updates: on page visibility change + every 10 min
+        document.addEventListener('visibilitychange',()=>{
+            if(document.visibilityState==='visible')reg.update().catch(()=>{});
+        });
+        setInterval(()=>{reg.update().catch(()=>{})},10*60*1000);
     }).catch(err=>console.warn('SW fail:',err));
+    // Listen for SW_UPDATED message (sent by new SW on activate)
+    navigator.serviceWorker.addEventListener('message',e=>{
+        if(e.data&&e.data.type==='SW_UPDATED'){
+            console.log('SW updated to v'+e.data.version);
+            window.location.reload();
+        }
+    });
 }
 
 // PWA install prompt

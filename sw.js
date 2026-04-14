@@ -1,5 +1,9 @@
-// IncretinAi PWA Service Worker v1.0
-const CACHE_NAME = 'incretinai-v7.3.1';
+// IncretinAi PWA Service Worker v2.0
+// Strategy: Network-first with version-based cache busting
+// On deploy: bump APP_VERSION → old caches auto-purged → users get fresh code
+
+const APP_VERSION = '7.3.2';
+const CACHE_NAME = 'incretinai-v' + APP_VERSION;
 const BASE = '/elisha-incretinai';
 const APP_SHELL = [
   BASE + '/IncretinAi_v7.0_Adaptive.html',
@@ -7,32 +11,41 @@ const APP_SHELL = [
   BASE + '/icons/icon-512x512.png'
 ];
 
-// Install: pre-cache app shell
+// Install: pre-cache app shell, then immediately activate (no waiting)
 self.addEventListener('install', e => {
   e.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => cache.addAll(APP_SHELL))
-      .then(() => self.skipWaiting())
+      .then(() => self.skipWaiting())  // Don't wait for old SW to die
   );
 });
 
-// Activate: clean old caches
+// Activate: purge ALL old caches, then claim all clients immediately
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys().then(keys =>
       Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
-    ).then(() => self.clients.claim())
+    ).then(() => self.clients.claim())  // Take control of all open tabs NOW
+     .then(() => {
+       // Notify all clients that a new version is active
+       self.clients.matchAll({ type: 'window' }).then(clients => {
+         clients.forEach(client => client.postMessage({
+           type: 'SW_UPDATED',
+           version: APP_VERSION
+         }));
+       });
+     })
   );
 });
 
-// Fetch: cache-first for app shell, network-only for Firebase/API
+// Fetch strategy: Network-first with cache-busting for HTML
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
 
-  // Skip non-GET requests
+  // Skip non-GET
   if (e.request.method !== 'GET') return;
 
-  // Network-only for Firebase API calls (Firestore handles its own offline cache)
+  // Network-only: Firebase APIs (Firestore handles its own offline cache)
   if (url.hostname.includes('firestore.googleapis.com') ||
       url.hostname.includes('identitytoolkit.googleapis.com') ||
       url.hostname.includes('securetoken.googleapis.com') ||
@@ -40,15 +53,31 @@ self.addEventListener('fetch', e => {
     return;
   }
 
-  // Network-only for Firebase SDK scripts (versioned by CDN)
+  // Network-only: Firebase SDK scripts
   if (url.hostname === 'www.gstatic.com' && url.pathname.includes('firebase')) {
     return;
   }
 
-  // Network-first: try network, fall back to cache (ensures latest version)
+  // HTML files: network-first with cache-busting (bypass browser HTTP cache)
+  const isHTML = url.pathname.endsWith('.html') || url.pathname === BASE + '/';
+  if (isHTML) {
+    e.respondWith(
+      fetch(e.request, { cache: 'no-cache' })  // ← KEY: bypasses browser HTTP cache
+        .then(response => {
+          if (response.ok) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then(cache => cache.put(e.request, clone));
+          }
+          return response;
+        })
+        .catch(() => caches.match(e.request))  // Offline fallback
+    );
+    return;
+  }
+
+  // Other assets (icons, etc): network-first, normal cache
   e.respondWith(
     fetch(e.request).then(response => {
-      // Cache the fresh response for offline use
       if (response.ok) {
         const clone = response.clone();
         caches.open(CACHE_NAME).then(cache => cache.put(e.request, clone));
