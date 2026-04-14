@@ -1415,6 +1415,13 @@ profileData.userStartDate=document.getElementById('p-start').value||toLocalDateS
 
 let _chartTimer=null; // 차트 갱신 debounce
 window._savePending=false; // saveDailyToCloud 진행 중 플래그 — loadDateData가 덮어쓰기 방지
+// ★ BULLETPROOF: 메모리 기반 체크 상태 — DOM 재빌드/onSnapshot에 절대 영향받지 않음
+// _localChecks[i]=true/false : 유저가 클릭한 루틴 의도 상태
+// _localRisks[i]=true/false  : 유저가 클릭한 리스크 의도 상태
+// → loadDateData/renderList 모두 이 값을 우선 사용
+// → 클라우드 값이 일치할 때만 삭제 (확인 완료)
+window._localChecks={};
+window._localRisks={};
 async function saveDailyToCloud(){
     if(!currentUser||!_appReady)return;
     const dateKey=document.getElementById('target-date').value;
@@ -1435,12 +1442,14 @@ async function saveDailyToCloud(){
         updatedAt:firebase.firestore.FieldValue.serverTimestamp(),
         _source:'app'
     };
-    // checks: dot notation (checks.0, checks.1, ...) → 봇이 쓴 다른 키는 Firestore에서 보존
+    // checks: _localChecks에서 읽기 (DOM이 아닌 메모리 — 재빌드에 영향 없음)
+    const lc=window._localChecks||{};
     touched.forEach(i=>{
-        data['checks.'+i]=document.getElementById(`item-${i}`)?.classList.contains('checked')||false;
+        data['checks.'+i]=(i in lc)?!!lc[i]:(document.getElementById(`item-${i}`)?.classList.contains('checked')||false);
     });
+    const lr=window._localRisks||{};
     touchedRisks.forEach(i=>{
-        data['riskChecks.'+i]=document.getElementById(`risk-${i}`)?.classList.contains('active')||false;
+        data['riskChecks.'+i]=(i in lr)?!!lr[i]:(document.getElementById(`risk-${i}`)?.classList.contains('active')||false);
         data['recoveries.'+i]=!!recoveryDone[i];
     });
     if(wRaw&&wRaw.trim()!==''){const wNum=parseFloat(wRaw);if(Number.isFinite(wNum))data.weight=wNum}
@@ -1448,9 +1457,8 @@ async function saveDailyToCloud(){
     try{
         await historyCollection().doc(dateKey).set(data,{merge:true});
         showSyncStatus('synced');
-        // Save 완료 후에만 touched-set 클리어 — 이 전까지는 loadDateData가 보호
-        window._userTouchedRoutines=new Set();
-        window._userTouchedRisks=new Set();
+        // ★ touched-set/localChecks를 여기서 클리어하지 않음!
+        // → loadDateData()가 클라우드 값과 일치 확인 후 개별 클리어
     }catch(e){console.error('Daily save:',e);showSyncStatus('offline')}
     finally{window._savePending=false}
 }
@@ -1491,26 +1499,38 @@ function loadDateData(){
     const checksArr=_normalizeMap(data&&data.checks,routine.length);
     const riskArr=_normalizeMap(data&&data.riskChecks,risks.length);
     const recArr=_normalizeMap(data&&data.recoveries,risks.length);
-    // 보호 조건: save 진행 중이거나 touched-set에 아직 저장 안 된 인덱스가 있으면
-    // 해당 인덱스는 클라우드 값으로 덮어쓰지 않음 (낙관적 UI 보호)
+    // ★ BULLETPROOF: _localChecks 메모리 상태가 최우선
+    const lc=window._localChecks||{};
+    const lr=window._localRisks||{};
     const touchedR=window._userTouchedRoutines||new Set();
     const touchedK=window._userTouchedRisks||new Set();
-    const protecting=window._savePending||touchedR.size>0||touchedK.size>0;
     routine.forEach((_,i)=>{
         const el=document.getElementById(`item-${i}`);
         if(!el)return;
-        const cloudVal=checksArr[i];
-        const domVal=el.classList.contains('checked');
-        if(protecting&&touchedR.has(i)&&cloudVal!==domVal)return;
-        if(cloudVal)el.classList.add('checked');else el.classList.remove('checked');
+        // localChecks에 있으면: 클라우드 일치 시 보호 해제, 불일치 시 로컬 값 강제 적용
+        if(i in lc){
+            const localVal=!!lc[i];
+            if(checksArr[i]===localVal){
+                // 클라우드가 로컬과 일치 — 확인 완료, 보호 해제
+                delete lc[i];touchedR.delete(i);
+            }
+            // 항상 로컬 의도 값 적용 (클라우드 무시)
+            if(localVal)el.classList.add('checked');else el.classList.remove('checked');
+            return;
+        }
+        // localChecks에 없는 인덱스: 클라우드 값 그대로 적용
+        if(checksArr[i])el.classList.add('checked');else el.classList.remove('checked');
     });
     risks.forEach((_,i)=>{
         const el=document.getElementById(`risk-${i}`);
         if(!el)return;
-        const cloudVal=riskArr[i];
-        const domVal=el.classList.contains('active');
-        if(protecting&&touchedK.has(i)&&cloudVal!==domVal)return;
-        if(cloudVal)el.classList.add('active');else el.classList.remove('active');
+        if(i in lr){
+            const localVal=!!lr[i];
+            if(riskArr[i]===localVal){delete lr[i];touchedK.delete(i)}
+            if(localVal)el.classList.add('active');else el.classList.remove('active');
+            return;
+        }
+        if(riskArr[i])el.classList.add('active');else el.classList.remove('active');
     });
     recoveryDone=recArr;
     // v7.0: 포커스 루틴 복원
@@ -3282,18 +3302,17 @@ function getRoutineTime(index){
 
 function renderList(){
     const unlocked = getUnlockedRoutineIndices();
-    // Preserve checked state across re-renders.
-    // Priority: 1) touched-set items always use current DOM value (user just clicked)
-    //           2) existing DOM element class
-    //           3) fallback to cached cloud doc
+    // ★ BULLETPROOF: _localChecks가 최우선, 그 다음 DOM, 마지막 클라우드
     const dateKey=document.getElementById('target-date')?.value;
     const cloudChecks=(window._cloudHistory&&dateKey&&window._cloudHistory[dateKey]&&window._cloudHistory[dateKey].checks)?_normalizeMap(window._cloudHistory[dateKey].checks,routine.length):null;
-    const touchedR=window._userTouchedRoutines||new Set();
+    const lc=window._localChecks||{};
     const wasChecked=routine.map((_,i)=>{
+        // 1) _localChecks에 있으면 절대적 우선 (메모리 기반, DOM 무관)
+        if(i in lc)return !!lc[i];
+        // 2) DOM이 있으면 현재 상태
         const el=document.getElementById('item-'+i);
         if(el)return el.classList.contains('checked');
-        // DOM 없는 경우: touched-set에 있으면 true (방금 체크한 것)
-        if(touchedR.has(i))return true;
+        // 3) 클라우드 폴백
         return !!(cloudChecks&&cloudChecks[i]);
     });
     document.getElementById('routine-list').innerHTML=routine.map((item,i)=>{
@@ -3382,6 +3401,8 @@ function routineDone(i){
     const wasNew=!el.classList.contains('checked');
     window._lastUserToggleAt=Date.now();
     (window._userTouchedRoutines=window._userTouchedRoutines||new Set()).add(i);
+    // ★ BULLETPROOF: 메모리에 의도 저장 — DOM/onSnapshot에 무관하게 보존
+    (window._localChecks=window._localChecks||{})[i]=true;
     if(wasNew){
         el.classList.add('checked');
         // CRITICAL 루틴 → 예측 체중 피드백, 일반 루틴 → 인크레티나 토스트
@@ -3531,6 +3552,8 @@ function toggleRisk(i){
     const wasActive=el.classList.contains('active');
     window._lastUserToggleAt=Date.now();
     (window._userTouchedRisks=window._userTouchedRisks||new Set()).add(i);
+    // ★ BULLETPROOF: 메모리에 의도 저장
+    (window._localRisks=window._localRisks||{})[i]=!wasActive;
     el.classList.toggle('active');
 
     if(!wasActive){
@@ -3976,7 +3999,7 @@ function initApp(){
     // Init FCM token if already permitted
     if(Notification.permission==='granted'&&swRegistration){saveFCMToken()}
 }
-dateInput.addEventListener('change',()=>{recoveryDone.fill(false);_lastDailyXP=0;window._userTouchedRoutines=new Set();window._userTouchedRisks=new Set();renderQuests();loadDateData()});
+dateInput.addEventListener('change',()=>{recoveryDone.fill(false);_lastDailyXP=0;window._userTouchedRoutines=new Set();window._userTouchedRisks=new Set();window._localChecks={};window._localRisks={};renderQuests();loadDateData()});
 // v7.0: 기상시간 변경 시 루틴 시간표 즉시 갱신
 document.getElementById('p-wakeup').addEventListener('change',()=>{renderList();updateUpcomingRoutines();saveProfileToCloud()});
 // Weight input: sanitize to allow only digits and one decimal point, debounce save

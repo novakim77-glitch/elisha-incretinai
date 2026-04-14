@@ -1205,10 +1205,35 @@ let deferredPrompt=null;
 const VAPID_KEY='BHOWoTxFmqizl_9nf1owOr5EUg0u0yY81-NfnmF_TJ1tryAfd8i7sO97dSjox2ld84qa9xr_9R94RobUFH9nye8';
 
 if('serviceWorker' in navigator){
-    navigator.serviceWorker.register('/elisha-incretinai/sw.js',{scope:'/elisha-incretinai/'}).then(reg=>{
+    // Force re-fetch sw.js from network (bypass HTTP cache) on every page load
+    navigator.serviceWorker.register('/elisha-incretinai/sw.js',{scope:'/elisha-incretinai/',updateViaCache:'none'}).then(reg=>{
         swRegistration=reg;
         console.log('SW registered');
+        // When a new SW is found, show update banner and auto-apply
+        reg.addEventListener('updatefound',()=>{
+            const nw=reg.installing;
+            if(!nw)return;
+            nw.addEventListener('statechange',()=>{
+                if(nw.state==='installed'&&navigator.serviceWorker.controller){
+                    // New version ready — show non-blocking toast, reload after 1.5s
+                    showTinaToast('🔄 새 버전이 적용됩니다...');
+                    setTimeout(()=>window.location.reload(),1500);
+                }
+            });
+        });
+        // Check for SW updates: on page visibility change + every 10 min
+        document.addEventListener('visibilitychange',()=>{
+            if(document.visibilityState==='visible')reg.update().catch(()=>{});
+        });
+        setInterval(()=>{reg.update().catch(()=>{})},10*60*1000);
     }).catch(err=>console.warn('SW fail:',err));
+    // Listen for SW_UPDATED message (sent by new SW on activate)
+    navigator.serviceWorker.addEventListener('message',e=>{
+        if(e.data&&e.data.type==='SW_UPDATED'){
+            console.log('SW updated to v'+e.data.version);
+            window.location.reload();
+        }
+    });
 }
 
 // PWA install prompt
@@ -1389,6 +1414,14 @@ async function saveProfileToCloud(){if(!currentUser||!_appReady)return;try{const
 profileData.userStartDate=document.getElementById('p-start').value||toLocalDateStr();await userDoc().set(profileData,{merge:true});showSyncStatus('synced')}catch(e){console.error('Profile save:',e);showSyncStatus('offline')}}
 
 let _chartTimer=null; // 차트 갱신 debounce
+window._savePending=false; // saveDailyToCloud 진행 중 플래그 — loadDateData가 덮어쓰기 방지
+// ★ BULLETPROOF: 메모리 기반 체크 상태 — DOM 재빌드/onSnapshot에 절대 영향받지 않음
+// _localChecks[i]=true/false : 유저가 클릭한 루틴 의도 상태
+// _localRisks[i]=true/false  : 유저가 클릭한 리스크 의도 상태
+// → loadDateData/renderList 모두 이 값을 우선 사용
+// → 클라우드 값이 일치할 때만 삭제 (확인 완료)
+window._localChecks={};
+window._localRisks={};
 async function saveDailyToCloud(){
     if(!currentUser||!_appReady)return;
     const dateKey=document.getElementById('target-date').value;
@@ -1409,16 +1442,25 @@ async function saveDailyToCloud(){
         updatedAt:firebase.firestore.FieldValue.serverTimestamp(),
         _source:'app'
     };
-    // checks: dot notation (checks.0, checks.1, ...) → 봇이 쓴 다른 키는 Firestore에서 보존
+    // checks: _localChecks에서 읽기 (DOM이 아닌 메모리 — 재빌드에 영향 없음)
+    const lc=window._localChecks||{};
     touched.forEach(i=>{
-        data['checks.'+i]=document.getElementById(`item-${i}`)?.classList.contains('checked')||false;
+        data['checks.'+i]=(i in lc)?!!lc[i]:(document.getElementById(`item-${i}`)?.classList.contains('checked')||false);
     });
+    const lr=window._localRisks||{};
     touchedRisks.forEach(i=>{
-        data['riskChecks.'+i]=document.getElementById(`risk-${i}`)?.classList.contains('active')||false;
+        data['riskChecks.'+i]=(i in lr)?!!lr[i]:(document.getElementById(`risk-${i}`)?.classList.contains('active')||false);
         data['recoveries.'+i]=!!recoveryDone[i];
     });
     if(wRaw&&wRaw.trim()!==''){const wNum=parseFloat(wRaw);if(Number.isFinite(wNum))data.weight=wNum}
-    try{await historyCollection().doc(dateKey).set(data,{merge:true});showSyncStatus('synced')}catch(e){console.error('Daily save:',e);showSyncStatus('offline')}
+    window._savePending=true;
+    try{
+        await historyCollection().doc(dateKey).set(data,{merge:true});
+        showSyncStatus('synced');
+        // ★ touched-set/localChecks를 여기서 클리어하지 않음!
+        // → loadDateData()가 클라우드 값과 일치 확인 후 개별 클리어
+    }catch(e){console.error('Daily save:',e);showSyncStatus('offline')}
+    finally{window._savePending=false}
 }
 function showSyncStatus(s){const b=document.getElementById('sync-badge');if(s==='synced'){b.className='sync-badge';b.innerHTML='<span class="dot"></span> Cloud Synced'}else{b.className='sync-badge offline';b.innerHTML='<span class="dot"></span> Offline'}}
 function listenToProfile(){if(unsubProfile)unsubProfile();unsubProfile=userDoc().onSnapshot(doc=>{if(doc.exists){const p=doc.data();if(p.name)document.getElementById('p-name').value=p.name;if(p.age)document.getElementById('p-age').value=p.age;if(p.gender)document.getElementById('p-gender').value=p.gender;if(p.start)document.getElementById('p-start').value=p.start;if(p.h)document.getElementById('p-h').value=p.h;if(p.sw)document.getElementById('p-sw').value=p.sw;if(p.gw)document.getElementById('p-gw').value=p.gw;if(p.isDiabetic)document.getElementById('p-diabetic').value=p.isDiabetic;if(p.exercise)document.getElementById('p-exercise').value=p.exercise;if(p.wakeup)document.getElementById('p-wakeup').value=p.wakeup;if(p.lat)document.getElementById('p-lat').value=p.lat;loadGamificationFromProfile(p);
@@ -1436,7 +1478,11 @@ clearTimeout(_chartTimer);_chartTimer=setTimeout(()=>{try{updateTrendChart();}ca
 // v7.0 Comeback: 3일+ 미사용 시 복귀 카드
 setTimeout(()=>showComebackCard(),800);
 }showSyncStatus('synced')},e=>{console.warn('Profile listen:',e);showSyncStatus('offline')})}
-function listenToHistory(){if(unsubHistory)unsubHistory();unsubHistory=historyCollection().onSnapshot(snap=>{const hist={};snap.forEach(doc=>{hist[doc.id]=doc.data()});window._cloudHistory=hist;loadDateData();showSyncStatus('synced')},e=>{console.warn('History listen:',e);showSyncStatus('offline')})}
+let _loadDateTimer=null;
+function listenToHistory(){if(unsubHistory)unsubHistory();unsubHistory=historyCollection().onSnapshot(snap=>{const hist={};snap.forEach(doc=>{hist[doc.id]=doc.data()});window._cloudHistory=hist;
+// save 진행 중이면 loadDateData를 지연 — save 완료 후 onSnapshot이 다시 오면 그때 적용
+if(window._savePending){clearTimeout(_loadDateTimer);_loadDateTimer=setTimeout(()=>loadDateData(),1500);return}
+loadDateData();showSyncStatus('synced')},e=>{console.warn('History listen:',e);showSyncStatus('offline')})}
 
 function toLocalDateStr(d){if(!d)d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
 function _normalizeMap(raw,len){
@@ -1450,28 +1496,41 @@ function loadDateData(){
     const hist=window._cloudHistory||{};
     const dateKey=document.getElementById('target-date').value;
     const data=hist[dateKey];
-    const freshClick=(Date.now()-(window._lastUserToggleAt||0))<2500;
     const checksArr=_normalizeMap(data&&data.checks,routine.length);
     const riskArr=_normalizeMap(data&&data.riskChecks,risks.length);
     const recArr=_normalizeMap(data&&data.recoveries,risks.length);
-    // Phase B: freshClick 시 사용자가 직접 터치한 인덱스만 보호, 봇이 쓴 다른 인덱스는 즉시 반영
+    // ★ BULLETPROOF: _localChecks 메모리 상태가 최우선
+    const lc=window._localChecks||{};
+    const lr=window._localRisks||{};
     const touchedR=window._userTouchedRoutines||new Set();
     const touchedK=window._userTouchedRisks||new Set();
     routine.forEach((_,i)=>{
         const el=document.getElementById(`item-${i}`);
         if(!el)return;
-        const cloudVal=checksArr[i];
-        const domVal=el.classList.contains('checked');
-        if(freshClick&&touchedR.has(i)&&cloudVal!==domVal)return;
-        if(cloudVal)el.classList.add('checked');else el.classList.remove('checked');
+        // localChecks에 있으면: 클라우드 일치 시 보호 해제, 불일치 시 로컬 값 강제 적용
+        if(i in lc){
+            const localVal=!!lc[i];
+            if(checksArr[i]===localVal){
+                // 클라우드가 로컬과 일치 — 확인 완료, 보호 해제
+                delete lc[i];touchedR.delete(i);
+            }
+            // 항상 로컬 의도 값 적용 (클라우드 무시)
+            if(localVal)el.classList.add('checked');else el.classList.remove('checked');
+            return;
+        }
+        // localChecks에 없는 인덱스: 클라우드 값 그대로 적용
+        if(checksArr[i])el.classList.add('checked');else el.classList.remove('checked');
     });
     risks.forEach((_,i)=>{
         const el=document.getElementById(`risk-${i}`);
         if(!el)return;
-        const cloudVal=riskArr[i];
-        const domVal=el.classList.contains('active');
-        if(freshClick&&touchedK.has(i)&&cloudVal!==domVal)return;
-        if(cloudVal)el.classList.add('active');else el.classList.remove('active');
+        if(i in lr){
+            const localVal=!!lr[i];
+            if(riskArr[i]===localVal){delete lr[i];touchedK.delete(i)}
+            if(localVal)el.classList.add('active');else el.classList.remove('active');
+            return;
+        }
+        if(riskArr[i])el.classList.add('active');else el.classList.remove('active');
     });
     recoveryDone=recArr;
     // v7.0: 포커스 루틴 복원
@@ -3243,14 +3302,17 @@ function getRoutineTime(index){
 
 function renderList(){
     const unlocked = getUnlockedRoutineIndices();
-    // Preserve checked state across re-renders. Source of truth = current DOM
-    // (routineDone adds class immediately, before save), with fallback to the
-    // cached cloud doc for the current target date.
+    // ★ BULLETPROOF: _localChecks가 최우선, 그 다음 DOM, 마지막 클라우드
     const dateKey=document.getElementById('target-date')?.value;
     const cloudChecks=(window._cloudHistory&&dateKey&&window._cloudHistory[dateKey]&&window._cloudHistory[dateKey].checks)?_normalizeMap(window._cloudHistory[dateKey].checks,routine.length):null;
+    const lc=window._localChecks||{};
     const wasChecked=routine.map((_,i)=>{
+        // 1) _localChecks에 있으면 절대적 우선 (메모리 기반, DOM 무관)
+        if(i in lc)return !!lc[i];
+        // 2) DOM이 있으면 현재 상태
         const el=document.getElementById('item-'+i);
         if(el)return el.classList.contains('checked');
+        // 3) 클라우드 폴백
         return !!(cloudChecks&&cloudChecks[i]);
     });
     document.getElementById('routine-list').innerHTML=routine.map((item,i)=>{
@@ -3339,6 +3401,8 @@ function routineDone(i){
     const wasNew=!el.classList.contains('checked');
     window._lastUserToggleAt=Date.now();
     (window._userTouchedRoutines=window._userTouchedRoutines||new Set()).add(i);
+    // ★ BULLETPROOF: 메모리에 의도 저장 — DOM/onSnapshot에 무관하게 보존
+    (window._localChecks=window._localChecks||{})[i]=true;
     if(wasNew){
         el.classList.add('checked');
         // CRITICAL 루틴 → 예측 체중 피드백, 일반 루틴 → 인크레티나 토스트
@@ -3488,6 +3552,8 @@ function toggleRisk(i){
     const wasActive=el.classList.contains('active');
     window._lastUserToggleAt=Date.now();
     (window._userTouchedRisks=window._userTouchedRisks||new Set()).add(i);
+    // ★ BULLETPROOF: 메모리에 의도 저장
+    (window._localRisks=window._localRisks||{})[i]=!wasActive;
     el.classList.toggle('active');
 
     if(!wasActive){
@@ -3638,12 +3704,12 @@ function onDataChange(){
     try{renderMealsCard()}catch(e){console.error('renderMealsCard:',e)}
     // debounce 저장: 빠른 연속 클릭 시 마지막 한 번만 저장
     clearTimeout(_dataChangeTimer);
-    _dataChangeTimer=setTimeout(()=>{
+    _dataChangeTimer=setTimeout(async()=>{
         // Phase C: touched-set이 비어있고 체중도 변경 안 했으면 불필요한 Firestore 쓰기 방지
         const _t=window._userTouchedRoutines||new Set();
         const _k=window._userTouchedRisks||new Set();
         if(_t.size>0||_k.size>0||window._weightChanged){
-            try{saveDailyToCloud()}catch(e){console.error('saveDailyToCloud:',e)}
+            try{await saveDailyToCloud()}catch(e){console.error('saveDailyToCloud:',e)}
             window._weightChanged=false;
         }
         try{saveProfileToCloud()}catch(e){console.error('saveProfileToCloud:',e)}
@@ -3933,7 +3999,7 @@ function initApp(){
     // Init FCM token if already permitted
     if(Notification.permission==='granted'&&swRegistration){saveFCMToken()}
 }
-dateInput.addEventListener('change',()=>{recoveryDone.fill(false);_lastDailyXP=0;window._userTouchedRoutines=new Set();window._userTouchedRisks=new Set();renderQuests();loadDateData()});
+dateInput.addEventListener('change',()=>{recoveryDone.fill(false);_lastDailyXP=0;window._userTouchedRoutines=new Set();window._userTouchedRisks=new Set();window._localChecks={};window._localRisks={};renderQuests();loadDateData()});
 // v7.0: 기상시간 변경 시 루틴 시간표 즉시 갱신
 document.getElementById('p-wakeup').addEventListener('change',()=>{renderList();updateUpcomingRoutines();saveProfileToCloud()});
 // Weight input: sanitize to allow only digits and one decimal point, debounce save
