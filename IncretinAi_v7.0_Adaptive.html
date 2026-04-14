@@ -1470,7 +1470,11 @@ clearTimeout(_chartTimer);_chartTimer=setTimeout(()=>{try{updateTrendChart();}ca
 // v7.0 Comeback: 3일+ 미사용 시 복귀 카드
 setTimeout(()=>showComebackCard(),800);
 }showSyncStatus('synced')},e=>{console.warn('Profile listen:',e);showSyncStatus('offline')})}
-function listenToHistory(){if(unsubHistory)unsubHistory();unsubHistory=historyCollection().onSnapshot(snap=>{const hist={};snap.forEach(doc=>{hist[doc.id]=doc.data()});window._cloudHistory=hist;loadDateData();showSyncStatus('synced')},e=>{console.warn('History listen:',e);showSyncStatus('offline')})}
+let _loadDateTimer=null;
+function listenToHistory(){if(unsubHistory)unsubHistory();unsubHistory=historyCollection().onSnapshot(snap=>{const hist={};snap.forEach(doc=>{hist[doc.id]=doc.data()});window._cloudHistory=hist;
+// save 진행 중이면 loadDateData를 지연 — save 완료 후 onSnapshot이 다시 오면 그때 적용
+if(window._savePending){clearTimeout(_loadDateTimer);_loadDateTimer=setTimeout(()=>loadDateData(),1500);return}
+loadDateData();showSyncStatus('synced')},e=>{console.warn('History listen:',e);showSyncStatus('offline')})}
 
 function toLocalDateStr(d){if(!d)d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
 function _normalizeMap(raw,len){
@@ -3278,14 +3282,18 @@ function getRoutineTime(index){
 
 function renderList(){
     const unlocked = getUnlockedRoutineIndices();
-    // Preserve checked state across re-renders. Source of truth = current DOM
-    // (routineDone adds class immediately, before save), with fallback to the
-    // cached cloud doc for the current target date.
+    // Preserve checked state across re-renders.
+    // Priority: 1) touched-set items always use current DOM value (user just clicked)
+    //           2) existing DOM element class
+    //           3) fallback to cached cloud doc
     const dateKey=document.getElementById('target-date')?.value;
     const cloudChecks=(window._cloudHistory&&dateKey&&window._cloudHistory[dateKey]&&window._cloudHistory[dateKey].checks)?_normalizeMap(window._cloudHistory[dateKey].checks,routine.length):null;
+    const touchedR=window._userTouchedRoutines||new Set();
     const wasChecked=routine.map((_,i)=>{
         const el=document.getElementById('item-'+i);
         if(el)return el.classList.contains('checked');
+        // DOM 없는 경우: touched-set에 있으면 true (방금 체크한 것)
+        if(touchedR.has(i))return true;
         return !!(cloudChecks&&cloudChecks[i]);
     });
     document.getElementById('routine-list').innerHTML=routine.map((item,i)=>{

@@ -175,41 +175,38 @@ async function getDailyRoutine(uid, date) {
 async function setRoutineChecks(uid, date, checks) {
   const ref = db().doc(paths.dailyRoutine(uid, date));
   const now = new Date();
+  const snap = await ref.get();
+  const prev = snap.exists ? (snap.data().checks || {}) : {};
+  const merged = { ...prev, ...checks };
 
-  const merged = await db().runTransaction(async (txn) => {
-    const snap = await txn.get(ref);
-    const prev = snap.exists ? (snap.data().checks || {}) : {};
-    const result = { ...prev, ...checks };
+  const batch = db().batch();
+  batch.set(
+    ref,
+    {
+      checks: merged,
+      _meta: snap.exists
+        ? { ...(snap.data()._meta || {}), updatedAt: now, schemaVersion: 2, source: SOURCE.TELEGRAM_BOT }
+        : makeMeta(SOURCE.TELEGRAM_BOT, now),
+    },
+    { merge: true },
+  );
 
-    txn.set(
-      ref,
-      {
-        checks: result,
-        _meta: snap.exists
-          ? { ...(snap.data()._meta || {}), updatedAt: now, schemaVersion: 2, source: SOURCE.TELEGRAM_BOT }
-          : makeMeta(SOURCE.TELEGRAM_BOT, now),
-      },
-      { merge: true },
+  // Emit an event per newly-set routine (append-only audit trail)
+  for (const [idx, val] of Object.entries(checks)) {
+    if (prev[idx] === val) continue;
+    batch.set(
+      db().collection(paths.events(uid)).doc(),
+      makeEvent({
+        type: EVENT.ROUTINE_CHECK,
+        date,
+        source: SOURCE.TELEGRAM_BOT,
+        payload: { routineIndex: Number(idx), checked: !!val },
+        now,
+      }),
     );
+  }
 
-    // Emit an event per newly-set routine (append-only audit trail)
-    for (const [idx, val] of Object.entries(checks)) {
-      if (prev[idx] === val) continue;
-      txn.set(
-        db().collection(paths.events(uid)).doc(),
-        makeEvent({
-          type: EVENT.ROUTINE_CHECK,
-          date,
-          source: SOURCE.TELEGRAM_BOT,
-          payload: { routineIndex: Number(idx), checked: !!val },
-          now,
-        }),
-      );
-    }
-
-    return result;
-  });
-
+  await batch.commit();
   return merged;
 }
 
@@ -283,52 +280,50 @@ async function appendMeal(uid, date, meal) {
   const ref = db().doc(paths.dailyRoutine(uid, date));
   const now = new Date();
 
-  // Auto-classify meal type from time (outside txn — pure function)
+  // Auto-classify meal type from time
   const { classifyMealType: _classify } = require('imem-core');
   meal.mealType = _classify(meal.time);
 
-  const result = await db().runTransaction(async (txn) => {
-    const snap = await txn.get(ref);
-    const prev = snap.exists ? (snap.data().meals || []) : [];
-    const next = [...prev, meal];
-    const dailyKcal = next.reduce((s, m) => s + (Number(m.kcal) || 0), 0);
-    const lastMealAt = meal.ts || now;
+  const snap = await ref.get();
+  const prev = snap.exists ? (snap.data().meals || []) : [];
+  const next = [...prev, meal];
+  const dailyKcal = next.reduce((s, m) => s + (Number(m.kcal) || 0), 0);
+  const lastMealAt = meal.ts || now;
 
-    txn.set(
-      ref,
-      {
-        meals: next,
-        dailyKcal,
-        lastMealAt,
-        _meta: snap.exists
-          ? { ...(snap.data()._meta || {}), updatedAt: now, schemaVersion: 2, source: SOURCE.TELEGRAM_BOT }
-          : makeMeta(SOURCE.TELEGRAM_BOT, now),
+  const batch = db().batch();
+  batch.set(
+    ref,
+    {
+      meals: next,
+      dailyKcal,
+      lastMealAt,
+      _meta: snap.exists
+        ? { ...(snap.data()._meta || {}), updatedAt: now, schemaVersion: 2, source: SOURCE.TELEGRAM_BOT }
+        : makeMeta(SOURCE.TELEGRAM_BOT, now),
+    },
+    { merge: true },
+  );
+
+  // Append meal_log event for audit
+  batch.set(
+    db().collection(paths.events(uid)).doc(),
+    makeEvent({
+      type: EVENT.MEAL_LOG || 'meal_log',
+      date,
+      source: SOURCE.TELEGRAM_BOT,
+      payload: {
+        kcal: meal.kcal,
+        menu: meal.menu,
+        time: meal.time,
+        macros: meal.macros || null,
+        betaScore: meal.betaScore ?? null,
       },
-      { merge: true },
-    );
+      now,
+    }),
+  );
 
-    // Append meal_log event for audit (immutable, inside txn for atomicity)
-    txn.set(
-      db().collection(paths.events(uid)).doc(),
-      makeEvent({
-        type: EVENT.MEAL_LOG || 'meal_log',
-        date,
-        source: SOURCE.TELEGRAM_BOT,
-        payload: {
-          kcal: meal.kcal,
-          menu: meal.menu,
-          time: meal.time,
-          macros: meal.macros || null,
-          betaScore: meal.betaScore ?? null,
-        },
-        now,
-      }),
-    );
-
-    return { dailyKcal, mealCount: next.length, mealType: meal.mealType, meals: next };
-  });
-
-  return result;
+  await batch.commit();
+  return { dailyKcal, mealCount: next.length, mealType: meal.mealType, meals: next };
 }
 
 /**
