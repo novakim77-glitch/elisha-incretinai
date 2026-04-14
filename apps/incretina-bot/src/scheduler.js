@@ -5,14 +5,21 @@ const cron = require('node-cron');
 const {
   sendMorningBriefing, sendLastCall, sendDailyRecap,
   sendMorningLight, sendLunchGolden, sendDinnerGolden,
+  sendMissedPreload, sendMissedSequence, sendMissedDinnerClose,
+  sendLateNightRecovery, sendNoMealNudge,
 } = require('./notifiers');
 
 const TZ = 'Asia/Seoul';
 
 function startScheduler(bot) {
-  // 06:30 KST — 햇빛 노출 (NEW)
+  // 06:30 KST — 햇빛 노출
   cron.schedule('30 6 * * *', () => {
     sendMorningLight(bot).catch((e) => console.error('[cron] morning-light failed:', e));
+  }, { timezone: TZ });
+
+  // 06:35 KST — 어제 야식 회복 코칭
+  cron.schedule('35 6 * * *', () => {
+    sendLateNightRecovery(bot).catch((e) => console.error('[cron] late-night-recovery failed:', e));
   }, { timezone: TZ });
 
   // 07:00 KST — morning briefing
@@ -20,14 +27,29 @@ function startScheduler(bot) {
     sendMorningBriefing(bot).catch((e) => console.error('[cron] morning failed:', e));
   }, { timezone: TZ });
 
-  // 11:30 KST — 점심 골든타임 임박 (NEW)
+  // 11:30 KST — 점심 골든타임 임박
   cron.schedule('30 11 * * *', () => {
     sendLunchGolden(bot).catch((e) => console.error('[cron] lunch-golden failed:', e));
   }, { timezone: TZ });
 
-  // 17:00 KST — 저녁 골든타임 임박 (NEW)
+  // 11:35 KST — 프리로드 미완료 알림
+  cron.schedule('35 11 * * *', () => {
+    sendMissedPreload(bot).catch((e) => console.error('[cron] missed-preload failed:', e));
+  }, { timezone: TZ });
+
+  // 13:30 KST — 인크레틴 시퀀스 미완료 알림
+  cron.schedule('30 13 * * *', () => {
+    sendMissedSequence(bot).catch((e) => console.error('[cron] missed-sequence failed:', e));
+  }, { timezone: TZ });
+
+  // 17:00 KST — 저녁 골든타임 임박
   cron.schedule('0 17 * * *', () => {
     sendDinnerGolden(bot).catch((e) => console.error('[cron] dinner-golden failed:', e));
+  }, { timezone: TZ });
+
+  // 18:00 KST — 식사 미기록 넛지
+  cron.schedule('0 18 * * *', () => {
+    sendNoMealNudge(bot).catch((e) => console.error('[cron] no-meal-nudge failed:', e));
   }, { timezone: TZ });
 
   // 18:30 KST — metabolic switch last-call
@@ -35,12 +57,17 @@ function startScheduler(bot) {
     sendLastCall(bot).catch((e) => console.error('[cron] lastcall failed:', e));
   }, { timezone: TZ });
 
+  // 19:30 KST — 저녁 마감 미완료 알림
+  cron.schedule('30 19 * * *', () => {
+    sendMissedDinnerClose(bot).catch((e) => console.error('[cron] missed-dinner-close failed:', e));
+  }, { timezone: TZ });
+
   // 22:00 KST — daily recap
   cron.schedule('0 22 * * *', () => {
     sendDailyRecap(bot).catch((e) => console.error('[cron] recap failed:', e));
   }, { timezone: TZ });
 
-  console.log('⏰ Scheduler armed — 06:30 / 07:00 / 11:30 / 17:00 / 18:30 / 22:00 KST');
+  console.log('⏰ Scheduler armed — 06:30 / 06:35 / 07:00 / 11:30 / 11:35 / 13:30 / 17:00 / 18:00 / 18:30 / 19:30 / 22:00 KST');
 }
 
 /**
@@ -54,12 +81,17 @@ async function runManualTrigger(bot) {
 
   console.log(`[notify] manual trigger: ${nowKind}`);
   const fn = {
-    morning:      () => sendMorningBriefing(bot),
-    lastcall:     () => sendLastCall(bot),
-    recap:        () => sendDailyRecap(bot),
-    morninglight: () => sendMorningLight(bot),
-    lunch:        () => sendLunchGolden(bot),
-    dinner:       () => sendDinnerGolden(bot),
+    morning:            () => sendMorningBriefing(bot),
+    lastcall:           () => sendLastCall(bot),
+    recap:              () => sendDailyRecap(bot),
+    morninglight:       () => sendMorningLight(bot),
+    lunch:              () => sendLunchGolden(bot),
+    dinner:             () => sendDinnerGolden(bot),
+    missedpreload:      () => sendMissedPreload(bot),
+    missedsequence:     () => sendMissedSequence(bot),
+    misseddinnerclose:  () => sendMissedDinnerClose(bot),
+    latenightrecovery:  () => sendLateNightRecovery(bot),
+    nomealnudge:        () => sendNoMealNudge(bot),
   }[nowKind];
   if (!fn) {
     console.warn(`[notify] unknown NOTIFY_NOW value: ${nowKind}`);

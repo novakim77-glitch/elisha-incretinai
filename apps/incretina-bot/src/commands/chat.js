@@ -11,6 +11,7 @@ const {
 } = require('../store');
 const { InlineKeyboard } = require('grammy');
 const { resolveUser, checksObjToArray, riskObjToArray } = require('./_shared');
+const { schedulePostMealWalk } = require('../proactive');
 const {
   getClient, MODEL, FALLBACK_MODEL, BASIC_FALLBACK_MSG,
   MAX_TURNS, systemPrompt, TOOLS, classifyApiError,
@@ -201,6 +202,7 @@ async function runTool(name, input, sess) {
       };
       try {
         const r = await appendMeal(uid, date, meal);
+        schedulePostMealWalk(uid, chatId, date, r.mealType);
         // 자동 맵핑
         const marked = [];
         const updates = {};
@@ -276,6 +278,7 @@ async function chatHandler(ctx) {
     if (hit) {
       try {
         const r = await appendMeal(hit.entry.uid, hit.entry.date, hit.entry.meal);
+        schedulePostMealWalk(hit.entry.uid, ctx.chat.id, hit.entry.date, r.mealType);
         const marked = await applyAutoMapping(hit.entry.uid, hit.entry.date, hit.entry.meal, { uid: hit.entry.uid, unlocked: hit.entry.unlocked });
         pendingMeals.delete(hit.msgId);
         const markedTxt = marked.length > 0 ? `\n자동 체크: 루틴 ${marked.join(', ')}` : '';
@@ -682,6 +685,7 @@ async function mealCallbackHandler(ctx) {
   if (action === 'save') {
     try {
       const r = await appendMeal(entry.uid, entry.date, entry.meal);
+      schedulePostMealWalk(entry.uid, entry.chatId, entry.date, r.mealType);
       const sess = { uid: entry.uid, unlocked: entry.unlocked };
       const marked = await applyAutoMapping(entry.uid, entry.date, entry.meal, sess);
       pendingMeals.delete(msgId);

@@ -15,6 +15,7 @@ const { predictCommand } = require('./commands/predict');
 const { chatHandler, personaCommand, photoHandler, mealCallbackHandler, personaCallbackHandler } = require('./commands/chat');
 const { validateClient } = require('./claude');
 const { startScheduler, runManualTrigger } = require('./scheduler');
+const { initProactive } = require('./proactive');
 
 const TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 if (!TOKEN) {
@@ -76,6 +77,7 @@ bot.catch((err) => {
   const mode = (process.env.BOT_MODE || 'polling').toLowerCase();
   if (mode === 'polling') {
     console.log('🤖 IncretinA i Bot — polling mode (dev)');
+    initProactive(bot);
     startScheduler(bot);
     bot.start();
   } else {

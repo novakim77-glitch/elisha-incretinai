@@ -253,6 +253,150 @@ async function sendDinnerGolden(bot) {
   }
 }
 
+// ─────────────────────────────────────────────
+// 7. Missed critical routine alerts
+// ─────────────────────────────────────────────
+
+async function _sendMissedRoutine(bot, routineIdx, message) {
+  const users = await listActiveTelegramUsers();
+  let sent = 0;
+  for (const { uid, chatId } of users) {
+    const profile = (await getProfile(uid)) || {};
+    if (!isEnabled(profile, 'missedRoutine')) continue;
+
+    const tz = profile.timezone || 'Asia/Seoul';
+    const date = toLogicalDate(new Date(), tz);
+    const daily = await getDailyRoutine(uid, date);
+
+    // Skip if already done
+    if (daily.checks && daily.checks[routineIdx]) continue;
+
+    // Skip if routine not unlocked for this user's week
+    const historyDays = await countHistoryDays(uid);
+    const week = getUserWeek({
+      userStartDate: profile.userStartDate || null,
+      historyDays,
+      now: new Date(),
+    });
+    const unlocked = getUnlockedRoutineIndices(week);
+    if (!unlocked.includes(routineIdx)) continue;
+
+    const ok = await safeSend(bot, chatId, message);
+    if (ok) { await logNotification(uid, 'missed_routine', { routineIdx }); sent++; }
+  }
+  return sent;
+}
+
+async function sendMissedPreload(bot) {
+  const sent = await _sendMissedRoutine(bot, 3, [
+    `🔔 *호르몬 프리로드 아직 안 했어요!*`,
+    ``,
+    `점심 30분 전에 *단백질 15g + 식이섬유 5g* 먼저 드세요.`,
+    `GLP-1이 선제 분비되어 혈당 급등을 막아줍니다.`,
+    ``,
+    `완료하면: /check 4`,
+  ].join('\n'));
+  console.log(`[notify] missed-preload → ${sent} users`);
+}
+
+async function sendMissedSequence(bot) {
+  const sent = await _sendMissedRoutine(bot, 4, [
+    `🔔 *인크레틴 시퀀스 놓치지 마세요!*`,
+    ``,
+    `오늘 점심에 *채소 → 단백질 → 탄수화물* 순서 지키셨나요?`,
+    `식사 순서만으로 β 계수가 +0.025 올라갑니다.`,
+    ``,
+    `완료하면: /check 5`,
+  ].join('\n'));
+  console.log(`[notify] missed-sequence → ${sent} users`);
+}
+
+async function sendMissedDinnerClose(bot) {
+  const sent = await _sendMissedRoutine(bot, 6, [
+    `⚠️ *저녁 마감(19시) 시간이 지났어요*`,
+    ``,
+    `이미 지났다면 지금이라도 식사를 마무리하세요.`,
+    `19시 이후 식사는 α 계수에 *-0.10 페널티*가 적용됩니다.`,
+    ``,
+    `이미 마감했다면: /check 7`,
+  ].join('\n'));
+  console.log(`[notify] missed-dinner-close → ${sent} users`);
+}
+
+// ─────────────────────────────────────────────
+// 8. Late-night meal next-morning follow-up (06:35)
+// ─────────────────────────────────────────────
+
+function getYesterdayDate(tz) {
+  const now = new Date();
+  const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  return toLogicalDate(yesterday, tz);
+}
+
+async function sendLateNightRecovery(bot) {
+  const users = await listActiveTelegramUsers();
+  let sent = 0;
+  console.log(`[notify] late-night-recovery check → ${users.length} users`);
+  for (const { uid, chatId } of users) {
+    const profile = (await getProfile(uid)) || {};
+    if (!isEnabled(profile, 'lateNightRecovery')) continue;
+
+    const tz = profile.timezone || 'Asia/Seoul';
+    const yesterday = getYesterdayDate(tz);
+    const daily = await getDailyRoutine(uid, yesterday);
+    const meals = daily.meals || [];
+    const hadLateNight = meals.some(m => m.mealType === 'lateNight');
+    if (!hadLateNight) continue;
+
+    const text = [
+      `🌅 *어제 야식 회복 코칭*`,
+      ``,
+      `어제 19시 이후 식사가 있었어요.`,
+      `오늘 아침 단식을 *1시간 연장*해서 회복해보세요.`,
+      `(예: 보통 07시 → 오늘은 08시에 첫 식사)`,
+      ``,
+      `물·블랙커피는 자유. 고체 음식만 늦추면 됩니다.`,
+      `_"14시간 공복 → AMPK 활성화 → 대사 유연성 회복"_`,
+    ].join('\n');
+
+    const ok = await safeSend(bot, chatId, text);
+    if (ok) { await logNotification(uid, 'late_night_recovery'); sent++; }
+  }
+  console.log(`[notify] late-night-recovery → ${sent} users`);
+}
+
+// ─────────────────────────────────────────────
+// 9. No meal recorded nudge (18:00)
+// ─────────────────────────────────────────────
+
+async function sendNoMealNudge(bot) {
+  const users = await listActiveTelegramUsers();
+  let sent = 0;
+  console.log(`[notify] no-meal-nudge check → ${users.length} users`);
+  for (const { uid, chatId } of users) {
+    const profile = (await getProfile(uid)) || {};
+    if (!isEnabled(profile, 'noMealNudge')) continue;
+
+    const tz = profile.timezone || 'Asia/Seoul';
+    const date = toLogicalDate(new Date(), tz);
+    const daily = await getDailyRoutine(uid, date);
+    if ((daily.meals || []).length > 0) continue; // has meals, skip
+
+    const text = [
+      `📸 *오늘 식사 기록이 없네요*`,
+      ``,
+      `음식 사진 한 장 보내주시면 자동으로 칼로리·매크로를 분석해드려요.`,
+      `또는 "점심에 비빔밥 먹었어" 처럼 텍스트로도 기록 가능해요.`,
+      ``,
+      `식사 기록 → β\_meal 보정 → 더 정확한 IMEM 계수!`,
+    ].join('\n');
+
+    const ok = await safeSend(bot, chatId, text);
+    if (ok) { await logNotification(uid, 'no_meal_nudge'); sent++; }
+  }
+  console.log(`[notify] no-meal-nudge → ${sent} users`);
+}
+
 module.exports = {
   sendMorningBriefing,
   sendLastCall,
@@ -260,4 +404,9 @@ module.exports = {
   sendMorningLight,
   sendLunchGolden,
   sendDinnerGolden,
+  sendMissedPreload,
+  sendMissedSequence,
+  sendMissedDinnerClose,
+  sendLateNightRecovery,
+  sendNoMealNudge,
 };
