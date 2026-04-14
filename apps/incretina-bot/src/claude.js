@@ -206,6 +206,11 @@ const TOOLS = [
     },
   },
   {
+    name: 'get_meal_summary',
+    description: '오늘 식사 기록 조회 + 칼로리 분석 + 코칭을 반환합니다. 사용자가 "오늘 뭐 먹었지", "식단", "식사 기록" 등을 물을 때 사용.',
+    input_schema: { type: 'object', properties: {} },
+  },
+  {
     name: 'get_score',
     description: '오늘 IMEM 점수(α/β/γ)를 계산해 반환합니다.',
     input_schema: { type: 'object', properties: {} },

@@ -149,6 +149,9 @@ async function runTool(name, input, sess) {
           const r = constants.routine[i] || {};
           return { index: i + 1, title: r.title, time: r.t };
         });
+      // Include meal summary in status
+      const statusMeals = sess.meals || [];
+      const statusKcal = statusMeals.reduce((s, m) => s + (Number(m.kcal) || 0), 0);
       return {
         date,
         week,
@@ -158,7 +161,46 @@ async function runTool(name, input, sess) {
         remaining,
         criticalRemaining: remaining.filter((r) => r.critical).map((r) => r.index),
         weight: sess.weight ?? profile.weight ?? null,
+        mealCount: statusMeals.length,
+        totalKcal: statusKcal,
       };
+    }
+
+    case 'get_meal_summary': {
+      const meals = sess.meals || [];
+      if (meals.length === 0) {
+        return { ok: true, count: 0, meals: [], note: '오늘 기록된 식사가 없습니다.' };
+      }
+      const mealList = meals.map((m, i) => ({
+        index: i + 1,
+        time: m.time || '?',
+        menu: m.menu || '식사',
+        kcal: Number(m.kcal) || 0,
+        mealType: classifyMealType(m.time),
+        mealTypeKr: MEAL_TYPE_KR[classifyMealType(m.time)] || '간식',
+        betaScore: m.betaScore ?? null,
+        macros: m.macros || null,
+      }));
+      const totalKcal = mealList.reduce((s, m) => s + m.kcal, 0);
+      const analysis = analyzeMealDay(meals, profile);
+      const result = {
+        ok: true,
+        date,
+        count: mealList.length,
+        meals: mealList,
+        totalKcal,
+      };
+      if (analysis) {
+        result.dailyTarget = analysis.dailyTarget;
+        result.remaining = analysis.remaining;
+        result.usedPct = Math.round((totalKcal / analysis.dailyTarget) * 100);
+        result.proteinGap = analysis.proteinGap;
+        result.proteinTarget = analysis.proteinTarget;
+        result.isHighCarb = analysis.isHighCarb;
+        result.isLowProtein = analysis.isLowProtein;
+        result.hasLateNight = analysis.hasLateNight;
+      }
+      return result;
     }
 
     case 'get_weight_history': {

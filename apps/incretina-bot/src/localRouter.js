@@ -18,6 +18,7 @@ const PATTERNS = {
   score: /^(\s*오늘\s*)?(점수|스코어|score|imem|효율|알파|베타|감마|α|β|γ)/i,
   weight: /^(체중|몬무게|kg|킬로)\s*(추이|변화|기록|히스토리|그래프|얼마)/i,
   weightSimple: /^(체중|몬무게)\s*$/i,
+  meal: /^(\s*오늘\s*)?(식단|식사|뭐\s*먹|뭘\s*먹|먹은\s*거|먹은거|칼로리|kcal|끼니|밥|식사\s*(기록|현황|요약|리스트|목록|평가|분석)|오늘\s*뭐\s*먹|하루\s*식단)/i,
 };
 
 /**
@@ -188,6 +189,121 @@ async function handleWeightHistory(ctx) {
 
   lines.push('');
   lines.push(trend + ' ' + sign + delta + 'kg (' + first.weight + ' \u2192 ' + last.weight + ')');
+
+  return lines.join('\n');
+}
+
+// ────────────────────
+// Meal summary + coaching
+// ────────────────────
+
+async function handleMealSummary(ctx) {
+  const { uid, profile } = await resolveUser(ctx);
+  const tz = profile.timezone || 'Asia/Seoul';
+  const date = toLogicalDate(new Date(), tz);
+  const daily = await getDailyRoutine(uid, date);
+  const meals = daily.meals || [];
+
+  if (meals.length === 0) {
+    return '🍽 오늘 기록된 식사가 없어요.\n\n음식 사진을 보내거나 "김치찌개 먹었어" 같이 말씀해 주시면 기록해 드릴게요!';
+  }
+
+  // Current time
+  const now = new Date();
+  const local = new Date(now.toLocaleString('en-US', { timeZone: tz }));
+  const nowH = local.getHours();
+
+  // Calculate targets
+  const analysis = analyzeMealDay(meals, profile);
+  const totalKcal = meals.reduce(function(s, m) { return s + (Number(m.kcal) || 0); }, 0);
+
+  const lines = ['🍽 오늘의 식단 리포트', ''];
+
+  // ── Meal list with evaluation ──
+  meals.forEach(function(m, i) {
+    const t = m.time || '?';
+    const menu = (m.menu || '식사');
+    const kcal = Number(m.kcal) || 0;
+    const typeKr = MEAL_TYPE_KR[classifyMealType(m.time)] || '간식';
+    const betaTag = (typeof m.betaScore === 'number' && m.betaScore >= 0.7) ? ' ✅β優'
+      : (typeof m.betaScore === 'number' && m.betaScore >= 0.4) ? ' ⚠️β中' : '';
+    lines.push('  ' + (i + 1) + '. [' + typeKr + '] ' + t + ' ' + menu);
+    lines.push('     ' + kcal + ' kcal' + betaTag);
+  });
+
+  // ── Total summary ──
+  lines.push('');
+  lines.push('📊 누적: ' + totalKcal + ' kcal (' + meals.length + '끼)');
+
+  if (analysis) {
+    const pct = Math.round((totalKcal / analysis.dailyTarget) * 100);
+    const bar = '█'.repeat(Math.min(10, Math.round(pct / 10))) + '░'.repeat(Math.max(0, 10 - Math.round(pct / 10)));
+    lines.push('🎯 목표: ' + analysis.dailyTarget + ' kcal  [' + bar + '] ' + pct + '%');
+    lines.push('');
+
+    // ── Coaching: So What? ──
+    lines.push('💡 코칭');
+
+    // Remaining calorie budget
+    if (analysis.remaining > 200) {
+      lines.push('  ✅ 여유 약 ' + analysis.remaining + 'kcal — 아직 균형 잡힌 식사 가능해요.');
+    } else if (analysis.remaining > 0) {
+      lines.push('  ⚠️ 남은 여유 ' + analysis.remaining + 'kcal — 가벼운 식사로 마무리하세요.');
+    } else {
+      lines.push('  🔴 목표 초과 ' + Math.abs(analysis.remaining) + 'kcal — 오늘은 추가 식사를 자제해 주세요.');
+    }
+
+    // Next meal guidance based on time
+    if (nowH < 10 && !meals.some(function(m) { return classifyMealType(m.time) === 'lunch'; })) {
+      var lunchBudget = Math.round(analysis.dailyTarget * 0.4);
+      lines.push('  🍱 점심 예산: ~' + lunchBudget + 'kcal (채소→단백질→탄수 순서 추천)');
+    } else if (nowH < 16 && !meals.some(function(m) { return classifyMealType(m.time) === 'dinner'; })) {
+      var dinnerBudget = Math.max(0, analysis.remaining);
+      lines.push('  🍲 저녁 예산: ~' + Math.min(dinnerBudget, Math.round(analysis.dailyTarget * 0.3)) + 'kcal');
+    } else if (nowH >= 19) {
+      lines.push('  🌙 19시 이후 — 야식은 β 페널티가 적용돼요. 물이나 허브차 추천!');
+    }
+
+    // Protein check
+    if (analysis.proteinGap > 20) {
+      lines.push('  💪 단백질 ' + analysis.proteinGap + 'g 부족 — 닭가슴살/계란/두부로 채워보세요.');
+    } else if (analysis.proteinGap <= 0) {
+      lines.push('  💪 단백질 목표 달성! 👏');
+    }
+
+    // Macro balance warning
+    if (analysis.isHighCarb) {
+      lines.push('  🍚 탄수화물 비중 높음 — 다음 끼니는 단백질/채소 위주로!');
+    } else if (analysis.isLowProtein) {
+      lines.push('  ⚡ 단백질 비중 낮음 — 단백질 반찬 추가 추천');
+    }
+
+    // Late night eating
+    if (analysis.hasLateNight) {
+      lines.push('  🚨 야식 감지 — 내일 아침 단식 1시간 연장으로 회복 가능!');
+    }
+
+    // Beta score average
+    var betaScores = meals.filter(function(m) { return typeof m.betaScore === 'number'; }).map(function(m) { return m.betaScore; });
+    if (betaScores.length > 0) {
+      var avgBeta = betaScores.reduce(function(a, b) { return a + b; }, 0) / betaScores.length;
+      if (avgBeta >= 0.7) {
+        lines.push('  🏆 식사 순서 점수 우수! (평균 β ' + avgBeta.toFixed(2) + ')');
+      } else if (avgBeta < 0.4) {
+        lines.push('  📋 식사 순서 개선 필요 (평균 β ' + avgBeta.toFixed(2) + ') — 채소 먼저!');
+      }
+    }
+
+    // Exercise suggestion if over target
+    if (analysis.remaining < -200) {
+      var walkMins = Math.round(Math.abs(analysis.remaining) / 5);
+      lines.push('  🚶 칼로리 초과분 소모: 빠른 걷기 약 ' + walkMins + '분 추천');
+    }
+  } else {
+    // No profile data for target calculation
+    lines.push('');
+    lines.push('💡 프로필(키/체중/나이)을 앱에 입력하면 맞춤 칼로리 목표와 코칭을 받을 수 있어요.');
+  }
 
   return lines.join('\n');
 }
