@@ -15,6 +15,7 @@ const {
   getMinutesToSunset,
 } = require('./biosync');
 const { routine } = require('./constants');
+const { normalizeDaily } = require('./normalize');
 
 /**
  * @param {Object} input
@@ -24,6 +25,9 @@ const { routine } = require('./constants');
  * @param {Date}   [input.now]
  */
 function buildIMEMContext({ profile, today, historyDays = 0, now = new Date() }) {
+  // Normalize daily data: resolves app field names (riskChecks→riskActive, recoveries→recoveryDone)
+  const nd = normalizeDaily(today);
+
   const sun = calculateSunTimes(profile.lat ?? 37.5, now);
   const week = getUserWeek({
     userStartDate: profile.userStartDate,
@@ -32,26 +36,30 @@ function buildIMEMContext({ profile, today, historyDays = 0, now = new Date() })
   });
 
   const imem = calculateIMEM({
-    checks: today.checks,
-    riskActive: today.riskActive,
-    recoveryDone: today.recoveryDone,
+    checks: nd.checks,
+    riskActive: nd.riskActive,
+    recoveryDone: nd.recoveryDone,
     profile: { isDiabetic: profile.isDiabetic, exCount: profile.exCount },
     sunset: sun.sunset,
     isNightMode: !isWithinGoldenTime(sun, now),
-    meals: today.meals || [],
+    meals: nd.meals,
   });
 
   const score = calculateScore({
-    checks: today.checks,
-    riskActive: today.riskActive,
-    recoveryDone: today.recoveryDone,
+    checks: nd.checks,
+    riskActive: nd.riskActive,
+    recoveryDone: nd.recoveryDone,
     week,
   });
 
-  const completed = today.checks
+  // Handle both array and map forms of checks
+  const checksArr = Array.isArray(nd.checks)
+    ? nd.checks
+    : routine.map((_, i) => !!nd.checks[i]);
+  const completed = checksArr
     .map((c, i) => (c ? routine[i].title : null))
     .filter(Boolean);
-  const pending = today.checks
+  const pending = checksArr
     .map((c, i) => (!c ? routine[i].title : null))
     .filter(Boolean);
 
@@ -95,8 +103,8 @@ function buildIMEMContext({ profile, today, historyDays = 0, now = new Date() })
 
     // Meal data
     betaMeal: imem.beta_meal,
-    mealCount: (today.meals || []).length,
-    dailyKcal: (today.meals || []).reduce(function(s, m) { return s + (Number(m.kcal) || 0); }, 0),
+    mealCount: nd.meals.length,
+    dailyKcal: nd.meals.reduce(function(s, m) { return s + (Number(m.kcal) || 0); }, 0),
 
     // Persona for system prompt selection
     persona: profile.persona || 'clinical',

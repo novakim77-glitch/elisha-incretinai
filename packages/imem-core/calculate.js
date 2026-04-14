@@ -42,14 +42,17 @@ function computeBetaMeal(meals) {
 
 function calculateIMEM(input) {
   const {
-    checks,
-    riskActive,
-    recoveryDone,
+    checks = {},
+    riskActive: _ra,
+    recoveryDone: _rd,
     profile,
     sunset,
     isNightMode = false,
     meals = [],
   } = input;
+  // Guard against undefined — callers may forget to normalize
+  const riskActive = _ra || {};
+  const recoveryDone = _rd || {};
 
   // ── α base + bonus ──
   let alpha = 1.0;
