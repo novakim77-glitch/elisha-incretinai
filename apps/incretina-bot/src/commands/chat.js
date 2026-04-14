@@ -84,7 +84,7 @@ function buildMealFeedback(meal, allMeals, profile) {
 // ─────────────────────────────────────────────
 
 async function runTool(name, input, sess) {
-  const { uid, profile, week, unlocked } = sess;
+  const { uid, profile, week, unlocked, chatId } = sess;
   const tz = profile.timezone || 'Asia/Seoul';
   const date = toLogicalDate(new Date(), tz);
 
@@ -295,12 +295,13 @@ async function chatHandler(ctx) {
 
     session = {
       ...resolved,
+      chatId: ctx.chat.id,
       checks: daily.checks,
       riskActive: daily.riskActive,
       recoveryDone: daily.recoveryDone,
       weight: daily.weight,
       profileWeight: resolved.profile.weight,
-    meals: daily.meals || [],
+      meals: daily.meals || [],
       persona: settings.persona || 'empathetic',
     };
   } catch (e) {
@@ -644,6 +645,7 @@ async function photoHandler(ctx) {
     chatId: ctx.chat.id,
     date: sess.date,
     unlocked: sess.unlocked,
+    profile: sess.profile || {},
     meal,
     ts: Date.now(),
   });
