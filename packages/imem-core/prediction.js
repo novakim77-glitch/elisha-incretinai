@@ -19,14 +19,20 @@ const { totalEfficiency } = require('./calculate');
  * @returns {{predicted:number, delta:number, weeklyDelta:number, bmr:number}|null}
  */
 function getWeightPrediction({ imem, score, profile }) {
-  const { cw, h, age, gender } = profile;
-  if (!cw || !h || h <= 0) return null;
+  // Normalize: accept cw/weight/sw, h in cm or m, age as string or number
+  var cw = Number(profile.cw) || Number(profile.weight) || Number(profile.sw) || 0;
+  var rawH = Number(profile.h) || 0;
+  var heightCm = rawH > 3 ? rawH : rawH * 100;  // auto-detect cm vs m
+  var age = Number(profile.age) || 30;
+  var gender = profile.gender || 'male';
+  if (!cw || !heightCm || heightCm <= 0) return null;
 
   const compliance = Math.max(0.3, score / 100);
 
+  // Mifflin-St Jeor: height in cm
   const bmr = gender === 'male'
-    ? 10 * cw + 6.25 * (h * 100) - 5 * age + 5
-    : 10 * cw + 6.25 * (h * 100) - 5 * age - 161;
+    ? 10 * cw + 6.25 * heightCm - 5 * age + 5
+    : 10 * cw + 6.25 * heightCm - 5 * age - 161;
 
   const multiplier = totalEfficiency(imem);
   const weeklyDelta = -0.5 * multiplier * compliance;

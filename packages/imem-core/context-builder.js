@@ -57,13 +57,18 @@ function buildIMEMContext({ profile, today, historyDays = 0, now = new Date() })
 
   const pad = (n) => String(n).padStart(2, '0');
 
+  // Normalize profile fields (app stores strings, keys differ)
+  var cw = Number(profile.cw) || Number(profile.weight) || Number(profile.sw) || 0;
+  var rawH = Number(profile.h) || 0;
+  var heightCm = rawH > 3 ? rawH : rawH * 100;
+
   return {
-    // Profile
-    height: profile.h,
-    currentWeight: profile.cw,
-    goalWeight: profile.gw,
-    age: profile.age,
-    gender: profile.gender,
+    // Profile (normalized)
+    height: heightCm,
+    currentWeight: cw,
+    goalWeight: Number(profile.gw) || 0,
+    age: Number(profile.age) || 30,
+    gender: profile.gender || 'male',
     diabeticType: profile.isDiabetic,   // 'no' | 'pre' | 'yes'
     weeklyExercise: profile.exCount,
 

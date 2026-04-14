@@ -157,8 +157,10 @@ async function getDailyRoutine(uid, date) {
   const d = snap.data();
   return {
     checks: d.checks || {},
-    riskActive: d.riskActive || {},
-    recoveryDone: d.recoveryDone || {},
+    // App writes 'riskChecks', bot historically used 'riskActive' — read both
+    riskActive: d.riskActive || d.riskChecks || {},
+    // App writes 'recoveries', bot historically used 'recoveryDone' — read both
+    recoveryDone: d.recoveryDone || d.recoveries || {},
     weight: d.weight ?? null,
     meals: d.meals || [],
   };
@@ -378,8 +380,8 @@ async function getRecentDailyRoutines(uid, days = 7) {
     return {
       date: d.id,
       checks: data.checks || {},
-      riskActive: data.riskActive || {},
-      recoveryDone: data.recoveryDone || {},
+      riskActive: data.riskActive || data.riskChecks || {},
+      recoveryDone: data.recoveryDone || data.recoveries || {},
       weight: data.weight ?? null,
       meals: data.meals || [],
       score: data.score ?? null,
