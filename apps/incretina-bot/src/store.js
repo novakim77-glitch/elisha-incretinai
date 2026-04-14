@@ -367,6 +367,32 @@ async function countHistoryDays(uid) {
   return snap.data().count || 0;
 }
 
+/**
+ * Get recent N days of dailyRoutines ordered by date descending.
+ * Returns [{ date, checks, riskActive, recoveryDone, weight, meals, score, imem }]
+ */
+async function getRecentDailyRoutines(uid, days = 7) {
+  const limit = Math.max(1, Math.min(30, Number(days) || 7));
+  const snap = await db()
+    .collection(`users/${uid}/dailyRoutines`)
+    .orderBy('__name__', 'desc')
+    .limit(limit)
+    .get();
+  return snap.docs.map((d) => {
+    const data = d.data();
+    return {
+      date: d.id,
+      checks: data.checks || {},
+      riskActive: data.riskActive || {},
+      recoveryDone: data.recoveryDone || {},
+      weight: data.weight ?? null,
+      meals: data.meals || [],
+      score: data.score ?? null,
+      imem: data.imem || null,
+    };
+  }).reverse(); // oldest first
+}
+
 // ─────────────────────────────────────────────
 // Phase 3: bot conversation history + persona
 // ─────────────────────────────────────────────
@@ -428,6 +454,7 @@ module.exports = {
   updateUserLocation,
   getProfile,
   getDailyRoutine,
+  getRecentDailyRoutines,
   setRoutineChecks,
   logWeight,
   appendMeal,

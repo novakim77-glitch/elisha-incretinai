@@ -7,6 +7,7 @@ const {
   sendMorningLight, sendLunchGolden, sendDinnerGolden,
   sendMissedPreload, sendMissedSequence, sendMissedDinnerClose,
   sendLateNightRecovery, sendNoMealNudge,
+  sendPreLunchCoaching, sendPreDinnerCoaching,
 } = require('./notifiers');
 
 const TZ = 'Asia/Seoul';
@@ -27,6 +28,11 @@ function startScheduler(bot) {
     sendMorningBriefing(bot).catch((e) => console.error('[cron] morning failed:', e));
   }, { timezone: TZ });
 
+  // 11:00 KST — 점심 프리코칭
+  cron.schedule('0 11 * * *', () => {
+    sendPreLunchCoaching(bot).catch((e) => console.error('[cron] pre-lunch failed:', e));
+  }, { timezone: TZ });
+
   // 11:30 KST — 점심 골든타임 임박
   cron.schedule('30 11 * * *', () => {
     sendLunchGolden(bot).catch((e) => console.error('[cron] lunch-golden failed:', e));
@@ -40,6 +46,11 @@ function startScheduler(bot) {
   // 13:30 KST — 인크레틴 시퀀스 미완료 알림
   cron.schedule('30 13 * * *', () => {
     sendMissedSequence(bot).catch((e) => console.error('[cron] missed-sequence failed:', e));
+  }, { timezone: TZ });
+
+  // 16:30 KST — 저녁 프리코칭
+  cron.schedule('30 16 * * *', () => {
+    sendPreDinnerCoaching(bot).catch((e) => console.error('[cron] pre-dinner failed:', e));
   }, { timezone: TZ });
 
   // 17:00 KST — 저녁 골든타임 임박
@@ -67,7 +78,7 @@ function startScheduler(bot) {
     sendDailyRecap(bot).catch((e) => console.error('[cron] recap failed:', e));
   }, { timezone: TZ });
 
-  console.log('⏰ Scheduler armed — 06:30 / 06:35 / 07:00 / 11:30 / 11:35 / 13:30 / 17:00 / 18:00 / 18:30 / 19:30 / 22:00 KST');
+  console.log('⏰ Scheduler armed — 06:30 / 06:35 / 07:00 / 11:00 / 11:30 / 11:35 / 13:30 / 16:30 / 17:00 / 18:00 / 18:30 / 19:30 / 22:00 KST');
 }
 
 /**
@@ -92,6 +103,8 @@ async function runManualTrigger(bot) {
     misseddinnerclose:  () => sendMissedDinnerClose(bot),
     latenightrecovery:  () => sendLateNightRecovery(bot),
     nomealnudge:        () => sendNoMealNudge(bot),
+    prelunch:           () => sendPreLunchCoaching(bot),
+    predinner:          () => sendPreDinnerCoaching(bot),
   }[nowKind];
   if (!fn) {
     console.warn(`[notify] unknown NOTIFY_NOW value: ${nowKind}`);

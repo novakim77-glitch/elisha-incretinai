@@ -11,9 +11,50 @@ const { schema } = require('imem-core');
 const { db } = require('./firebase');
 const {
   listActiveTelegramUsers, getProfile, getDailyRoutine,
-  countHistoryDays, toLogicalDate,
+  getRecentDailyRoutines, countHistoryDays, toLogicalDate,
+  getBotSettings,
 } = require('./store');
 const { paths, makeEvent, SOURCE, EVENT } = schema;
+
+// ─────────────────────────────────────────────
+// Persona-aware message formatting
+// ─────────────────────────────────────────────
+
+const PERSONA_TONES = {
+  empathetic: {
+    greeting: (name) => `${name}님, `,
+    encourage: '잘하고 있어요! 천천히 하나씩 해봐요 💛',
+    warn: (msg) => `조금 주의가 필요해요: ${msg}`,
+    close: '오늘도 수고했어요. 편안한 밤 되세요 🌙',
+    push: (action) => `가능하면 ${action} 해보는 건 어떨까요?`,
+    preCoach: (meal) => `${meal} 전에 준비할 것들이에요. 천천히 따라해 봐요:`,
+  },
+  clinical: {
+    greeting: (name) => `${name}님 — `,
+    encourage: '수치가 양호합니다. 현재 프로토콜 유지.',
+    warn: (msg) => `⚠️ 임상 소견: ${msg}`,
+    close: '22시 이후 블루라이트 차단 권장. 수면 위생 유지.',
+    push: (action) => `${action} — 근거: GLP-1 분비 최적화 프로토콜`,
+    preCoach: (meal) => `${meal} 프로토콜. 과학적 근거 기반 준비사항:`,
+  },
+  driver: {
+    greeting: (name) => `${name}! `,
+    encourage: '좋아, 계속 밀어!',
+    warn: (msg) => `⚡ 경고: ${msg}. 지금 바로 교정!`,
+    close: '내일도 풀 파워로 간다. 푹 자!',
+    push: (action) => `${action} — 지금 당장!`,
+    preCoach: (meal) => `${meal} 준비! 지금부터 실행:`,
+  },
+};
+
+function getTone(persona) {
+  return PERSONA_TONES[persona] || PERSONA_TONES.empathetic;
+}
+
+async function getUserPersona(uid) {
+  const settings = await getBotSettings(uid);
+  return settings.persona || 'empathetic';
+}
 
 function objToArr(obj, len) {
   const arr = new Array(len).fill(false);
@@ -58,6 +99,8 @@ async function sendMorningBriefing(bot) {
   console.log(`[notify] morning briefing → ${users.length} users`);
   for (const { uid, chatId } of users) {
     const profile = (await getProfile(uid)) || {};
+    const persona = await getUserPersona(uid);
+    const tone = getTone(persona);
     const lat = profile.lat || 37.5665;
     const sun = calculateSunTimes(lat);
     const historyDays = await countHistoryDays(uid);
@@ -69,15 +112,22 @@ async function sendMorningBriefing(bot) {
     const unlocked = getUnlockedRoutineIndices(week);
     const firstRoutine = constants.routine[unlocked[0]];
 
+    const name = profile.name || '';
+    const greetings = {
+      empathetic: `🌅 *좋은 아침이에요, ${name}님!*`,
+      clinical: `🌅 *모닝 브리핑* — ${name}님`,
+      driver: `🌅 *${name}! 일어나! 오늘도 시작이다!*`,
+    };
+
     const text = [
-      `🌅 *좋은 아침이에요, ${profile.name || ''}님!*`,
+      greetings[persona] || greetings.empathetic,
       ``,
       `오늘은 ${week}주차 · 해제된 루틴 ${unlocked.length}개`,
       `🕐 골든타임: *${String(sun.sunrise.h).padStart(2,'0')}:${String(sun.sunrise.m).padStart(2,'0')}* ~ *${String(sun.sunset.h).padStart(2,'0')}:${String(sun.sunset.m).padStart(2,'0')}*`,
       ``,
       firstRoutine
         ? `첫 루틴: ${firstRoutine.icon} *${firstRoutine.title}* (${firstRoutine.t})\n_${firstRoutine.action}_`
-        : `오늘도 화이팅!`,
+        : tone.encourage,
       ``,
       `오늘의 루틴 보기: /check`,
     ].join('\n');
@@ -94,24 +144,118 @@ async function sendLastCall(bot) {
   const users = await listActiveTelegramUsers();
   console.log(`[notify] last-call → ${users.length} users`);
   for (const { uid, chatId } of users) {
-    const text = [
-      `⏰ *Metabolic Switch 콜*`,
-      ``,
-      `19시 저녁 마감까지 *30분* 남았어요.`,
-      `지금 마지막 식사를 준비하시면 내일 아침 14시간 공복을 지킬 수 있습니다.`,
-      ``,
-      `_"α 계수는 타이밍에서 나옵니다."_`,
-      ``,
-      `식사 후 40분 내 /check 6 으로 글루코스 클리어런스 체크!`,
-    ].join('\n');
+    const persona = await getUserPersona(uid);
+    const msgs = {
+      empathetic: [
+        `⏰ *Metabolic Switch 콜*`,
+        ``,
+        `19시 저녁 마감까지 *30분* 남았어요.`,
+        `지금 마지막 식사를 준비하시면 내일 아침 14시간 공복을 지킬 수 있습니다.`,
+        ``,
+        `_"α 계수는 타이밍에서 나옵니다."_`,
+      ],
+      clinical: [
+        `⏰ *Metabolic Switch — 라스트콜*`,
+        ``,
+        `19:00 마감 30분 전. 14h 공복 확보 → 아침 인슐린 감수성 최적화.`,
+        `α\_net 보전을 위해 지금 식사를 마무리하세요.`,
+      ],
+      driver: [
+        `⏰ *30분 남았다! 지금 먹어!*`,
+        ``,
+        `19시 넘기면 α 계수 깎인다.`,
+        `지금 당장 마지막 식사 완료!`,
+      ],
+    };
 
+    const text = (msgs[persona] || msgs.empathetic).join('\n');
     const ok = await safeSend(bot, chatId, text);
     if (ok) await logNotification(uid, 'metabolic_switch_lastcall');
   }
 }
 
 // ─────────────────────────────────────────────
-// 3. Daily recap (22:00)
+// Trend analysis helpers (Phase 2)
+// ─────────────────────────────────────────────
+
+/**
+ * Detect 3+ consecutive days of weight increase.
+ * Returns { alert: bool, days: number, delta: number } or null.
+ */
+function analyzeWeightTrend(history) {
+  // history: [{ date, weight }, ...] oldest first
+  const withWeight = history.filter((d) => d.weight != null && d.weight > 0);
+  if (withWeight.length < 3) return null;
+
+  let streak = 0;
+  for (let i = withWeight.length - 1; i > 0; i--) {
+    if (withWeight[i].weight > withWeight[i - 1].weight) {
+      streak++;
+    } else {
+      break;
+    }
+  }
+  if (streak < 2) return null; // need 3 data points = 2 increases
+  const first = withWeight[withWeight.length - streak - 1].weight;
+  const last = withWeight[withWeight.length - 1].weight;
+  return { alert: true, days: streak + 1, delta: +(last - first).toFixed(1) };
+}
+
+/**
+ * Detect IMEM coefficient drop > 0.1 compared to previous day.
+ * Returns { alert: bool, coeff: string, drop: number } or null.
+ */
+function analyzeIMEMDrop(todayIMEM, history) {
+  // Find most recent day with IMEM data (not today)
+  const prev = [...history].reverse().find((d) => d.imem && d.imem.alpha_net != null);
+  if (!prev || !prev.imem || !todayIMEM) return null;
+
+  const drops = [];
+  const coeffs = [
+    { key: 'alpha_net', label: 'α' },
+    { key: 'beta_net', label: 'β' },
+    { key: 'gamma_net', label: 'γ' },
+  ];
+  for (const c of coeffs) {
+    const prevVal = prev.imem[c.key];
+    const todayVal = todayIMEM[c.key];
+    if (prevVal != null && todayVal != null) {
+      const drop = prevVal - todayVal;
+      if (drop > 0.1) drops.push({ coeff: c.label, drop: +drop.toFixed(2) });
+    }
+  }
+  return drops.length > 0 ? drops : null;
+}
+
+/**
+ * Detect same routine missed 3+ consecutive days.
+ * Returns [{ routineIdx, title, days }] or empty array.
+ */
+function analyzeRoutineMissStreak(history, unlocked) {
+  if (history.length < 3) return [];
+
+  const streaks = [];
+  for (const idx of unlocked) {
+    let consecutive = 0;
+    // Check from most recent backward
+    for (let i = history.length - 1; i >= 0; i--) {
+      const checks = history[i].checks || {};
+      if (!checks[idx]) {
+        consecutive++;
+      } else {
+        break;
+      }
+    }
+    if (consecutive >= 3) {
+      const r = constants.routine[idx];
+      if (r) streaks.push({ routineIdx: idx, title: `${r.icon} ${r.title}`, days: consecutive });
+    }
+  }
+  return streaks;
+}
+
+// ─────────────────────────────────────────────
+// 3. Daily recap (22:00) — with trend analysis
 // ─────────────────────────────────────────────
 async function sendDailyRecap(bot) {
   const users = await listActiveTelegramUsers();
@@ -145,6 +289,34 @@ async function sendDailyRecap(bot) {
 
     const interp = interpretIMEM(imem, score);
 
+    // Persona-aware tone
+    const persona = await getUserPersona(uid);
+    const tone = getTone(persona);
+
+    // ── Trend analysis (Phase 2) ──
+    const recentHistory = await getRecentDailyRoutines(uid, 7);
+    const trendLines = [];
+
+    // E: Weight trend
+    const weightTrend = analyzeWeightTrend(recentHistory);
+    if (weightTrend) {
+      trendLines.push(tone.warn(`체중 ${weightTrend.days}일 연속 증가 (+${weightTrend.delta}kg)`));
+    }
+
+    // F: IMEM coefficient drop
+    const imemDrops = analyzeIMEMDrop(imem, recentHistory);
+    if (imemDrops) {
+      for (const d of imemDrops) {
+        trendLines.push(tone.warn(`${d.coeff} 계수 -${d.drop} 하락 (전일 대비)`));
+      }
+    }
+
+    // G: Routine miss streak
+    const missStreaks = analyzeRoutineMissStreak(recentHistory, unlocked);
+    for (const ms of missStreaks.slice(0, 2)) { // max 2 alerts
+      trendLines.push(tone.warn(`${ms.title} ${ms.days}일 연속 미완료`));
+    }
+
     const text = [
       `🌙 *오늘의 리캡* — ${date}`,
       ``,
@@ -159,16 +331,27 @@ async function sendDailyRecap(bot) {
       `   ${interp.gamma}`,
       ``,
       `📊 ${interp.efficiency}`,
+      // Trend alerts
+      ...(trendLines.length > 0
+        ? ['', `📈 *트렌드 분석*`, ...trendLines]
+        : []),
       ``,
       focus
         ? `🎯 *내일 집중*: ${focus.icon} ${focus.title}\n_${focus.action}_`
         : `🎯 내일도 오늘처럼 완벽하게!`,
       ``,
-      `편안한 밤 되세요. 22시 이후엔 블루라이트를 피해 주세요 🌙`,
+      tone.close,
     ].join('\n');
 
     const ok = await safeSend(bot, chatId, text);
-    if (ok) await logNotification(uid, 'daily_recap', { score, doneCount });
+    if (ok) await logNotification(uid, 'daily_recap', {
+      score, doneCount,
+      trends: {
+        weightAlert: !!weightTrend,
+        imemDrop: imemDrops ? imemDrops.map((d) => d.coeff) : [],
+        missStreaks: missStreaks.map((m) => m.routineIdx),
+      },
+    });
   }
 }
 
@@ -191,15 +374,31 @@ async function sendMorningLight(bot) {
     const profile = (await getProfile(uid)) || {};
     if (!isEnabled(profile, 'morningLight')) continue;
 
-    const text = [
-      `☀️ *기상 + 햇빛 노출 타임*`,
-      ``,
-      `눈을 뜨고 *10분 안에* 자연광을 *10분 이상* 받아주세요.`,
-      `→ 코르티솔·세로토닌 리듬 정돈, 멜라토닌 분비 시각 고정`,
-      ``,
-      `_"γ 감수성은 빛에서 시작됩니다."_`,
-    ].join('\n');
+    const persona = await getUserPersona(uid);
+    const msgs = {
+      empathetic: [
+        `☀️ *기상 + 햇빛 노출 타임*`,
+        ``,
+        `눈을 뜨고 *10분 안에* 자연광을 *10분 이상* 받아주세요.`,
+        `→ 코르티솔·세로토닌 리듬 정돈, 멜라토닌 분비 시각 고정`,
+        ``,
+        `_"γ 감수성은 빛에서 시작됩니다."_`,
+      ],
+      clinical: [
+        `☀️ *광노출 프로토콜*`,
+        ``,
+        `기상 10분 이내 자연광 10분+. SCN(시교차상핵) 동조화.`,
+        `코르티솔 peak → 세로토닌 전환 → 14h 후 멜라토닌 onset.`,
+      ],
+      driver: [
+        `☀️ *일어나서 바로 밖으로!*`,
+        ``,
+        `10분 햇빛. 이게 하루의 시작이다.`,
+        `빛 안 받으면 리듬 무너진다. 지금 나가!`,
+      ],
+    };
 
+    const text = (msgs[persona] || msgs.empathetic).join('\n');
     const ok = await safeSend(bot, chatId, text);
     if (ok) await logNotification(uid, 'morning_light');
   }
@@ -215,15 +414,32 @@ async function sendLunchGolden(bot) {
     const profile = (await getProfile(uid)) || {};
     if (!isEnabled(profile, 'lunchGolden')) continue;
 
-    const text = [
-      `🍽 *점심 골든타임 임박*`,
-      ``,
-      `12:00–13:30 사이에 점심을 드시면 인크레틴 반응이 가장 큽니다.`,
-      `오늘의 식사 순서: *🥬 채소 → 🥩 단백질 → 🍚 탄수화물*`,
-      ``,
-      `식사 직후 *10분 산책* 한 번이면 β 시퀀스 +0.3`,
-    ].join('\n');
+    const persona = await getUserPersona(uid);
+    const msgs = {
+      empathetic: [
+        `🍽 *점심 골든타임 임박*`,
+        ``,
+        `12:00–13:30 사이에 점심을 드시면 인크레틴 반응이 가장 큽니다.`,
+        `오늘의 식사 순서: *🥬 채소 → 🥩 단백질 → 🍚 탄수화물*`,
+        ``,
+        `식사 직후 *10분 산책* 한 번이면 β 시퀀스 +0.3`,
+      ],
+      clinical: [
+        `🍽 *점심 골든타임 — 11:30~13:30*`,
+        ``,
+        `GLP-1 분비 피크: 12:00–13:00. 인크레틴 반응 최대화 시간대.`,
+        `프로토콜: 식이섬유 → 단백질(20g+) → 탄수화물`,
+        `식후 10분 보행 → GLUT4 전위 + 혈당 곡선 완화.`,
+      ],
+      driver: [
+        `🍽 *골든타임이다! 점심 준비!*`,
+        ``,
+        `채소 먼저, 단백질 다음, 밥은 마지막.`,
+        `식사 후 바로 10분 걸어! β +0.3 올린다!`,
+      ],
+    };
 
+    const text = (msgs[persona] || msgs.empathetic).join('\n');
     const ok = await safeSend(bot, chatId, text);
     if (ok) await logNotification(uid, 'lunch_golden');
   }
@@ -239,15 +455,31 @@ async function sendDinnerGolden(bot) {
     const profile = (await getProfile(uid)) || {};
     if (!isEnabled(profile, 'dinnerGolden')) continue;
 
-    const text = [
-      `🌇 *저녁 골든타임 임박*`,
-      ``,
-      `18:00–19:00 사이에 저녁을 마치는 것이 이상적입니다.`,
-      `늦은 저녁은 인슐린 저항성 ↑, 멜라토닌 ↓.`,
-      ``,
-      `_지금 식사 준비 → 18시 식사 → 19시 마감 = 14시간 공복 확보_`,
-    ].join('\n');
+    const persona = await getUserPersona(uid);
+    const msgs = {
+      empathetic: [
+        `🌇 *저녁 골든타임 임박*`,
+        ``,
+        `18:00–19:00 사이에 저녁을 마치는 것이 이상적입니다.`,
+        `늦은 저녁은 인슐린 저항성 ↑, 멜라토닌 ↓.`,
+        ``,
+        `_지금 식사 준비 → 18시 식사 → 19시 마감 = 14시간 공복 확보_`,
+      ],
+      clinical: [
+        `🌇 *저녁 타임윈도우 — 17:00~19:00*`,
+        ``,
+        `19시 이전 마감 → 14h 공복 → AMPK 활성화 + 인슐린 감수성 회복.`,
+        `19시 이후 식사: α\_net -0.10 페널티 + R-06 리스크 활성화.`,
+      ],
+      driver: [
+        `🌇 *저녁 타임! 지금 준비해!*`,
+        ``,
+        `19시까지 식사 끝내라. 넘기면 α 깎인다.`,
+        `단백질 확보하고 탄수 줄여!`,
+      ],
+    };
 
+    const text = (msgs[persona] || msgs.empathetic).join('\n');
     const ok = await safeSend(bot, chatId, text);
     if (ok) await logNotification(uid, 'dinner_golden');
   }
@@ -397,6 +629,118 @@ async function sendNoMealNudge(bot) {
   console.log(`[notify] no-meal-nudge → ${sent} users`);
 }
 
+// ─────────────────────────────────────────────
+// 10. Pre-lunch coaching (11:00) — Phase 3
+// ─────────────────────────────────────────────
+
+async function sendPreLunchCoaching(bot) {
+  const users = await listActiveTelegramUsers();
+  let sent = 0;
+  console.log(`[notify] pre-lunch coaching → ${users.length} users`);
+  for (const { uid, chatId } of users) {
+    const profile = (await getProfile(uid)) || {};
+    if (!isEnabled(profile, 'preCoaching')) continue;
+
+    const persona = await getUserPersona(uid);
+    const tone = getTone(persona);
+    const msgs = {
+      empathetic: [
+        `🍽 *${tone.preCoach('점심')}*`,
+        ``,
+        `1️⃣ 물 한 잔 (200ml) 마시기`,
+        `2️⃣ 단백질 간식 준비 (삶은 달걀, 견과류 등)`,
+        `3️⃣ 채소를 먼저 먹을 수 있도록 준비`,
+        ``,
+        `_30분 뒤 호르몬 프리로드 시간이에요!_`,
+      ],
+      clinical: [
+        `🍽 *프리프란디얼 프로토콜 (Pre-lunch)*`,
+        ``,
+        `T-60min: 수분 200ml (위 확장 → GLP-1 선제 분비)`,
+        `T-30min: 단백질 15g + 식이섬유 5g (프리로드)`,
+        `T-0: 식이섬유 → 단백질 → 탄수화물 순서 준수`,
+        ``,
+        `근거: 프리로드 → 혈당 AUC 30-40% 감소 (Ma et al.)`,
+      ],
+      driver: [
+        `🍽 *점심 준비! 지금부터 시작!*`,
+        ``,
+        `물 한 잔 마셔. 단백질 간식 준비해.`,
+        `30분 뒤에 프리로드 먹어야 한다.`,
+        `채소 → 단백질 → 밥. 순서 바꾸지 마!`,
+      ],
+    };
+
+    const text = (msgs[persona] || msgs.empathetic).join('\n');
+    const ok = await safeSend(bot, chatId, text);
+    if (ok) { await logNotification(uid, 'pre_lunch_coaching'); sent++; }
+  }
+  console.log(`[notify] pre-lunch coaching → ${sent} users`);
+}
+
+// ─────────────────────────────────────────────
+// 11. Pre-dinner coaching (16:30) — Phase 3
+// ─────────────────────────────────────────────
+
+async function sendPreDinnerCoaching(bot) {
+  const users = await listActiveTelegramUsers();
+  let sent = 0;
+  console.log(`[notify] pre-dinner coaching → ${users.length} users`);
+  for (const { uid, chatId } of users) {
+    const profile = (await getProfile(uid)) || {};
+    if (!isEnabled(profile, 'preCoaching')) continue;
+
+    const persona = await getUserPersona(uid);
+    const tone = getTone(persona);
+
+    // Check today's meal status for personalized advice
+    const tz = profile.timezone || 'Asia/Seoul';
+    const date = toLogicalDate(new Date(), tz);
+    const daily = await getDailyRoutine(uid, date);
+    const meals = daily.meals || [];
+    const dailyKcal = meals.reduce((s, m) => s + (Number(m.kcal) || 0), 0);
+    const remainingHint = dailyKcal > 0
+      ? `오늘 누적 ${dailyKcal}kcal. 저녁은 가볍게!`
+      : `아직 식사 기록이 없어요. 저녁에 균형 잡힌 식단으로!`;
+
+    const msgs = {
+      empathetic: [
+        `🌇 *${tone.preCoach('저녁')}*`,
+        ``,
+        `${remainingHint}`,
+        ``,
+        `1️⃣ 18시 전에 식사 시작 목표`,
+        `2️⃣ 단백질 확보 (손바닥 1개분)`,
+        `3️⃣ 19시 이전 마감 → 14시간 공복 확보`,
+        ``,
+        `_차분하게 준비하면 돼요!_`,
+      ],
+      clinical: [
+        `🌇 *프리프란디얼 프로토콜 (Pre-dinner)*`,
+        ``,
+        `${remainingHint}`,
+        ``,
+        `타겟: 18:00 식사 시작 → 19:00 마감`,
+        `단백질 20g+ 확보. 정제탄수 최소화.`,
+        `19시 이후 식사 → α\_net 페널티 -0.10.`,
+      ],
+      driver: [
+        `🌇 *저녁 준비 시작! 지금!*`,
+        ``,
+        `${remainingHint}`,
+        ``,
+        `18시에 먹고 19시에 끝내. 단백질 빼먹지 마.`,
+        `야식? 생각도 하지 마!`,
+      ],
+    };
+
+    const text = (msgs[persona] || msgs.empathetic).join('\n');
+    const ok = await safeSend(bot, chatId, text);
+    if (ok) { await logNotification(uid, 'pre_dinner_coaching'); sent++; }
+  }
+  console.log(`[notify] pre-dinner coaching → ${sent} users`);
+}
+
 module.exports = {
   sendMorningBriefing,
   sendLastCall,
@@ -409,4 +753,6 @@ module.exports = {
   sendMissedDinnerClose,
   sendLateNightRecovery,
   sendNoMealNudge,
+  sendPreLunchCoaching,
+  sendPreDinnerCoaching,
 };
