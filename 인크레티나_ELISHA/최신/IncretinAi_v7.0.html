@@ -1431,7 +1431,23 @@ async function saveDailyToCloud(){
     const imem=calculateIMEM();
     const score=calculateTotalScore();
     const wRaw=document.getElementById('daily-weight').value;
-    // dot notation으로 개별 키만 업데이트 → Firestore가 다른 키를 보존
+    // ★ FIX: set({merge:true})는 dot notation을 중첩 경로로 해석하지 않음!
+    // → JS에서 클라우드 checks와 병합 후 전체 map을 기록
+    const cloudData=(window._cloudHistory||{})[dateKey]||{};
+    const lc=window._localChecks||{};
+    const lr=window._localRisks||{};
+    // checks 병합: 클라우드 기존값 + 유저가 터치한 값만 오버라이드
+    const mergedChecks={...(cloudData.checks||{})};
+    touched.forEach(i=>{
+        mergedChecks[String(i)]=(i in lc)?!!lc[i]:(document.getElementById(`item-${i}`)?.classList.contains('checked')||false);
+    });
+    // riskChecks/recoveries 병합
+    const mergedRisks={...(cloudData.riskChecks||{})};
+    const mergedRec={...(cloudData.recoveries||{})};
+    touchedRisks.forEach(i=>{
+        mergedRisks[String(i)]=(i in lr)?!!lr[i]:(document.getElementById(`risk-${i}`)?.classList.contains('active')||false);
+        mergedRec[String(i)]=!!recoveryDone[i];
+    });
     const data={
         score,rawScore:calculateRawScore(),
         alpha_net:imem.alpha_net,beta_net:imem.beta_net,gamma_net:imem.gamma_net,
@@ -1442,16 +1458,9 @@ async function saveDailyToCloud(){
         updatedAt:firebase.firestore.FieldValue.serverTimestamp(),
         _source:'app'
     };
-    // checks: _localChecks에서 읽기 (DOM이 아닌 메모리 — 재빌드에 영향 없음)
-    const lc=window._localChecks||{};
-    touched.forEach(i=>{
-        data['checks.'+i]=(i in lc)?!!lc[i]:(document.getElementById(`item-${i}`)?.classList.contains('checked')||false);
-    });
-    const lr=window._localRisks||{};
-    touchedRisks.forEach(i=>{
-        data['riskChecks.'+i]=(i in lr)?!!lr[i]:(document.getElementById(`risk-${i}`)?.classList.contains('active')||false);
-        data['recoveries.'+i]=!!recoveryDone[i];
-    });
+    // touched 항목이 있을 때만 checks/riskChecks/recoveries 포함 → 없으면 클라우드 값 보존
+    if(touched.size>0)data.checks=mergedChecks;
+    if(touchedRisks.size>0){data.riskChecks=mergedRisks;data.recoveries=mergedRec}
     if(wRaw&&wRaw.trim()!==''){const wNum=parseFloat(wRaw);if(Number.isFinite(wNum))data.weight=wNum}
     window._savePending=true;
     try{

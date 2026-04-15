@@ -2,7 +2,7 @@
 // Strategy: Network-first with version-based cache busting
 // On deploy: bump APP_VERSION → old caches auto-purged → users get fresh code
 
-const APP_VERSION = '7.3.5';
+const APP_VERSION = '7.4.0';
 const CACHE_NAME = 'incretinai-v' + APP_VERSION;
 const BASE = '/elisha-incretinai';
 const APP_SHELL = [
