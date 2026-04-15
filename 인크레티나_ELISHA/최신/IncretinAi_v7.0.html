@@ -267,7 +267,7 @@
         .risk-item .score-badge{color:var(--text-sub)}.risk-item.active .score-badge{background:var(--danger);color:#fff}
 
         /* RECOVERY POPUP — v4.0 NEW */
-        .recovery-popup{display:none;position:fixed;bottom:0;left:0;right:0;z-index:2500;padding:16px;animation:slideUp .4s ease}
+        .recovery-popup{display:none;position:fixed;bottom:80px;left:0;right:0;z-index:2500;padding:16px;animation:slideUp .4s ease}
         .recovery-popup.show{display:block}
         @keyframes slideUp{from{transform:translateY(100%);opacity:0}to{transform:translateY(0);opacity:1}}
         .recovery-card{max-width:500px;margin:0 auto;background:var(--surface);border-radius:var(--card-radius);padding:20px;box-shadow:var(--shadow-lg);border:1px solid var(--warning)}
@@ -3362,8 +3362,18 @@ function renderRiskList(){
             </div>`;
         return;
     }
+    // ★ BULLETPROOF: _localRisks가 최우선, 그 다음 DOM, 마지막 클라우드
+    const _dateKey=document.getElementById('target-date')?.value;
+    const _cloudRisks=(window._cloudHistory&&_dateKey&&window._cloudHistory[_dateKey]&&window._cloudHistory[_dateKey].riskChecks)?_normalizeMap(window._cloudHistory[_dateKey].riskChecks,risks.length):null;
+    const _lr=window._localRisks||{};
+    const wasActive=risks.map((_,i)=>{
+        if(i in _lr)return !!_lr[i];
+        const el=document.getElementById('risk-'+i);
+        if(el)return el.classList.contains('active');
+        return !!(_cloudRisks&&_cloudRisks[i]);
+    });
     document.getElementById('risk-list').innerHTML=risks.map((r,i)=>`
-        <div class="risk-item" id="risk-${i}" onclick="toggleRisk(${i})">
+        <div class="risk-item${wasActive[i]?' active':''}" id="risk-${i}" onclick="toggleRisk(${i})">
             <div class="item-icon">${r.icon}</div>
             <div class="item-body">
                 <span class="item-time" style="color:var(--danger)">${r.t} · ${r.coeff} · ${r.id}</span>
