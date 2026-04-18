@@ -1175,6 +1175,22 @@
         <button class="admin-export-btn" id="admin-export-btn" onclick="exportAllUsersExcel()" disabled>
             📥 전체 데이터 엑셀 다운로드
         </button>
+        <!-- ★ 챌린지 독려 메시지 발송 -->
+        <div id="challenge-admin-panel" style="margin-top:20px;padding:18px;background:linear-gradient(135deg,rgba(59,130,246,.06),rgba(16,185,129,.06));border-radius:14px;border:1.5px solid rgba(59,130,246,.15)">
+            <div style="font-weight:700;font-size:.9rem;margin-bottom:6px">📢 챌린지 독려 메시지</div>
+            <div id="challenge-status" style="font-size:.78rem;color:var(--text-sub);margin-bottom:14px">챌린지 설정 로딩 중...</div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+                <button id="challenge-send-btn" onclick="sendChallengeMessage()" disabled
+                    style="display:inline-flex;align-items:center;gap:6px;padding:10px 20px;border-radius:10px;border:none;background:linear-gradient(135deg,#3b82f6,#10b981);color:#fff;font-weight:700;font-size:.83rem;cursor:pointer;transition:all .2s;opacity:.5">
+                    💬 지금 독려 메시지 전송
+                </button>
+                <span id="challenge-send-result" style="font-size:.78rem;color:var(--success)"></span>
+            </div>
+            <div style="margin-top:10px;font-size:.72rem;color:var(--text-sub)">
+                ※ 매주 월요일 09:00 자동 발송 · 필요 시 수동 전송 가능<br>
+                ※ 챌린지 설정: Firestore <code style="background:var(--surface-alt);padding:1px 5px;border-radius:4px">challenges/weekly-challenge</code> 문서
+            </div>
+        </div>
     </div>
 </div>
 
@@ -3902,6 +3918,54 @@ function exportToExcel(){
 // ============================================================
 let _adminData=null;
 
+// ── 챌린지 독려 메시지 관리자 함수 ──
+async function loadChallengeStatus(){
+    try{
+        const snap=await db.collection('challenges').doc('weekly-challenge').get();
+        const statusEl=document.getElementById('challenge-status');
+        const sendBtn=document.getElementById('challenge-send-btn');
+        if(!snap.exists){
+            statusEl.textContent='챌린지 미설정 — Firestore에 challenges/weekly-challenge 문서를 생성해주세요.';
+            return;
+        }
+        const d=snap.data();
+        const now=new Date();
+        const today=now.toISOString().slice(0,10);
+        const active=d.active&&today>=d.startDate&&today<=d.endDate;
+        statusEl.innerHTML=`<b>${active?'🟢 진행 중':'⚫ 비활성'}</b> &nbsp;|&nbsp; ${d.startDate||'?'} ~ ${d.endDate||'?'}&nbsp;(${d.active?'active':'inactive'})`;
+        if(active){
+            sendBtn.disabled=false;
+            sendBtn.style.opacity='1';
+        }
+    }catch(e){
+        document.getElementById('challenge-status').textContent='챌린지 상태 로드 실패: '+e.message;
+    }
+}
+
+async function sendChallengeMessage(){
+    const btn=document.getElementById('challenge-send-btn');
+    const result=document.getElementById('challenge-send-result');
+    btn.disabled=true; btn.textContent='⏳ 전송 중...';
+    result.textContent='';
+    try{
+        // Firestore에 manualTrigger 기록 → 봇이 onSnapshot으로 감지해 즉시 발송
+        await db.collection('challenges').doc('weekly-challenge').set({
+            manualTrigger:{
+                requestedAt:firebase.firestore.FieldValue.serverTimestamp(),
+                by:currentUser?.email||'admin',
+                processed:false
+            }
+        },{merge:true});
+        result.textContent='✅ 전송 요청 완료! 봇이 수 초 내 발송합니다.';
+        result.style.color='var(--success)';
+    }catch(e){
+        result.textContent='❌ 실패: '+e.message;
+        result.style.color='var(--danger)';
+    }finally{
+        btn.disabled=false; btn.textContent='💬 지금 독려 메시지 전송';
+    }
+}
+
 function openAdminModal(){
     if(!isAdmin())return;
     const modal=document.getElementById('admin-modal');
@@ -3909,6 +3973,7 @@ function openAdminModal(){
     document.getElementById('admin-body').innerHTML='<div class="admin-loading">전체 사용자 데이터를 불러오는 중...</div>';
     document.getElementById('admin-export-btn').disabled=true;
     loadAllUsers();
+    loadChallengeStatus(); // 챌린지 상태 로드
 }
 function closeAdminModal(){document.getElementById('admin-modal').style.display='none'}
 
