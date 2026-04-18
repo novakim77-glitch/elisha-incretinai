@@ -1,0 +1,22 @@
+{
+  "name": "incretina-bot",
+  "version": "0.1.0",
+  "private": true,
+  "description": "IncretinA i Telegram coaching bot",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.52.0 || ^1.0.0",
+    "dotenv": "^16.4.5",
+    "firebase-admin": "^12.6.0",
+    "grammy": "^1.30.0",
+    "imem-core": "file:../../packages/imem-core",
+    "node-cron": "^3.0.3"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
