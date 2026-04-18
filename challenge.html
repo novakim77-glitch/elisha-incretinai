@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>인크레티나 아이와 함께하는 다이어트 챌린지!</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=Noto+Serif+KR:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --cream:    #FEFCF7;
+    --paper-1:  #FFE8E3;  /* soft coral pink */
+    --paper-2:  #E3F0FF;  /* soft sky blue */
+    --paper-3:  #E3FFF3;  /* soft mint */
+    --paper-4:  #FFF8E1;  /* soft butter yellow */
+    --paper-5:  #F0E3FF;  /* soft lavender */
+    --paper-6:  #FFE8F5;  /* soft rose */
+    --ink:      #2D2926;
+    --ink-sub:  #6B6560;
+    --shadow-sm: 0 3px 10px rgba(90,70,60,.10);
+    --shadow-md: 0 6px 24px rgba(90,70,60,.13);
+    --shadow-lg: 0 12px 40px rgba(90,70,60,.16);
+    --radius: 20px;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: 'Noto Sans KR', sans-serif;
+    background: var(--cream);
+    color: var(--ink);
+    overflow-x: hidden;
+  }
+
+  /* ── HERO ── */
+  .hero {
+    position: relative;
+    min-height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(160deg, #FFE8E3 0%, #FFF8E1 40%, #E3F0FF 100%);
+    overflow: hidden;
+    padding: 60px 20px;
+  }
+  /* floating paper layers */
+  .hero::before {
+    content:'';
+    position:absolute; top:-80px; right:-100px;
+    width:500px; height:500px;
+    background: var(--paper-5);
+    border-radius: 60% 40% 55% 45%;
+    box-shadow: var(--shadow-lg);
+    opacity:.7;
+  }
+  .hero::after {
+    content:'';
+    position:absolute; bottom:-60px; left:-80px;
+    width:380px; height:380px;
+    background: var(--paper-3);
+    border-radius: 45% 55% 40% 60%;
+    box-shadow: var(--shadow-md);
+    opacity:.65;
+  }
+  .hero-inner { position:relative; z-index:2; text-align:center; max-width:760px; }
+
+  .hero-badge {
+    display:inline-block;
+    background:#fff;
+    color:#E8554E;
+    font-size:.72rem; font-weight:700; letter-spacing:.08em;
+    padding:6px 16px; border-radius:99px;
+    box-shadow: var(--shadow-sm);
+    margin-bottom:22px;
+    text-transform:uppercase;
+  }
+  .hero-title {
+    font-family:'Noto Serif KR', serif;
+    font-size:clamp(2rem, 5.5vw, 3.8rem);
+    font-weight:700; line-height:1.25;
+    color: var(--ink);
+    margin-bottom:20px;
+  }
+  .hero-title em {
+    font-style:normal;
+    background: linear-gradient(135deg, #E8554E, #F59E0B);
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+  }
+  .hero-sub {
+    font-size:clamp(1rem, 2.5vw, 1.2rem);
+    color: var(--ink-sub); line-height:1.8;
+    margin-bottom:36px;
+  }
+  .hero-cards {
+    display:flex; gap:14px; justify-content:center; flex-wrap:wrap;
+    margin-bottom:40px;
+  }
+  .hero-card {
+    background:#fff;
+    border-radius:16px;
+    padding:16px 22px;
+    box-shadow: var(--shadow-md);
+    min-width:130px;
+    text-align:center;
+  }
+  .hero-card .hc-num { font-size:1.8rem; font-weight:900; color:#E8554E; }
+  .hero-card .hc-label { font-size:.72rem; color:var(--ink-sub); font-weight:500; margin-top:2px; }
+  .hero-cta {
+    display:inline-block;
+    background: linear-gradient(135deg, #E8554E, #F59E0B);
+    color:#fff; font-weight:700; font-size:1rem;
+    padding:16px 40px; border-radius:99px;
+    text-decoration:none;
+    box-shadow: 0 8px 24px rgba(232,85,78,.35);
+    transition: transform .2s, box-shadow .2s;
+  }
+  .hero-cta:hover { transform:translateY(-3px); box-shadow:0 12px 32px rgba(232,85,78,.45); }
+
+  /* ── WAVE DIVIDER ── */
+  .wave { display:block; width:100%; overflow:hidden; line-height:0; }
+  .wave svg { display:block; }
+
+  /* ── SECTION COMMON ── */
+  section { position:relative; padding:80px 20px; }
+  .container { max-width:900px; margin:0 auto; }
+  .section-tag {
+    display:inline-block;
+    font-size:.68rem; font-weight:700; letter-spacing:.1em;
+    text-transform:uppercase; color:var(--ink-sub);
+    background:#fff; border-radius:99px;
+    padding:5px 14px; box-shadow:var(--shadow-sm);
+    margin-bottom:14px;
+  }
+  .section-title {
+    font-family:'Noto Serif KR',serif;
+    font-size:clamp(1.6rem, 3.5vw, 2.4rem);
+    font-weight:700; margin-bottom:10px; line-height:1.35;
+  }
+  .section-lead {
+    font-size:1rem; color:var(--ink-sub); line-height:1.85; margin-bottom:40px;
+  }
+
+  /* ── PAPER CARD ── */
+  .paper-card {
+    background:#fff;
+    border-radius:var(--radius);
+    padding:28px 32px;
+    box-shadow: var(--shadow-md);
+    position:relative;
+    overflow:hidden;
+  }
+  .paper-card::before {
+    content:'';
+    position:absolute; top:0; left:0; right:0;
+    height:5px;
+    background:var(--accent-bar, linear-gradient(90deg,#FFB5B0,#FFD9A0));
+  }
+
+  /* ── VALUE GRID ── */
+  .value-bg { background: var(--paper-4); }
+  .value-grid {
+    display:grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap:20px;
+  }
+  .value-item {
+    background:#fff;
+    border-radius:var(--radius);
+    padding:28px 24px;
+    box-shadow: var(--shadow-md);
+    position:relative;
+    overflow:hidden;
+  }
+  .value-item::after {
+    content:'';
+    position:absolute; bottom:-30px; right:-30px;
+    width:90px; height:90px;
+    border-radius:50%;
+    background:var(--item-color, var(--paper-1));
+    opacity:.5;
+  }
+  .value-icon { font-size:2.2rem; margin-bottom:14px; display:block; }
+  .value-title { font-weight:700; font-size:1rem; margin-bottom:8px; }
+  .value-desc { font-size:.85rem; color:var(--ink-sub); line-height:1.75; }
+
+  /* ── INSTALL STEPS ── */
+  .install-bg { background: var(--paper-2); }
+  .steps-wrap { display:flex; flex-direction:column; gap:16px; }
+  .step-row {
+    display:flex; gap:20px; align-items:flex-start;
+    background:#fff; border-radius:var(--radius);
+    padding:22px 26px;
+    box-shadow: var(--shadow-sm);
+  }
+  .step-num {
+    width:44px; height:44px; border-radius:50%; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    font-weight:900; font-size:1.1rem; color:#fff;
+    background:var(--step-color, #E8554E);
+    box-shadow:0 4px 12px rgba(232,85,78,.3);
+  }
+  .step-content { flex:1; }
+  .step-title { font-weight:700; font-size:.95rem; margin-bottom:4px; }
+  .step-desc { font-size:.83rem; color:var(--ink-sub); line-height:1.7; }
+  .step-code {
+    display:inline-block; background:var(--paper-4);
+    border-radius:8px; padding:3px 10px;
+    font-family:monospace; font-size:.82rem; margin-top:6px;
+    color:#D97706;
+  }
+
+  /* ── CHALLENGE TIMELINE ── */
+  .timeline-bg { background: var(--paper-3); }
+  .timeline { display:flex; flex-direction:column; gap:0; }
+  .tl-item {
+    display:flex; gap:20px;
+    position:relative; padding-bottom:24px;
+  }
+  .tl-item:last-child { padding-bottom:0; }
+  .tl-item:last-child .tl-line { display:none; }
+  .tl-left { display:flex; flex-direction:column; align-items:center; width:48px; flex-shrink:0; }
+  .tl-dot {
+    width:48px; height:48px; border-radius:50%; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    font-size:1.3rem; background:#fff;
+    box-shadow: var(--shadow-md);
+    z-index:1;
+  }
+  .tl-line {
+    width:2px; flex:1; margin-top:6px;
+    background:repeating-linear-gradient(180deg,#C8E6D0 0,#C8E6D0 6px,transparent 6px,transparent 12px);
+  }
+  .tl-body {
+    background:#fff; border-radius:16px; padding:18px 22px;
+    box-shadow:var(--shadow-sm); flex:1;
+    margin-bottom:16px;
+  }
+  .tl-week { font-size:.68rem; font-weight:700; color:#10B981; letter-spacing:.08em; text-transform:uppercase; margin-bottom:4px; }
+  .tl-title { font-weight:700; font-size:.95rem; margin-bottom:4px; }
+  .tl-desc { font-size:.82rem; color:var(--ink-sub); line-height:1.7; }
+
+  /* ── SCORING ── */
+  .score-bg { background: var(--paper-1); }
+  .score-formula {
+    background: var(--ink);
+    color:#fff; border-radius:var(--radius);
+    padding:28px 32px; text-align:center;
+    margin-bottom:28px;
+    font-size:clamp(.9rem, 2.5vw, 1.15rem);
+    line-height:2;
+    box-shadow:var(--shadow-lg);
+  }
+  .score-formula .sf-title { font-size:.72rem; letter-spacing:.1em; color:#aaa; margin-bottom:8px; text-transform:uppercase; }
+  .score-formula .sf-eq { font-weight:700; }
+  .score-formula .sf-highlight { color:#FBBF24; }
+  .score-grid {
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+    gap:16px;
+  }
+  .score-item {
+    background:#fff; border-radius:16px; padding:22px 20px;
+    box-shadow:var(--shadow-sm);
+    border-left:5px solid var(--s-color, #E8554E);
+  }
+  .score-pct {
+    font-size:2rem; font-weight:900;
+    color:var(--s-color, #E8554E);
+  }
+  .score-name { font-weight:700; font-size:.9rem; margin-bottom:6px; }
+  .score-desc { font-size:.8rem; color:var(--ink-sub); line-height:1.65; }
+
+  /* ── PRIZES ── */
+  .prize-bg { background: var(--paper-5); }
+  .prize-row {
+    display:flex; gap:16px; flex-wrap:wrap; justify-content:center;
+    margin-bottom:32px;
+  }
+  .prize-card {
+    flex:1; min-width:200px; max-width:260px;
+    background:#fff; border-radius:var(--radius);
+    padding:32px 22px; text-align:center;
+    box-shadow:var(--shadow-md);
+    position:relative; overflow:hidden;
+  }
+  .prize-card.gold { border-top:6px solid #F59E0B; }
+  .prize-card.silver { border-top:6px solid #94A3B8; }
+  .prize-card.bronze { border-top:6px solid #CD7C4C; }
+  .prize-medal { font-size:2.8rem; margin-bottom:12px; display:block; }
+  .prize-title { font-weight:700; font-size:1rem; margin-bottom:6px; }
+  .prize-basis { font-size:.78rem; color:var(--ink-sub); line-height:1.65; }
+  .prize-chip {
+    display:inline-block; margin-top:14px;
+    font-size:.7rem; font-weight:700; letter-spacing:.05em;
+    padding:4px 12px; border-radius:99px;
+    background:var(--chip-bg, #FEF3C7); color:var(--chip-c, #92400E);
+  }
+
+  /* ── FAQ ── */
+  .faq-bg { background: var(--paper-6); }
+  .faq-list { display:flex; flex-direction:column; gap:14px; }
+  .faq-item {
+    background:#fff; border-radius:16px; padding:22px 26px;
+    box-shadow:var(--shadow-sm);
+  }
+  .faq-q { font-weight:700; font-size:.92rem; margin-bottom:8px; }
+  .faq-q::before { content:'Q. '; color:#E8554E; }
+  .faq-a { font-size:.83rem; color:var(--ink-sub); line-height:1.75; }
+
+  /* ── CTA FOOTER ── */
+  .cta-section {
+    background: linear-gradient(135deg, #2D2926 0%, #3D3530 100%);
+    padding:80px 20px;
+    text-align:center;
+    position:relative; overflow:hidden;
+  }
+  .cta-section::before {
+    content:''; position:absolute;
+    top:-100px; right:-100px;
+    width:350px; height:350px;
+    border-radius:50%;
+    background: rgba(245,158,11,.12);
+  }
+  .cta-section::after {
+    content:''; position:absolute;
+    bottom:-80px; left:-80px;
+    width:280px; height:280px;
+    border-radius:50%;
+    background: rgba(232,85,78,.10);
+  }
+  .cta-inner { position:relative; z-index:2; max-width:620px; margin:0 auto; }
+  .cta-inner .section-title { color:#fff; margin-bottom:14px; }
+  .cta-inner .section-lead { color:rgba(255,255,255,.65); margin-bottom:32px; }
+  .cta-btns { display:flex; gap:14px; justify-content:center; flex-wrap:wrap; }
+  .btn-primary {
+    display:inline-block; padding:16px 36px; border-radius:99px;
+    font-weight:700; font-size:.95rem; text-decoration:none;
+    background:linear-gradient(135deg,#E8554E,#F59E0B);
+    color:#fff; box-shadow:0 8px 24px rgba(232,85,78,.4);
+    transition:transform .2s;
+  }
+  .btn-primary:hover { transform:translateY(-3px); }
+  .btn-secondary {
+    display:inline-block; padding:15px 36px; border-radius:99px;
+    font-weight:700; font-size:.95rem; text-decoration:none;
+    background:rgba(255,255,255,.1); color:#fff;
+    border:1.5px solid rgba(255,255,255,.25);
+    transition:background .2s;
+  }
+  .btn-secondary:hover { background:rgba(255,255,255,.18); }
+
+  /* ── DECORATIVE FLOATING SHAPES ── */
+  .deco { position:absolute; border-radius:50%; pointer-events:none; }
+
+  /* ── NAV ── */
+  nav {
+    position:sticky; top:0; z-index:100;
+    background:rgba(254,252,247,.88);
+    backdrop-filter:blur(12px);
+    border-bottom:1px solid rgba(90,70,60,.08);
+    padding:14px 24px;
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .nav-logo { font-weight:900; font-size:1rem; color:var(--ink); letter-spacing:-.02em; }
+  .nav-logo span { color:#E8554E; }
+  .nav-links { display:flex; gap:20px; }
+  .nav-links a {
+    font-size:.82rem; font-weight:500; color:var(--ink-sub);
+    text-decoration:none; transition:color .2s;
+  }
+  .nav-links a:hover { color:#E8554E; }
+  @media(max-width:600px){ .nav-links { display:none; } }
+
+  /* ── CHIPS/TAGS ── */
+  .tag-row { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:20px; }
+  .tag {
+    font-size:.7rem; font-weight:700; letter-spacing:.06em;
+    padding:5px 12px; border-radius:99px;
+    text-transform:uppercase;
+  }
+
+  /* ── TABLE ── */
+  .styled-table { width:100%; border-collapse:collapse; font-size:.85rem; }
+  .styled-table th {
+    background:var(--ink); color:#fff;
+    padding:12px 16px; text-align:left; font-weight:600;
+  }
+  .styled-table th:first-child { border-radius:12px 0 0 0; }
+  .styled-table th:last-child { border-radius:0 12px 0 0; }
+  .styled-table td { padding:12px 16px; border-bottom:1px solid rgba(90,70,60,.07); }
+  .styled-table tr:last-child td { border-bottom:none; }
+  .styled-table tr:nth-child(even) td { background:rgba(90,70,60,.03); }
+
+  /* scroll fade-in */
+  .fade-in { opacity:0; transform:translateY(24px); transition:opacity .6s ease,transform .6s ease; }
+  .fade-in.visible { opacity:1; transform:none; }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-logo">Incretin<span>A</span> i</div>
+  <div class="nav-links">
+    <a href="#about">앱 소개</a>
+    <a href="#install">설치방법</a>
+    <a href="#challenge">챌린지</a>
+    <a href="#scoring">평가방식</a>
+    <a href="#prize">포상</a>
+  </div>
+</nav>
+
+<!-- ════════════════════ HERO ════════════════════ -->
+<section class="hero" id="top">
+  <!-- decorative floating layers -->
+  <div class="deco" style="width:180px;height:180px;background:var(--paper-4);top:10%;left:5%;opacity:.6;box-shadow:var(--shadow-md);"></div>
+  <div class="deco" style="width:100px;height:100px;background:var(--paper-6);top:65%;left:12%;opacity:.5;box-shadow:var(--shadow-sm);"></div>
+  <div class="deco" style="width:130px;height:130px;background:var(--paper-2);bottom:15%;right:8%;opacity:.55;box-shadow:var(--shadow-md);"></div>
+
+  <div class="hero-inner fade-in">
+    <div class="hero-badge">🏆 직원 웰니스 챌린지 2025</div>
+    <h1 class="hero-title">
+      인크레티나 아이와<br>함께하는<br><em>다이어트 챌린지!</em>
+    </h1>
+    <p class="hero-sub">
+      식습관의 과학, IMEM 인크레틴 대사 모델을 기반으로<br>
+      8주간 건강한 변화를 만들어 나가세요.<br>
+      상위 3명에게는 특별한 포상이 기다립니다. 🎁
+    </p>
+    <div class="hero-cards">
+      <div class="hero-card">
+        <div class="hc-num">8주</div>
+        <div class="hc-label">챌린지 기간</div>
+      </div>
+      <div class="hero-card">
+        <div class="hc-num">3명</div>
+        <div class="hc-label">포상 수상자</div>
+      </div>
+      <div class="hero-card">
+        <div class="hc-num">AI</div>
+        <div class="hc-label">텔레그램 코치</div>
+      </div>
+      <div class="hero-card">
+        <div class="hc-num">무료</div>
+        <div class="hc-label">앱 사용 비용</div>
+      </div>
+    </div>
+    <a href="#challenge" class="hero-cta">챌린지 자세히 보기 ↓</a>
+  </div>
+</section>
+
+<!-- wave -->
+<div class="wave">
+  <svg viewBox="0 0 1440 60" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+    <path d="M0 30 C360 60 1080 0 1440 30 L1440 60 L0 60 Z" fill="#FFF8E1"/>
+  </svg>
+</div>
+
+<!-- ════════════════════ APP VALUE ════════════════════ -->
+<section class="value-bg" id="about">
+  <div class="container">
+    <div class="fade-in">
+      <span class="section-tag">📱 앱 소개</span>
+      <h2 class="section-title">인크레티나 아이가 뭔가요?</h2>
+      <p class="section-lead">
+        단순한 칼로리 카운터가 아닙니다. <strong>인크레틴 호르몬(GLP-1, GIP)</strong>의 과학적 원리를 기반으로
+        언제 먹고, 어떤 순서로 먹고, 어떻게 움직이는지를 추적해 대사 효율을 실시간으로 계산합니다.
+        텔레그램 AI 코치가 24시간 함께합니다.
+      </p>
+    </div>
+
+    <div class="value-grid">
+      <div class="value-item fade-in" style="--item-color:var(--paper-1)">
+        <span class="value-icon">🧬</span>
+        <div class="value-title">IMEM v2.0 실시간 계수</div>
+        <div class="value-desc">α(식사 타이밍) × β(영양 시퀀스) × γ(인슐린 감수성) 세 가지 계수를 실시간 계산해 오늘의 대사 효율을 점수로 보여줍니다.</div>
+      </div>
+      <div class="value-item fade-in" style="--item-color:var(--paper-2)">
+        <span class="value-icon">🤖</span>
+        <div class="value-title">텔레그램 AI 코치</div>
+        <div class="value-desc">"아침 루틴 다 했어"처럼 자연어로 말하면 자동 기록. 식사 사진 분석, 맞춤 코칭, 13개 시간대 알림까지 제공합니다.</div>
+      </div>
+      <div class="value-item fade-in" style="--item-color:var(--paper-3)">
+        <span class="value-icon">📋</span>
+        <div class="value-title">10개 루틴 체크</div>
+        <div class="value-desc">햇빛 노출, 프리로드 식사, 식사 순서, 식후 산책 등 인크레틴 반응을 최대화하는 핵심 루틴 10가지를 매일 추적합니다.</div>
+      </div>
+      <div class="value-item fade-in" style="--item-color:var(--paper-4)">
+        <span class="value-icon">⚖️</span>
+        <div class="value-title">체중 예측 & 추이</div>
+        <div class="value-desc">현재 루틴 준수율 기반으로 4주 후 체중을 예측하고, 일별 체중 추이를 차트로 시각화합니다.</div>
+      </div>
+      <div class="value-item fade-in" style="--item-color:var(--paper-5)">
+        <span class="value-icon">🎮</span>
+        <div class="value-title">게이미피케이션</div>
+        <div class="value-desc">XP, 레벨, 뱃지, 퀘스트 시스템으로 건강 루틴을 게임처럼 즐길 수 있습니다. 매일 새로운 미션이 기다립니다.</div>
+      </div>
+      <div class="value-item fade-in" style="--item-color:var(--paper-6)">
+        <span class="value-icon">🌙</span>
+        <div class="value-title">위험 요인 & 회복 미션</div>
+        <div class="value-desc">야식, 가당음료, 좌식 과다 등 8개 위험 요인을 감지하고 즉각적인 회복 미션을 제안해 IMEM 손실을 최소화합니다.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="wave">
+  <svg viewBox="0 0 1440 60" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+    <path d="M0 0 C360 40 1080 20 1440 0 L1440 60 L0 60 Z" fill="#E3F0FF"/>
+  </svg>
+</div>
+
+<!-- ════════════════════ INSTALL ════════════════════ -->
+<section class="install-bg" id="install">
+  <div class="container">
+    <div class="fade-in">
+      <span class="section-tag">📲 설치 가이드</span>
+      <h2 class="section-title">5분이면 시작할 수 있어요</h2>
+      <p class="section-lead">별도 앱 다운로드 없이 브라우저에서 바로 사용합니다. 텔레그램 봇을 연결하면 AI 코치 기능이 활성화됩니다.</p>
+    </div>
+
+    <div class="steps-wrap">
+      <div class="step-row fade-in">
+        <div class="step-num" style="--step-color:#E8554E">1</div>
+        <div class="step-content">
+          <div class="step-title">앱 접속하기</div>
+          <div class="step-desc">아래 링크를 모바일 브라우저(크롬/사파리)로 엽니다. 회원가입 없이 구글 계정으로 로그인합니다.<br>
+            <span class="step-code">https://novakim77-glitch.github.io/elisha-incretinai/IncretinAi_v7.0_Adaptive.html</span>
+          </div>
+        </div>
+      </div>
+      <div class="step-row fade-in">
+        <div class="step-num" style="--step-color:#F59E0B">2</div>
+        <div class="step-content">
+          <div class="step-title">홈 화면에 추가 (PWA 설치)</div>
+          <div class="step-desc">
+            <strong>아이폰:</strong> 사파리 하단 공유 버튼 → '홈 화면에 추가' 선택<br>
+            <strong>안드로이드:</strong> 크롬 우측 상단 메뉴 → '앱 설치' 또는 '홈 화면에 추가' 선택<br>
+            → 앱 아이콘이 생성되어 네이티브 앱처럼 사용 가능합니다.
+          </div>
+        </div>
+      </div>
+      <div class="step-row fade-in">
+        <div class="step-num" style="--step-color:#10B981">3</div>
+        <div class="step-content">
+          <div class="step-title">프로필 설정</div>
+          <div class="step-desc">앱 하단 <strong>프로필 탭</strong>에서 이름, 키, 시작 체중, 기상 시간을 입력합니다. 챌린지 시작일도 여기서 설정합니다.</div>
+        </div>
+      </div>
+      <div class="step-row fade-in">
+        <div class="step-num" style="--step-color:#8B5CF6">4</div>
+        <div class="step-content">
+          <div class="step-title">텔레그램 봇 연결 (AI 코치 활성화)</div>
+          <div class="step-desc">
+            ① 텔레그램에서 <span class="step-code">@incretina_ai_bot</span> 검색 후 시작<br>
+            ② 앱 프로필 탭 → '텔레그램 봇 연결' → 6자리 코드 발급<br>
+            ③ 봇에게 <span class="step-code">/link [6자리 코드]</span> 전송 → 연결 완료!<br>
+            이후 자연어로 루틴 체크, 식사 기록, 코칭을 받을 수 있습니다.
+          </div>
+        </div>
+      </div>
+      <div class="step-row fade-in">
+        <div class="step-num" style="--step-color:#E84393">5</div>
+        <div class="step-content">
+          <div class="step-title">오늘 루틴 첫 체크!</div>
+          <div class="step-desc">앱 <strong>루틴 탭</strong>에서 오늘 완료한 항목을 체크하거나, 텔레그램에 <span class="step-code">"아침 루틴 완료"</span> 라고 보내보세요. IMEM 점수가 실시간으로 올라갑니다 🚀</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="wave">
+  <svg viewBox="0 0 1440 60" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+    <path d="M0 30 C480 0 960 60 1440 30 L1440 60 L0 60 Z" fill="#E3FFF3"/>
+  </svg>
+</div>
+
+<!-- ════════════════════ CHALLENGE TIMELINE ════════════════════ -->
+<section class="timeline-bg" id="challenge">
+  <div class="container">
+    <div class="fade-in">
+      <span class="section-tag">📅 챌린지 일정</span>
+      <h2 class="section-title">8주간의 건강 여정</h2>
+      <p class="section-lead">무리한 다이어트가 아닙니다. 인크레틴 호르몬이 자연스럽게 작동할 수 있도록 올바른 루틴을 8주간 쌓아나가는 여정입니다.</p>
+    </div>
+
+    <div class="timeline fade-in">
+      <div class="tl-item">
+        <div class="tl-left">
+          <div class="tl-dot">🚀</div>
+          <div class="tl-line"></div>
+        </div>
+        <div class="tl-body">
+          <div class="tl-week">D-3 ~ D-Day · 킥오프</div>
+          <div class="tl-title">앱 설치 & 시작 체중 측정</div>
+          <div class="tl-desc">가이드에 따라 앱 설치 및 텔레그램 봇 연결. 아침 공복 상태에서 시작 체중을 동일 조건(동일 저울, 동일 시간)으로 측정 및 앱 기록. 프로필 설정 완료.</div>
+        </div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-left">
+          <div class="tl-dot">🌱</div>
+          <div class="tl-line"></div>
+        </div>
+        <div class="tl-body">
+          <div class="tl-week">Week 1~2 · 적응기</div>
+          <div class="tl-title">루틴 습관화 & 봇 활용 시작</div>
+          <div class="tl-desc">기본 루틴 4가지(햇빛, 프리로드, 식사순서, 식후 산책)에 집중. 텔레그램 봇에 식사 기록하는 습관 들이기. IMEM 점수 30점 이상 목표.</div>
+        </div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-left">
+          <div class="tl-dot">📈</div>
+          <div class="tl-line"></div>
+        </div>
+        <div class="tl-body">
+          <div class="tl-week">Week 3~4 · 성장기 (중간 점검)</div>
+          <div class="tl-title">루틴 확장 & 첫 번째 체중 확인</div>
+          <div class="tl-desc">루틴 6개 이상으로 확장. 4주차 마지막 날 중간 체중 측정(비공개). 누적 IMEM 평균 점수 중간 순위 공지. 하위 참가자 격려 세션 진행.</div>
+        </div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-left">
+          <div class="tl-dot">🔥</div>
+          <div class="tl-line"></div>
+        </div>
+        <div class="tl-body">
+          <div class="tl-week">Week 5~7 · 심화기</div>
+          <div class="tl-title">전체 루틴 실천 & 야식 제로 도전</div>
+          <div class="tl-desc">10개 루틴 전체 실천 시도. 위험 요인(야식, 가당음료 등) 최소화 집중. IMEM β 계수 1.0 이상 유지를 목표로 식사 질 개선.</div>
+        </div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-left">
+          <div class="tl-dot">🏆</div>
+          <div class="tl-line"></div>
+        </div>
+        <div class="tl-body">
+          <div class="tl-week">Week 8 · 마무리</div>
+          <div class="tl-title">종료 체중 측정 & 수상자 발표</div>
+          <div class="tl-desc">최종 체중 측정(아침 공복, 동일 조건). Firestore 데이터 기반 CCS 점수 자동 집계. 수상자 3명 발표 및 포상 수여식.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 참가 규칙 -->
+    <div class="paper-card fade-in" style="margin-top:36px; --accent-bar:linear-gradient(90deg,#A7F3D0,#6EE7B7)">
+      <h3 style="font-weight:700;margin-bottom:16px;">📌 참가 규칙 & 공정성 원칙</h3>
+      <table class="styled-table">
+        <tbody>
+          <tr><td style="font-weight:600;width:35%">체중 측정 조건</td><td>아침 기상 직후, 화장실 후, 동일 저울, 가능한 동일 복장</td></tr>
+          <tr><td style="font-weight:600">데이터 기준</td><td>앱 Firestore 기록을 공식 데이터로 사용 (조작 방지)</td></tr>
+          <tr><td style="font-weight:600">IMEM 점수 최소 기준</td><td>8주 중 최소 40일 이상 앱 기록 필수 (미달 시 루틴 점수 0점)</td></tr>
+          <tr><td style="font-weight:600">건강 주의</td><td>의료적 사유로 다이어트가 금기인 경우 참가 전 담당자에게 고지</td></tr>
+          <tr><td style="font-weight:600">개인정보</td><td>체중 데이터는 관리자만 열람, 순위 공지 시 닉네임만 표시</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<div class="wave">
+  <svg viewBox="0 0 1440 60" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+    <path d="M0 0 C360 60 1080 0 1440 40 L1440 60 L0 60 Z" fill="#FFE8E3"/>
+  </svg>
+</div>
+
+<!-- ════════════════════ SCORING ════════════════════ -->
+<section class="score-bg" id="scoring">
+  <div class="container">
+    <div class="fade-in">
+      <span class="section-tag">📊 평가 방식</span>
+      <h2 class="section-title">복합 챌린지 스코어 (CCS)</h2>
+      <p class="section-lead">
+        단순 체중 감소량은 처음 체중이 높은 분에게 유리합니다. CCS는 <strong>세 가지 지표의 상대 순위</strong>를 합산해
+        체형에 관계없이 누구나 공정하게 경쟁할 수 있도록 설계했습니다.
+      </p>
+    </div>
+
+    <div class="score-formula fade-in">
+      <div class="sf-title">CCS Formula</div>
+      <div class="sf-eq">
+        CCS = <span class="sf-highlight">체중변화율 순위점수</span> × 0.4
+        &nbsp;+&nbsp; <span class="sf-highlight">IMEM 평균 순위점수</span> × 0.35
+        &nbsp;+&nbsp; <span class="sf-highlight">루틴 완수일 순위점수</span> × 0.25
+      </div>
+      <div style="margin-top:12px;font-size:.8rem;color:rgba(255,255,255,.55);">
+        각 지표별 1위 = 전체 참가자 수 점수, 2위 = N-1점 ... (상대 순위 점수화)
+      </div>
+    </div>
+
+    <div class="score-grid fade-in">
+      <div class="score-item" style="--s-color:#E8554E">
+        <div class="score-pct">40%</div>
+        <div class="score-name">체중 변화율</div>
+        <div class="score-desc">
+          <strong>(시작체중 - 종료체중) ÷ 시작체중 × 100</strong><br><br>
+          절대 감소량이 아닌 <strong>비율(%)</strong>로 계산해 초기 체중 차이에 의한 불공평을 제거합니다.
+          70kg인 분이 3kg 감량 = 4.3%, 90kg인 분이 3kg 감량 = 3.3%로 동등 비교됩니다.
+        </div>
+      </div>
+      <div class="score-item" style="--s-color:#F59E0B">
+        <div class="score-pct">35%</div>
+        <div class="score-name">IMEM 루틴 점수 평균</div>
+        <div class="score-desc">
+          <strong>8주간 앱의 인크레틴 게이지 일일 점수 평균</strong><br><br>
+          루틴 체크, 위험 요인 관리, 식사 기록의 종합 지수.
+          체중과 무관하게 <strong>행동 자체</strong>를 평가합니다.
+          정상체중인 분도 이 항목에서 충분히 수상할 수 있습니다.
+        </div>
+      </div>
+      <div class="score-item" style="--s-color:#10B981">
+        <div class="score-pct">25%</div>
+        <div class="score-name">루틴 완수일</div>
+        <div class="score-desc">
+          <strong>8주 중 일일 점수 50점 이상 달성한 날의 수</strong><br><br>
+          단기 집중으로 순위를 올리는 것을 방지합니다.
+          꾸준히 매일 실천하는 분이 유리한 구조로,
+          <strong>지속 가능한 루틴</strong>을 보상합니다.
+        </div>
+      </div>
+    </div>
+
+    <!-- 예시 -->
+    <div class="paper-card fade-in" style="margin-top:28px; --accent-bar:linear-gradient(90deg,#FDE68A,#FCA5A5)">
+      <h3 style="font-weight:700;margin-bottom:6px;">💡 점수 계산 예시 (5명 참가 가정)</h3>
+      <p style="font-size:.8rem;color:var(--ink-sub);margin-bottom:16px;">각 지표별 1위=5점, 2위=4점, 3위=3점, 4위=2점, 5위=1점</p>
+      <table class="styled-table">
+        <thead>
+          <tr>
+            <th>참가자</th>
+            <th>체중변화율<br><small>(×0.4)</small></th>
+            <th>IMEM평균<br><small>(×0.35)</small></th>
+            <th>완수일<br><small>(×0.25)</small></th>
+            <th style="background:#F59E0B">CCS 합계</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>🌟 참가자 A</td>
+            <td>4위 (2점)</td>
+            <td>1위 (5점)</td>
+            <td>1위 (5점)</td>
+            <td style="font-weight:700;color:#E8554E">0.8+1.75+1.25 = <strong>3.8</strong></td>
+          </tr>
+          <tr>
+            <td>참가자 B</td>
+            <td>1위 (5점)</td>
+            <td>3위 (3점)</td>
+            <td>4위 (2점)</td>
+            <td>2.0+1.05+0.5 = <strong>3.55</strong></td>
+          </tr>
+          <tr>
+            <td>참가자 C</td>
+            <td>2위 (4점)</td>
+            <td>2위 (4점)</td>
+            <td>5위 (1점)</td>
+            <td>1.6+1.4+0.25 = <strong>3.25</strong></td>
+          </tr>
+        </tbody>
+      </table>
+      <p style="margin-top:12px;font-size:.8rem;color:var(--ink-sub);">✅ A가 체중은 4위지만 루틴 실천이 탁월해 <strong>CCS 1위</strong>로 우승. 단순 감량만으로는 결정되지 않습니다.</p>
+    </div>
+  </div>
+</section>
+
+<div class="wave">
+  <svg viewBox="0 0 1440 60" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+    <path d="M0 40 C480 0 960 60 1440 20 L1440 60 L0 60 Z" fill="#F0E3FF"/>
+  </svg>
+</div>
+
+<!-- ════════════════════ PRIZES ════════════════════ -->
+<section class="prize-bg" id="prize">
+  <div class="container" style="text-align:center">
+    <div class="fade-in">
+      <span class="section-tag">🏅 포상 구조</span>
+      <h2 class="section-title">3개 부문 수상</h2>
+      <p class="section-lead">
+        다양한 유형의 노력을 인정합니다. 체중 감량이 어려운 정상체중 참가자도<br>
+        루틴 마스터상을 통해 수상의 기회가 있습니다.
+      </p>
+    </div>
+
+    <div class="prize-row fade-in">
+      <div class="prize-card gold">
+        <span class="prize-medal">🥇</span>
+        <div class="prize-title">챌린지 우승</div>
+        <div class="prize-basis">
+          <strong>CCS 종합 점수 1위</strong><br>
+          체중 변화율 + IMEM 루틴 실천 + 완수일의<br>
+          복합 점수에서 가장 높은 참가자
+        </div>
+        <span class="prize-chip" style="background:#FEF3C7;color:#92400E">종합 최우수상</span>
+      </div>
+      <div class="prize-card silver">
+        <span class="prize-medal">🥈</span>
+        <div class="prize-title">루틴 마스터상</div>
+        <div class="prize-basis">
+          <strong>IMEM 루틴 점수 평균 1위</strong><br>
+          (우승자 제외)<br>
+          체중과 무관하게 가장 성실하게<br>
+          루틴을 실천한 참가자
+        </div>
+        <span class="prize-chip" style="background:#F1F5F9;color:#475569">실천 우수상</span>
+      </div>
+      <div class="prize-card bronze">
+        <span class="prize-medal">🥉</span>
+        <div class="prize-title">체형 변화상</div>
+        <div class="prize-basis">
+          <strong>체중 변화율 1위</strong><br>
+          (위 수상자 제외)<br>
+          8주간 체중 감량률이<br>
+          가장 높은 참가자
+        </div>
+        <span class="prize-chip" style="background:#FFF7ED;color:#9A3412">변화 우수상</span>
+      </div>
+    </div>
+
+    <div class="paper-card fade-in" style="text-align:left; max-width:600px; margin:0 auto; --accent-bar:linear-gradient(90deg,#C4B5FD,#A78BFA)">
+      <h3 style="font-weight:700;margin-bottom:14px;">🎁 이런 분께 유리합니다</h3>
+      <div style="display:flex;flex-direction:column;gap:10px;font-size:.85rem;color:var(--ink-sub);line-height:1.75">
+        <div>🥇 <strong>우승</strong> — 꾸준히 루틴을 지키며 식습관도 개선한 분</div>
+        <div>🥈 <strong>루틴 마스터</strong> — 원래 정상 체중이지만 루틴을 완벽하게 지킨 분</div>
+        <div>🥉 <strong>체형 변화</strong> — 식습관 개선으로 가장 많은 체중을 줄인 분</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="wave">
+  <svg viewBox="0 0 1440 60" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+    <path d="M0 20 C360 60 1080 0 1440 40 L1440 60 L0 60 Z" fill="#FFE8F5"/>
+  </svg>
+</div>
+
+<!-- ════════════════════ FAQ ════════════════════ -->
+<section class="faq-bg" id="faq">
+  <div class="container">
+    <div class="fade-in">
+      <span class="section-tag">❓ FAQ</span>
+      <h2 class="section-title">자주 묻는 질문</h2>
+    </div>
+    <div class="faq-list fade-in">
+      <div class="faq-item">
+        <div class="faq-q">앱이 어렵지 않나요? 기술에 익숙하지 않아도 괜찮나요?</div>
+        <div class="faq-a">네, 걱정 마세요! 처음 사용자를 위한 온보딩 가이드가 앱 내에 포함되어 있습니다. 텔레그램 봇에 "시작"이라고 보내면 AI 코치가 처음부터 안내해드립니다. 브라우저 앱이라 설치도 간편합니다.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">매일 사용해야 하나요? 바쁜 날은 어떻게 하나요?</div>
+        <div class="faq-a">매일 기록이 이상적이지만, 평가 기준인 '루틴 완수일'은 8주 중 40일 이상이면 됩니다. 바쁜 날은 텔레그램 봇에 "오늘 점심 먹었어"처럼 짧게 보내도 자동 기록됩니다. 완벽하지 않아도 괜찮습니다!</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">체중 정보가 다른 직원에게 공개되나요?</div>
+        <div class="faq-a">절대 공개되지 않습니다. 체중 데이터는 관리자만 확인 가능하며, 주간 순위 공지 시에는 닉네임만 표시됩니다. 개인 체중 수치는 외부에 공개되지 않습니다.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">정상 체중이라 감량 여지가 별로 없는데 불리하지 않나요?</div>
+        <div class="faq-a">전혀 그렇지 않습니다! CCS 점수의 60%는 루틴 실천과 완수일에서 결정됩니다. 루틴 마스터상은 체중 변화와 무관하게 IMEM 점수가 가장 높은 분에게 수여됩니다. 정상 체중인 분도 충분히 수상이 가능한 구조입니다.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">다이어트 중 건강에 이상이 생기면 어떻게 하나요?</div>
+        <div class="faq-a">이 챌린지는 과격한 식이 제한이 아닌 건강한 습관 형성을 목표로 합니다. 인크레티나 아이는 무리한 감량보다 대사 효율 최적화를 추구합니다. 그래도 건강 우려가 있으신 분은 참가 전 담당자에게 고지해 주세요.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">텔레그램이 없어도 참가할 수 있나요?</div>
+        <div class="faq-a">네, 앱만으로도 참가 가능합니다. 다만 텔레그램 봇을 연결하면 AI 코칭, 자연어 기록, 시간대별 알림 등 강력한 기능을 사용할 수 있어 루틴 실천에 훨씬 유리합니다. 텔레그램 설치를 적극 권장합니다!</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════ CTA FOOTER ════════════════════ -->
+<section class="cta-section">
+  <div class="cta-inner fade-in">
+    <h2 class="section-title" style="color:#fff;margin-bottom:14px;">지금 바로 시작하세요! 🚀</h2>
+    <p class="section-lead">8주 후, 달라진 나를 만날 준비가 되셨나요?<br>인크레티나 아이와 함께 건강한 습관을 만들어보세요.</p>
+    <div class="cta-btns">
+      <a href="https://novakim77-glitch.github.io/elisha-incretinai/IncretinAi_v7.0_Adaptive.html" target="_blank" class="btn-primary">앱 시작하기 →</a>
+      <a href="https://t.me/incretina_ai_bot" target="_blank" class="btn-secondary">텔레그램 봇 연결하기</a>
+    </div>
+    <p style="margin-top:28px;font-size:.78rem;color:rgba(255,255,255,.4);">
+      IncretinA i · IMEM v2.0 · Powered by Claude AI
+    </p>
+  </div>
+</section>
+
+<script>
+// Scroll fade-in animation
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      e.target.classList.add('visible');
+      // stagger children
+      e.target.querySelectorAll && e.target.querySelectorAll('.fade-in').forEach((el, i) => {
+        setTimeout(() => el.classList.add('visible'), i * 80);
+      });
+    }
+  });
+}, { threshold: 0.1 });
+
+document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+
+// Also handle top-level hero
+setTimeout(() => {
+  document.querySelector('.hero-inner')?.classList.add('visible');
+}, 100);
+</script>
+</body>
+</html>
