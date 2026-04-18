@@ -5,7 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>인크레티나 아이와 함께하는 다이어트 챌린지!</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=Noto+Serif+KR:wght@400;700&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<!-- Pretendard (2025 최인기 한국어 웹폰트) -->
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<!-- Black Han Sans (임팩트 헤드라인) -->
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Serif+KR:wght@700&display=swap" rel="stylesheet">
 <style>
   :root {
     --cream:    #FEFCF7;
@@ -25,7 +29,7 @@
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   html { scroll-behavior: smooth; }
   body {
-    font-family: 'Noto Sans KR', sans-serif;
+    font-family: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     background: var(--cream);
     color: var(--ink);
     overflow-x: hidden;
@@ -72,7 +76,7 @@
     text-transform:uppercase;
   }
   .hero-title {
-    font-family:'Noto Serif KR', serif;
+    font-family:'Black Han Sans', 'Noto Serif KR', serif;
     font-size:clamp(2rem, 5.5vw, 3.8rem);
     font-weight:700; line-height:1.25;
     color: var(--ink);
@@ -129,7 +133,7 @@
     margin-bottom:14px;
   }
   .section-title {
-    font-family:'Noto Serif KR',serif;
+    font-family:'Black Han Sans','Noto Serif KR',serif;
     font-size:clamp(1.6rem, 3.5vw, 2.4rem);
     font-weight:700; margin-bottom:10px; line-height:1.35;
   }
@@ -391,6 +395,80 @@
   /* scroll fade-in */
   .fade-in { opacity:0; transform:translateY(24px); transition:opacity .6s ease,transform .6s ease; }
   .fade-in.visible { opacity:1; transform:none; }
+
+  /* ── ANIMATIONS ── */
+  @keyframes floatY {
+    0%,100% { transform: translateY(0px); }
+    50%      { transform: translateY(-10px); }
+  }
+  @keyframes pulseGlow {
+    0%,100% { box-shadow: 0 8px 32px rgba(232,85,78,.25); }
+    50%      { box-shadow: 0 12px 48px rgba(232,85,78,.55); }
+  }
+  @keyframes shimmer {
+    0%   { background-position: -200% center; }
+    100% { background-position: 200% center; }
+  }
+  @keyframes countUp {
+    from { opacity:0; transform:scale(.7); }
+    to   { opacity:1; transform:scale(1); }
+  }
+  @keyframes bounceIn {
+    0%   { transform:scale(.3); opacity:0; }
+    50%  { transform:scale(1.08); }
+    70%  { transform:scale(.95); }
+    100% { transform:scale(1); opacity:1; }
+  }
+  @keyframes rotateIn {
+    from { transform:rotate(-8deg) scale(.85); opacity:0; }
+    to   { transform:rotate(0deg) scale(1); opacity:1; }
+  }
+
+  /* float — prize cards */
+  .anim-float { animation: floatY 3.6s ease-in-out infinite; }
+
+  /* hero title shimmer */
+  .hero-title em {
+    background: linear-gradient(90deg,#E8554E,#F59E0B,#E8554E);
+    background-size: 200% auto;
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+    animation: shimmer 3s linear infinite;
+  }
+
+  /* CTA button pulse */
+  .hero-cta { animation: pulseGlow 2.5s ease-in-out infinite; }
+
+  /* score formula glow */
+  .score-formula {
+    animation: pulseGlow 3s ease-in-out infinite;
+  }
+
+  /* hero-card bounce on load */
+  .hero-card { animation: bounceIn .6s ease both; }
+  .hero-card:nth-child(1) { animation-delay:.1s; }
+  .hero-card:nth-child(2) { animation-delay:.2s; }
+  .hero-card:nth-child(3) { animation-delay:.3s; }
+  .hero-card:nth-child(4) { animation-delay:.4s; }
+
+  /* prize medal spin on hover */
+  .prize-medal { display:block; transition:transform .3s; }
+  .prize-card:hover .prize-medal { transform:rotate(15deg) scale(1.2); }
+  .prize-card { transition:transform .3s, box-shadow .3s; }
+  .prize-card:hover { transform:translateY(-6px) !important; box-shadow:var(--shadow-lg); }
+
+  /* value-item rotate-in */
+  .value-item.visible { animation: rotateIn .55s ease both; }
+
+  /* ── PRIZE AMOUNT ── */
+  .prize-amount {
+    font-size:1.45rem; font-weight:900; letter-spacing:-.02em;
+    margin:10px 0 12px;
+    background: linear-gradient(135deg,var(--pa1),var(--pa2));
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+  }
+  .gold-amount   { --pa1:#F59E0B; --pa2:#D97706; }
+  .silver-amount { --pa1:#64748B; --pa2:#94A3B8; }
+  .bronze-amount { --pa1:#CD7C4C; --pa2:#9A5B35; }
 </style>
 </head>
 <body>
@@ -415,7 +493,7 @@
   <div class="deco" style="width:130px;height:130px;background:var(--paper-2);bottom:15%;right:8%;opacity:.55;box-shadow:var(--shadow-md);"></div>
 
   <div class="hero-inner fade-in">
-    <div class="hero-badge">🏆 직원 웰니스 챌린지 2025</div>
+    <div class="hero-badge">🏆 미라클러스 직원 웰니스 챌린지 2026</div>
     <h1 class="hero-title">
       인크레티나 아이와<br>함께하는<br><em>다이어트 챌린지!</em>
     </h1>
@@ -549,7 +627,7 @@
         <div class="step-content">
           <div class="step-title">텔레그램 봇 연결 (AI 코치 활성화)</div>
           <div class="step-desc">
-            ① 텔레그램에서 <span class="step-code">@incretina_ai_bot</span> 검색 후 시작<br>
+            ① 텔레그램에서 <span class="step-code">인크레티나</span> 검색 후 시작<br>
             ② 앱 프로필 탭 → '텔레그램 봇 연결' → 6자리 코드 발급<br>
             ③ 봇에게 <span class="step-code">/link [6자리 코드]</span> 전송 → 연결 완료!<br>
             이후 자연어로 루틴 체크, 식사 기록, 코칭을 받을 수 있습니다.
@@ -780,9 +858,10 @@
     </div>
 
     <div class="prize-row fade-in">
-      <div class="prize-card gold">
+      <div class="prize-card gold anim-float">
         <span class="prize-medal">🥇</span>
         <div class="prize-title">챌린지 우승</div>
+        <div class="prize-amount gold-amount">상품권 50만원</div>
         <div class="prize-basis">
           <strong>CCS 종합 점수 1위</strong><br>
           체중 변화율 + IMEM 루틴 실천 + 완수일의<br>
@@ -790,9 +869,10 @@
         </div>
         <span class="prize-chip" style="background:#FEF3C7;color:#92400E">종합 최우수상</span>
       </div>
-      <div class="prize-card silver">
+      <div class="prize-card silver anim-float" style="animation-delay:.2s">
         <span class="prize-medal">🥈</span>
         <div class="prize-title">루틴 마스터상</div>
+        <div class="prize-amount silver-amount">상품권 30만원</div>
         <div class="prize-basis">
           <strong>IMEM 루틴 점수 평균 1위</strong><br>
           (우승자 제외)<br>
@@ -801,9 +881,10 @@
         </div>
         <span class="prize-chip" style="background:#F1F5F9;color:#475569">실천 우수상</span>
       </div>
-      <div class="prize-card bronze">
+      <div class="prize-card bronze anim-float" style="animation-delay:.4s">
         <span class="prize-medal">🥉</span>
         <div class="prize-title">체형 변화상</div>
+        <div class="prize-amount bronze-amount">상품권 20만원</div>
         <div class="prize-basis">
           <strong>체중 변화율 1위</strong><br>
           (위 수상자 제외)<br>
