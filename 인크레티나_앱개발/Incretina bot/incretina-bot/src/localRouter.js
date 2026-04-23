@@ -52,8 +52,9 @@ async function handleStatus(ctx) {
 
   // Current time in user's timezone for time-based filtering
   const now = new Date();
-  const local = new Date(now.toLocaleString('en-US', { timeZone: tz }));
-  const nowMins = local.getHours() * 60 + local.getMinutes();
+  const _timeFmt = new Intl.DateTimeFormat('en-GB', { timeZone: tz, hour: '2-digit', minute: '2-digit', hour12: false });
+  const [_hh, _mm] = _timeFmt.format(now).split(':').map(Number);
+  const nowMins = _hh * 60 + _mm;
 
   const completed = [];
   const upcoming = [];  // unchecked + time still ahead (can still do)
@@ -77,7 +78,7 @@ async function handleStatus(ctx) {
     }
   }
 
-  const lines = ['\ud83d\udcca 오늘의 루틴 현황 (Week ' + week + ')', ''];
+  const lines = ['\ud83d\udcca 오늘의 루틴 현황', date + ' · Week ' + week, ''];
 
   if (completed.length > 0) {
     lines.push('\u2705 완료 (' + completed.length + '개)');
@@ -210,8 +211,8 @@ async function handleMealSummary(ctx) {
 
   // Current time
   const now = new Date();
-  const local = new Date(now.toLocaleString('en-US', { timeZone: tz }));
-  const nowH = local.getHours();
+  const _mealTimeFmt = new Intl.DateTimeFormat('en-GB', { timeZone: tz, hour: '2-digit', hour12: false });
+  const nowH = Number(_mealTimeFmt.format(now));
 
   // Calculate targets
   const analysis = analyzeMealDay(meals, profile);

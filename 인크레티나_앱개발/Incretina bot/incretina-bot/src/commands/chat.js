@@ -86,7 +86,8 @@ function buildMealFeedback(meal, allMeals, profile) {
 async function runTool(name, input, sess) {
   const { uid, profile, week, unlocked, chatId } = sess;
   const tz = profile.timezone || 'Asia/Seoul';
-  const date = toLogicalDate(new Date(), tz);
+  // sess.date는 chatHandler 세션 초기화 시 설정 — 동일 요청 내 날짜 일관성 보장
+  const date = sess.date || toLogicalDate(new Date(), tz);
 
   switch (name) {
     case 'mark_routine':
@@ -338,6 +339,7 @@ async function chatHandler(ctx) {
     session = {
       ...resolved,
       chatId: ctx.chat.id,
+      date,                          // ★ 세션 초기화 시점 날짜 고정 (runTool과 일관성)
       checks: daily.checks,
       riskActive: daily.riskActive,
       recoveryDone: daily.recoveryDone,

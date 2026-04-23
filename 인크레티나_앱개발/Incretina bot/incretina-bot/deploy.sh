@@ -54,7 +54,7 @@ sed -i '' 's|file:../../packages/imem-core|file:./imem-core-bundle|g' "$BOT_DIR/
 
 # 4. Dockerfile 생성 (XATTR 없이 — printf 사용)
 echo "📄 Dockerfile 생성..."
-printf 'FROM node:20-alpine\nWORKDIR /app\nCOPY package.json ./\nCOPY imem-core-bundle ./imem-core-bundle\nRUN npm install --omit=dev --ignore-scripts\nCOPY docker-entrypoint.sh ./\nRUN chmod +x docker-entrypoint.sh\nCOPY src ./src\nENTRYPOINT ["./docker-entrypoint.sh"]\nCMD ["node","src/index.js"]\n' > "$BOT_DIR/Dockerfile"
+printf 'FROM node:20-alpine\nWORKDIR /app\nCOPY package.json ./\nCOPY imem-core-bundle ./imem-core-bundle\nRUN npm install --omit=dev --ignore-scripts\nCOPY docker-entrypoint.sh ./\nRUN chmod +x docker-entrypoint.sh\nCOPY src ./src\nENV GOOGLE_APPLICATION_CREDENTIALS=/app/sa.json\nENTRYPOINT ["./docker-entrypoint.sh"]\nCMD ["node","src/index.js"]\n' > "$BOT_DIR/Dockerfile"
 
 # 5. .dockerignore 생성
 printf 'node_modules/\n.env\n.env.*\nfirebase-service-account.json\n.DS_Store\n._*\n*.log\npackage.json.bak\ndeploy.sh\nfly.toml\n' > "$BOT_DIR/.dockerignore"
