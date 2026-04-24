@@ -431,7 +431,14 @@ async function getRecentMessages(uid, limit = 20) {
   return snap.docs
     .map((d) => d.data())
     .reverse()
-    .map((m) => ({ role: m.role, content: m.content }));
+    .map((m) => ({
+      role: m.role,
+      content: m.content,
+      // 날짜 경계 감지용 — chatHandler에서 date marker 주입에 사용
+      date: m.createdAt
+        ? toLogicalDate(m.createdAt.toDate ? m.createdAt.toDate() : new Date(m.createdAt))
+        : null,
+    }));
 }
 
 

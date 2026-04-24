@@ -161,7 +161,11 @@ async function runTool(name, input, sess) {
         completed,
         remaining,
         criticalRemaining: remaining.filter((r) => r.critical).map((r) => r.index),
-        weight: sess.weight ?? profile.weight ?? null,
+        // todayWeight: 오늘 daily doc에서 직접 측정한 값 (null = 오늘 미측정)
+        // lastRecordedWeight: 표시용 폴백 포함 (이전 날 기록일 수 있음)
+        todayWeight: sess.weight ?? null,
+        lastRecordedWeight: profile.weight ?? null,
+        lastWeightDate: profile.lastWeightDate ?? null,
         mealCount: statusMeals.length,
         totalKcal: statusKcal,
       };
@@ -343,8 +347,9 @@ async function chatHandler(ctx) {
       checks: daily.checks,
       riskActive: daily.riskActive,
       recoveryDone: daily.recoveryDone,
-      weight: daily.weight,
-      profileWeight: resolved.profile.weight,
+      weight: daily.weight,                            // 오늘 daily doc의 체중 (미측정 시 null)
+      profileWeight: resolved.profile.weight,          // 마지막 기록 체중 (이전 날일 수 있음)
+      lastWeightDate: resolved.profile.lastWeightDate || null, // 마지막 체중 기록 날짜
       meals: daily.meals || [],
       persona: settings.persona || 'empathetic',
     };
@@ -363,6 +368,29 @@ async function chatHandler(ctx) {
 
   // Filter to plain text turns (skip any with non-string content from earlier schemas)
   history = history.filter((m) => typeof m.content === 'string');
+
+  // ── 날짜 경계 마커 주입 ──
+  // 어제 대화와 오늘 대화가 섞이면 Claude가 날짜를 오인함.
+  // 날짜가 바뀌는 첫 user 메시지 앞에 "[날짜: YYYY-MM-DD]" 접두어를 붙여 구분.
+  {
+    const todayDate = session.date;
+    let prevDate = null;
+    history = history.map((m) => {
+      const msgDate = m.date || null;
+      let content = m.content;
+      if (msgDate && msgDate !== prevDate) {
+        if (prevDate !== null && m.role === 'user') {
+          // 날짜가 바뀐 첫 user 메시지에 날짜 레이블 추가
+          const label = msgDate === todayDate ? `오늘(${msgDate})` : msgDate;
+          content = `[${label}] ${content}`;
+        }
+        prevDate = msgDate;
+      } else if (!prevDate && msgDate) {
+        prevDate = msgDate;
+      }
+      return { role: m.role, content };
+    });
+  }
 
   // Append new user message
   const userTurn = { role: 'user', content: text };

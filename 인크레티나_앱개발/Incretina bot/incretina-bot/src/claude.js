@@ -96,21 +96,33 @@ GLP-1 분비촉진 기전(프리로드, 식이섬유, 단백질 우선 시퀀스
 
 function systemPrompt(persona, ctx) {
   const base = PERSONAS[persona] || PERSONAS.empathetic;
+  const date = ctx.date || '(날짜 미확인)';
   const week = ctx.week ?? '?';
   const unlocked = (ctx.unlocked || []).map((i) => i + 1).join(', ');
   const checked = Object.entries(ctx.checks || {})
     .filter(([, v]) => v)
     .map(([k]) => Number(k) + 1)
     .join(', ') || '없음';
-  const weight = ctx.weight ?? ctx.profileWeight ?? '미기록';
+
+  // 오늘 측정값 vs 이전 기록값을 명확히 구분
+  let weightLine;
+  if (ctx.weight != null) {
+    weightLine = `${ctx.weight} kg (오늘 측정)`;
+  } else if (ctx.profileWeight != null) {
+    const lastDate = ctx.lastWeightDate ? ` [${ctx.lastWeightDate} 기록]` : ' (이전 기록)';
+    weightLine = `${ctx.profileWeight} kg${lastDate} — 오늘 미측정`;
+  } else {
+    weightLine = '미기록';
+  }
 
   return `${base}
 
-# 사용자 컨텍스트 (today)
+# 사용자 컨텍스트 (오늘: ${date})
+- 오늘 날짜: ${date}
 - 현재 주차: Week ${week}
 - 잠금 해제 루틴 (1-based): ${unlocked}
 - 오늘 체크 완료 루틴: ${checked}
-- 오늘/최근 체중: ${weight} kg
+- 체중: ${weightLine}
 
 # 도구 사용 규칙
 - 사용자가 "X 했어", "Y 끝냈어" 같이 행동을 보고하면 바로 mark_routine 도구로 기록.
