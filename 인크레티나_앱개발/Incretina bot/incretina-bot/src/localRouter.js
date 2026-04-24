@@ -5,9 +5,10 @@
 const {
   calculateIMEM, totalEfficiency, calculateScore, calculateSunTimes, constants,
 } = require('imem-core');
-const { getDailyRoutine, getWeightHistory, toLogicalDate } = require('./store');
+const { getDailyRoutine, getWeightHistory, logWeight, toLogicalDate } = require('./store');
 const { resolveUser, checksObjToArray, riskObjToArray } = require('./commands/_shared');
 const { analyzeMealDay, classifyMealType, MEAL_TYPE_KR } = require('imem-core');
+const { withRetry } = require('./writeSafety');
 
 // ────────────────────
 // Intent detection patterns (Korean)
@@ -16,9 +17,13 @@ const { analyzeMealDay, classifyMealType, MEAL_TYPE_KR } = require('imem-core');
 const PATTERNS = {
   status: /^(\s*오늘\s*)?(현황|상태|현재|남은\s*(루틴|거)|루틴|뷐\s*남|할\s*거|체크\s*(현황|상태)|몇\s*개\s*남|진행\s*상황|투데이|today)/i,
   score: /^(\s*오늘\s*)?(점수|스코어|score|imem|효율|알파|베타|감마|α|β|γ)/i,
-  weight: /^(체중|몬무게|kg|킬로)\s*(추이|변화|기록|히스토리|그래프|얼마)/i,
+  weight: /^(체중|몬무게|kg|킬로)\s*(추이|변화|히스토리|그래프|얼마)/i,  // "기록" 제거 — 저장 패턴과 구분
   weightSimple: /^(체중|몬무게)\s*$/i,
   meal: /^(\s*오늘\s*)?(식단|식사|뭐\s*먹|뭘\s*먹|먹은\s*거|먹은거|칼로리|kcal|끼니|밥|식사\s*(기록|현황|요약|리스트|목록|평가|분석)|오늘\s*뭐\s*먹|하루\s*식단)/i,
+  // 체중 저장 패턴 — Claude hallucination 방지를 위해 직접 저장
+  // 매칭 예: "오늘 체중 72.5", "체중 72.5 기록", "72.5kg 기록", "72kg", "오늘 체중 84.5kg 기록해줘"
+  weightLog: /^(?:오늘\s*)?(?:체중|몸무게)?\s*(\d{2,3}(?:\.\d{1,2})?)\s*(?:kg|킬로|kilo)?(?:\s*(?:기록|저장|입력|적어|넣어)[\s가-힣!?~.]*)?$/i,
+  weightLogReverse: /^(?:오늘\s*)?체중\s*(\d{2,3}(?:\.\d{1,2})?)\s*(?:kg|킬로)?[\s가-힣!?~.]*$/i,
 };
 
 /**
@@ -29,6 +34,11 @@ async function tryLocalRoute(text, ctx) {
   if (!text) return null;
   const trimmed = text.trim();
 
+  // ★ 체중 저장 — Claude hallucination 방지 위해 최우선 처리
+  // (query 패턴보다 먼저 확인해야 "오늘 체중 84.5 기록"이 조회가 아닌 저장으로 처리됨)
+  const wlog = parseWeightLog(trimmed);
+  if (wlog !== null) return handleWeightLog(ctx, wlog);
+
   if (PATTERNS.status.test(trimmed)) return handleStatus(ctx);
   if (PATTERNS.score.test(trimmed)) return handleScore(ctx);
   if (PATTERNS.weight.test(trimmed)) return handleWeightHistory(ctx);
@@ -37,6 +47,77 @@ async function tryLocalRoute(text, ctx) {
   if (PATTERNS.meal && PATTERNS.meal.test(trimmed)) return handleMealSummary(ctx);
 
   return null;
+}
+
+/**
+ * 체중 저장 의도인지 판별 후 kg 숫자 추출. 아니면 null.
+ * 매칭 예:
+ *   "72.5" → 72.5 (순수 숫자: 체중일 확률 높음, 25~300 범위일 때만)
+ *   "72.5kg" → 72.5
+ *   "72.5kg 기록" → 72.5
+ *   "오늘 체중 84.5" → 84.5
+ *   "체중 84.5 기록해줘" → 84.5
+ *   "오늘 84.5kg" → 84.5
+ * 매칭 안 함:
+ *   "체중 얼마" → null (query)
+ *   "체중 추이" → null (query)
+ *   "체중 기록" (숫자 없음) → null
+ *   "체중" → null
+ */
+function parseWeightLog(text) {
+  // 체중 query 패턴이면 절대 저장으로 처리하지 않음
+  if (PATTERNS.weight.test(text) || PATTERNS.weightSimple.test(text)) return null;
+
+  // 케이스 1: "오늘 체중 NN", "체중 NN", "체중 NN kg 기록" 등
+  const m1 = text.match(/^(?:오늘\s*)?(?:체중|몸무게)\s*(\d{2,3}(?:\.\d{1,2})?)\s*(?:kg|킬로)?[\s가-힣!?~.]*$/i);
+  if (m1) {
+    const kg = Number(m1[1]);
+    if (kg >= 25 && kg <= 300) return kg;
+  }
+
+  // 케이스 2: "NN kg", "NNkg 기록", "오늘 NNkg" — 숫자+kg 단위
+  const m2 = text.match(/^(?:오늘\s*)?(\d{2,3}(?:\.\d{1,2})?)\s*(?:kg|킬로|kilo)(?:\s*(?:기록|저장|입력|적어|넣어)[\s가-힣!?~.]*)?$/i);
+  if (m2) {
+    const kg = Number(m2[1]);
+    if (kg >= 25 && kg <= 300) return kg;
+  }
+
+  // 케이스 3: "NN 기록", "NN.N 기록" — 숫자만 + 기록 키워드
+  const m3 = text.match(/^(\d{2,3}(?:\.\d{1,2})?)\s*(?:kg|킬로)?\s*(?:기록|저장|입력)[\s가-힣!?~.]*$/i);
+  if (m3) {
+    const kg = Number(m3[1]);
+    if (kg >= 25 && kg <= 300) return kg;
+  }
+
+  return null;
+}
+
+async function handleWeightLog(ctx, kg) {
+  const { uid, profile } = await resolveUser(ctx);
+  const tz = profile.timezone || 'Asia/Seoul';
+  const date = toLogicalDate(new Date(), tz);
+
+  try {
+    await withRetry(() => logWeight(uid, date, kg), 'localRouter.logWeight');
+  } catch (e) {
+    console.error('localRouter weight save failed after retries:', e.message || e);
+    return '⚠️ 체중 저장이 실패했어요. 잠시 후 다시 시도해 주세요.';
+  }
+
+  // 이전 기록과 변화량 계산
+  let deltaTxt = '';
+  try {
+    const series = await getWeightHistory(uid, 7);
+    const prior = series.filter((s) => s.date < date).slice(-1)[0];
+    if (prior) {
+      const delta = Number((kg - prior.weight).toFixed(1));
+      const sign = delta > 0 ? '+' : '';
+      const icon = delta < -0.1 ? '🟢' : delta > 0.1 ? '🔴' : '➖';
+      deltaTxt = `\n${icon} 이전(${prior.date}) ${prior.weight}kg 대비 ${sign}${delta}kg`;
+    }
+  } catch (_) { /* non-fatal */ }
+
+  return `✅ 체중 *${kg} kg* 기록 완료\n📅 ${date} (앱에 즉시 반영)${deltaTxt}\n\n예측을 보시려면 /predict`;
 }
 
 // ────────────────────
