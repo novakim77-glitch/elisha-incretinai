@@ -17,6 +17,7 @@ const {
   MAX_TURNS, systemPrompt, TOOLS, classifyApiError,
 } = require('../claude');
 const { tryLocalRoute } = require('../localRouter');
+const { withRetry, tryWrite } = require('../writeSafety');
 
 const MAX_TOOL_LOOPS = 5;
 // ─────────────────────────────────────────────
@@ -104,14 +105,19 @@ async function runTool(name, input, sess) {
       if (Object.keys(updates).length === 0) {
         return { ok: false, error: `유효한 루틴 번호가 없습니다. invalid=${invalid.join(',')}` };
       }
-      await setRoutineChecks(uid, date, updates);
-      sess.checks = { ...sess.checks, ...updates };
-      return {
-        ok: true,
-        action: name,
-        applied: Object.keys(updates).map((i) => Number(i) + 1),
-        invalid,
-      };
+      try {
+        await withRetry(() => setRoutineChecks(uid, date, updates), `setRoutineChecks(${name})`);
+        sess.checks = { ...sess.checks, ...updates };
+        return {
+          ok: true,
+          action: name,
+          applied: Object.keys(updates).map((i) => Number(i) + 1),
+          invalid,
+        };
+      } catch (e) {
+        console.error(`${name} save failed after retries:`, e.message || e);
+        return { ok: false, error: '루틴 저장이 실패했어요. 잠시 후 다시 시도해 주세요.' };
+      }
     }
 
     case 'log_weight': {
@@ -119,9 +125,14 @@ async function runTool(name, input, sess) {
       if (!Number.isFinite(kg) || kg < 25 || kg > 300) {
         return { ok: false, error: '체중은 25-300 kg 범위만 가능합니다.' };
       }
-      await logWeight(uid, date, kg);
-      sess.weight = kg;
-      return { ok: true, kg };
+      try {
+        await withRetry(() => logWeight(uid, date, kg), 'logWeight');
+        sess.weight = kg;
+        return { ok: true, kg, date };
+      } catch (e) {
+        console.error('log_weight save failed after retries:', e.message || e);
+        return { ok: false, error: '체중 저장이 실패했어요. 잠시 후 다시 말씀해 주세요.' };
+      }
     }
 
     case 'get_today_status': {
@@ -247,24 +258,35 @@ async function runTool(name, input, sess) {
         time,
         source: 'chat',
       };
+      // ── ① 핵심 경로: 식사 저장 (실패 시 전체 실패) ──
+      let r;
       try {
-        const r = await appendMeal(uid, date, meal);
-        schedulePostMealWalk(uid, chatId, date, r.mealType);
-        // 자동 맵핑
-        const marked = [];
-        const updates = {};
-        if (meal.hasVeg && meal.hasProtein && unlocked.includes(3)) updates[3] = true;
-        if ((meal.betaScore || 0) >= 0.7 && unlocked.includes(4)) updates[4] = true;
-        if (Object.keys(updates).length > 0) {
-          await setRoutineChecks(uid, date, updates);
-          Object.keys(updates).forEach((i) => marked.push(Number(i) + 1));
-        }
-        const _feedback = buildMealFeedback(meal, r.meals || [], sess.profile || profile);
-      return { ok: true, dailyKcal: r.dailyKcal, mealCount: r.mealCount, markedRoutines: marked, mealType: r.mealType, feedback: _feedback };
+        r = await withRetry(() => appendMeal(uid, date, meal), 'appendMeal');
       } catch (e) {
-        console.error('log_meal error:', e);
-        return { ok: false, error: '저장 실패' };
+        console.error('log_meal appendMeal failed after retries:', e.message || e);
+        return { ok: false, error: '식사 저장이 실패했어요. 잠시 후 다시 말씀해 주세요.' };
       }
+
+      // ── ② 부가 작업: 식후 걷기 알림 예약 (실패해도 성공 유지) ──
+      try { schedulePostMealWalk(uid, chatId, date, r.mealType); }
+      catch (e) { console.warn('schedulePostMealWalk failed (non-fatal):', e.message); }
+
+      // ── ③ 부가 작업: 루틴 자동 매핑 (실패해도 성공 유지) ──
+      const marked = [];
+      const autoUpdates = {};
+      if (meal.hasVeg && meal.hasProtein && unlocked.includes(3)) autoUpdates[3] = true;
+      if ((meal.betaScore || 0) >= 0.7 && unlocked.includes(4)) autoUpdates[4] = true;
+      if (Object.keys(autoUpdates).length > 0) {
+        const autoRes = await tryWrite(() => setRoutineChecks(uid, date, autoUpdates), 'log_meal.autoMapping');
+        if (autoRes.ok) Object.keys(autoUpdates).forEach((i) => marked.push(Number(i) + 1));
+      }
+
+      // ── ④ 피드백 생성 (실패해도 성공 유지) ──
+      let _feedback = '';
+      try { _feedback = buildMealFeedback(meal, r.meals || [], sess.profile || profile); }
+      catch (e) { console.warn('buildMealFeedback failed (non-fatal):', e.message); }
+
+      return { ok: true, dailyKcal: r.dailyKcal, mealCount: r.mealCount, markedRoutines: marked, mealType: r.mealType, feedback: _feedback, date };
     }
 
     case 'get_score': {
@@ -323,17 +345,20 @@ async function chatHandler(ctx) {
       }
     }
     if (hit) {
+      // ① 핵심: 식사 저장
+      let r;
       try {
-        const r = await appendMeal(hit.entry.uid, hit.entry.date, hit.entry.meal);
-        schedulePostMealWalk(hit.entry.uid, ctx.chat.id, hit.entry.date, r.mealType);
-        const marked = await applyAutoMapping(hit.entry.uid, hit.entry.date, hit.entry.meal, { uid: hit.entry.uid, unlocked: hit.entry.unlocked });
-        pendingMeals.delete(hit.msgId);
-        const markedTxt = marked.length > 0 ? `\n자동 체크: 루틴 ${marked.join(', ')}` : '';
-        return ctx.reply(`✅ ${hit.entry.meal.kcal} kcal로 기록 — 오늘 누적 ${r.dailyKcal} kcal (${r.mealCount}끼)${markedTxt}`);
+        r = await withRetry(() => appendMeal(hit.entry.uid, hit.entry.date, hit.entry.meal), 'appendMeal(kcalEdit)');
       } catch (e) {
-        console.error('kcal edit save failed:', e);
-        return ctx.reply('저장 중 오류가 났어요.');
+        console.error('kcal edit save failed after retries:', e.message || e);
+        return ctx.reply('저장 중 오류가 났어요. 잠시 후 다시 시도해 주세요.');
       }
+      // ② 부가 작업 (실패해도 성공 유지)
+      try { schedulePostMealWalk(hit.entry.uid, ctx.chat.id, hit.entry.date, r.mealType); } catch (_) {}
+      const marked = await applyAutoMapping(hit.entry.uid, hit.entry.date, hit.entry.meal, { uid: hit.entry.uid, unlocked: hit.entry.unlocked });
+      pendingMeals.delete(hit.msgId);
+      const markedTxt = marked.length > 0 ? `\n자동 체크: 루틴 ${marked.join(', ')}` : '';
+      return ctx.reply(`✅ ${hit.entry.meal.kcal} kcal로 기록 — 오늘 누적 ${r.dailyKcal} kcal (${r.mealCount}끼)${markedTxt}`);
     }
     const _tz = (resolved.profile && resolved.profile.timezone) || 'Asia/Seoul';
     const date = toLogicalDate(new Date(), _tz);
@@ -419,7 +444,14 @@ async function chatHandler(ctx) {
       const toolUses = resp.content.filter((b) => b.type === 'tool_use');
       const toolResults = [];
       for (const tu of toolUses) {
-        const result = await runTool(tu.name, tu.input || {}, session);
+        // 외곽 안전망: 도구 내부에서 이미 try/catch 하지만, 예상치 못한 throw도 절대 위로 안 보냄
+        let result;
+        try {
+          result = await runTool(tu.name, tu.input || {}, session);
+        } catch (e) {
+          console.error(`runTool(${tu.name}) threw unexpectedly:`, e.message || e);
+          result = { ok: false, error: '도구 실행 중 오류가 났어요. 다시 시도해 주세요.' };
+        }
         toolResults.push({
           type: 'tool_result',
           tool_use_id: tu.id,
@@ -590,6 +622,7 @@ function stripMealJson(text) {
   return text.replace(/```json[\s\S]*?```/i, '').trim();
 }
 
+// 자동 루틴 매핑 — never throws. 실패 시 빈 배열 반환.
 async function applyAutoMapping(uid, date, meal, sess) {
   const updates = {};
   // routine 4 (idx 3): 채소+단백질 우선 시퀀스 (β 좋음)
@@ -597,7 +630,8 @@ async function applyAutoMapping(uid, date, meal, sess) {
   // routine 5 (idx 4): β 시퀀스 우수 식사
   if ((meal.betaScore || 0) >= 0.7 && (sess.unlocked || []).includes(4)) updates[4] = true;
   if (Object.keys(updates).length === 0) return [];
-  await setRoutineChecks(uid, date, updates);
+  const res = await tryWrite(() => setRoutineChecks(uid, date, updates), 'applyAutoMapping');
+  if (!res.ok) return [];
   return Object.keys(updates).map((i) => Number(i) + 1);
 }
 
@@ -758,24 +792,33 @@ async function mealCallbackHandler(ctx) {
   }
 
   if (action === 'save') {
+    // ① 핵심: 식사 저장 (실패 시 전체 실패)
+    let r;
     try {
-      const r = await appendMeal(entry.uid, entry.date, entry.meal);
-      schedulePostMealWalk(entry.uid, entry.chatId, entry.date, r.mealType);
-      const sess = { uid: entry.uid, unlocked: entry.unlocked };
-      const marked = await applyAutoMapping(entry.uid, entry.date, entry.meal, sess);
-      pendingMeals.delete(msgId);
-      await ctx.answerCallbackQuery({ text: '기록 완료' });
-      try { await ctx.editMessageReplyMarkup({ reply_markup: undefined }); } catch (_) {}
-      const markedTxt = marked.length > 0 ? `\n자동 체크: 루틴 ${marked.join(', ')}` : '';
-      const _photoFeedback = buildMealFeedback(entry.meal, r.meals || [], entry.profile || {});
-      const photoFeedbackTxt = _photoFeedback ? '\n\n' + _photoFeedback : '';
+      r = await withRetry(() => appendMeal(entry.uid, entry.date, entry.meal), 'appendMeal(photo)');
+    } catch (e) {
+      console.error('photo meal save failed after retries:', e.message || e);
+      await ctx.answerCallbackQuery({ text: '저장 실패' });
+      try { await ctx.api.sendMessage(entry.chatId, '저장이 실패했어요. 잠시 후 다시 사진을 보내주세요.'); } catch (_) {}
+      return;
+    }
+    // ② 부가 작업 (실패해도 성공 유지)
+    try { schedulePostMealWalk(entry.uid, entry.chatId, entry.date, r.mealType); } catch (_) {}
+    const marked = await applyAutoMapping(entry.uid, entry.date, entry.meal, { uid: entry.uid, unlocked: entry.unlocked });
+    pendingMeals.delete(msgId);
+    await ctx.answerCallbackQuery({ text: '기록 완료' });
+    try { await ctx.editMessageReplyMarkup({ reply_markup: undefined }); } catch (_) {}
+    const markedTxt = marked.length > 0 ? `\n자동 체크: 루틴 ${marked.join(', ')}` : '';
+    let _photoFeedback = '';
+    try { _photoFeedback = buildMealFeedback(entry.meal, r.meals || [], entry.profile || {}); } catch (_) {}
+    const photoFeedbackTxt = _photoFeedback ? '\n\n' + _photoFeedback : '';
+    try {
       await ctx.api.sendMessage(
         entry.chatId,
         `✅ 기록 완료 — 오늘 누적 ${r.dailyKcal} kcal (${r.mealCount}끼)${markedTxt}${photoFeedbackTxt}`,
       );
     } catch (e) {
-      console.error('meal save error:', e);
-      await ctx.answerCallbackQuery({ text: '저장 실패' });
+      console.warn('confirm message send failed (saved ok):', e.message);
     }
   }
 }

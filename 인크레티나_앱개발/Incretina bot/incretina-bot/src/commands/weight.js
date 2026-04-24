@@ -2,6 +2,7 @@
 
 const { logWeight, toLogicalDate, getProfile } = require('../store');
 const { resolveUser } = require('./_shared');
+const { withRetry } = require('../writeSafety');
 
 async function weightCommand(ctx) {
   const { uid, profile } = await resolveUser(ctx);
@@ -23,7 +24,12 @@ async function weightCommand(ctx) {
 
   const tz = (profile && profile.timezone) || 'Asia/Seoul';
   const date = toLogicalDate(new Date(), tz);
-  await logWeight(uid, date, w);
+  try {
+    await withRetry(() => logWeight(uid, date, w), '/weight');
+  } catch (e) {
+    console.error('/weight save failed after retries:', e.message || e);
+    return ctx.reply('⚠️ 체중 저장이 실패했어요. 잠시 후 다시 시도해 주세요.');
+  }
   return ctx.reply(
     `✅ 오늘 체중 *${w} kg* 기록 완료 (${date}).\n예측을 보시려면 /predict`,
     { parse_mode: 'Markdown' },

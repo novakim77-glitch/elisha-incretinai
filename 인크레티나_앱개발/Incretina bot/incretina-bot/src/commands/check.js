@@ -6,6 +6,7 @@
 const { constants } = require('imem-core');
 const { getDailyRoutine, setRoutineChecks, toLogicalDate } = require('../store');
 const { resolveUser } = require('./_shared');
+const { withRetry } = require('../writeSafety');
 
 async function checkCommand(ctx) {
   const { uid, profile, week, unlocked } = await resolveUser(ctx);
@@ -37,9 +38,14 @@ async function checkCommand(ctx) {
         `현재 주(${week}주차)에 해제된 루틴 번호만 선택할 수 있어요. /check 로 목록을 다시 확인해 주세요.`,
       );
     }
-    await setRoutineChecks(uid, date, updates);
-    // Re-read and fall through to display
-    daily.checks = { ...daily.checks, ...updates };
+    try {
+      await withRetry(() => setRoutineChecks(uid, date, updates), '/check');
+      // Re-read and fall through to display
+      daily.checks = { ...daily.checks, ...updates };
+    } catch (e) {
+      console.error('/check save failed after retries:', e.message || e);
+      return ctx.reply('⚠️ 루틴 저장이 실패했어요. 잠시 후 다시 시도해 주세요.');
+    }
   }
 
   // Render list
