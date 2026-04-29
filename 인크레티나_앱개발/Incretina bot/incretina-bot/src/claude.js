@@ -226,6 +226,10 @@ const TOOLS = [
     name: 'get_score',
     description: '오늘 IMEM 점수(α/β/γ)를 계산해 반환합니다.',
     input_schema: { type: 'object', properties: {} },
+    // ↓ 프롬프트 캐싱: 시스템 프롬프트 + 전체 도구 정의를 캐시
+    // 캐시 히트 시 입력 토큰 비용 90% 절감 ($3/M → $0.30/M)
+    // 캐시 최소 기준 1,024 토큰 — system(~600) + tools(~800) = ~1,400 토큰으로 충족
+    cache_control: { type: 'ephemeral' },
   },
 ];
 

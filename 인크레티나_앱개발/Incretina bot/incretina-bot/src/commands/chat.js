@@ -20,6 +20,21 @@ const { tryLocalRoute } = require('../localRouter');
 const { withRetry, tryWrite } = require('../writeSafety');
 
 const MAX_TOOL_LOOPS = 5;
+
+// ─────────────────────────────────────────────
+// 프롬프트 캐시 사용량 로거
+// cache_creation_input_tokens: 캐시에 새로 저장된 토큰 (쓰기)
+// cache_read_input_tokens    : 캐시에서 읽어온 토큰 (읽기 → 90% 할인)
+// ─────────────────────────────────────────────
+function logCacheUsage(usage, tag = '') {
+  if (!usage) return;
+  const cw = usage.cache_creation_input_tokens || 0;
+  const cr = usage.cache_read_input_tokens || 0;
+  if (cw || cr) {
+    console.log(`[cache${tag ? ':' + tag : ''}] write=${cw} read=${cr} input=${usage.input_tokens} output=${usage.output_tokens}`);
+  }
+}
+
 // ─────────────────────────────────────────────
 // Meal feedback builder (called after each meal save)
 // ─────────────────────────────────────────────
@@ -438,6 +453,7 @@ async function chatHandler(ctx) {
       tools: TOOLS,
       messages,
     });
+    logCacheUsage(resp.usage, 'chat:first');
 
     while (resp.stop_reason === 'tool_use' && loop < MAX_TOOL_LOOPS) {
       loop += 1;
@@ -469,6 +485,7 @@ async function chatHandler(ctx) {
         tools: TOOLS,
         messages,
       });
+      logCacheUsage(resp.usage, `chat:tool-loop-${loop}`);
     }
 
     finalText = resp.content
@@ -489,6 +506,7 @@ async function chatHandler(ctx) {
           system: sys,
           messages: [...history, userTurn],
         });
+        logCacheUsage(fallbackResp.usage, 'fallback');
         const fbText = fallbackResp.content
           .filter((b) => b.type === 'text')
           .map((b) => b.text)
