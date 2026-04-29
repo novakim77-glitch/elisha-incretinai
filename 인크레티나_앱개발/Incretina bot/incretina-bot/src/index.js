@@ -13,6 +13,7 @@ const { scoreCommand } = require('./commands/score');
 const { goldenCommand } = require('./commands/golden');
 const { predictCommand } = require('./commands/predict');
 const { chatHandler, personaCommand, photoHandler, mealCallbackHandler, personaCallbackHandler } = require('./commands/chat');
+const { rankingCommand, participantsCommand } = require('./commands/ranking');
 const { validateClient } = require('./claude');
 const { startScheduler, runManualTrigger } = require('./scheduler');
 const { initProactive } = require('./proactive');
@@ -46,6 +47,8 @@ bot.command('score',   scoreCommand);
 bot.command('golden',  goldenCommand);
 bot.command('predict', predictCommand);
 bot.command('persona', personaCommand);
+bot.command('ranking',      rankingCommand);      // 관리자: CCS 순위
+bot.command('participants', participantsCommand); // 관리자: 참가자 현황
 
 // ── Meal confirm/edit/cancel callbacks (must come before text handler) ──
 bot.callbackQuery(/^meal:/, mealCallbackHandler);

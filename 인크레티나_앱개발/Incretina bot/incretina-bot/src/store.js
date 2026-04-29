@@ -371,25 +371,34 @@ async function countHistoryDays(uid) {
  * Returns [{ date, checks, riskActive, recoveryDone, weight, meals, score, imem }]
  */
 async function getRecentDailyRoutines(uid, days = 7) {
+  // orderBy('__name__', 'desc') requires a Firestore collection-group index.
+  // Instead, compute date strings explicitly and fetch each doc in parallel.
   const limit = Math.max(1, Math.min(30, Number(days) || 7));
-  const snap = await db()
-    .collection(`users/${uid}/dailyRoutines`)
-    .orderBy('__name__', 'desc')
-    .limit(limit)
-    .get();
-  return snap.docs.map((d) => {
-    const data = d.data();
-    return {
-      date: d.id,
-      checks: data.checks || {},
-      riskActive: data.riskActive || data.riskChecks || {},
-      recoveryDone: data.recoveryDone || data.recoveries || {},
-      weight: data.weight ?? null,
-      meals: data.meals || [],
-      score: data.score ?? null,
-      imem: data.imem || null,
-    };
-  }).reverse(); // oldest first
+  const dateStrs = [];
+  for (let i = 0; i < limit; i++) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    dateStrs.push(toLogicalDate(d, 'Asia/Seoul'));
+  }
+  const snaps = await Promise.all(
+    dateStrs.map((date) => db().doc(`users/${uid}/dailyRoutines/${date}`).get()),
+  );
+  // dateStrs is newest-first; filter missing docs then map
+  return snaps
+    .filter((s) => s.exists)
+    .map((s) => {
+      const data = s.data();
+      return {
+        date: s.id,
+        checks: data.checks || {},
+        riskActive: data.riskActive || data.riskChecks || {},
+        recoveryDone: data.recoveryDone || data.recoveries || {},
+        weight: data.weight ?? null,
+        meals: data.meals || [],
+        score: data.score ?? null,
+        imem: data.imem || null,
+      };
+    }); // newest-first (matches original reversed output)
 }
 
 // ─────────────────────────────────────────────

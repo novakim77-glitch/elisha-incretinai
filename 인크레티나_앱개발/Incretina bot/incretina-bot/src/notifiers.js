@@ -318,10 +318,10 @@ async function sendDailyRecap(bot) {
     }
 
     const text = [
-      `🌙 *오늘의 리캡* — ${date}`,
+      `🌙 <b>오늘의 리캡</b> — ${date}`,
       ``,
-      `점수: *${score}* / 100  —  ${interp.score}`,
-      `루틴: *${doneCount}/${unlocked.length}* 완료`,
+      `점수: <b>${score}</b> / 100  —  ${interp.score}`,
+      `루틴: <b>${doneCount}/${unlocked.length}</b> 완료`,
       ``,
       `🔹 α 일주기 리듬 ${imem.alpha_net.toFixed(2)}`,
       `   ${interp.alpha}`,
@@ -333,17 +333,17 @@ async function sendDailyRecap(bot) {
       `📊 ${interp.efficiency}`,
       // Trend alerts
       ...(trendLines.length > 0
-        ? ['', `📈 *트렌드 분석*`, ...trendLines]
+        ? ['', `📈 <b>트렌드 분석</b>`, ...trendLines]
         : []),
       ``,
       focus
-        ? `🎯 *내일 집중*: ${focus.icon} ${focus.title}\n_${focus.action}_`
+        ? `🎯 <b>내일 집중</b>: ${focus.icon} ${focus.title}\n<i>${focus.action}</i>`
         : `🎯 내일도 오늘처럼 완벽하게!`,
       ``,
       tone.close,
     ].join('\n');
 
-    const ok = await safeSend(bot, chatId, text);
+    const ok = await safeSend(bot, chatId, text, { parse_mode: 'HTML' });
     if (ok) await logNotification(uid, 'daily_recap', {
       score, doneCount,
       trends: {
