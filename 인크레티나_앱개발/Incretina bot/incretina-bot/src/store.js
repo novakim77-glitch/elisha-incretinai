@@ -505,6 +505,32 @@ async function getUserChallengeDays(uid, startDate, endDate) {
   return snap.docs.map((d) => ({ date: d.id, ...d.data() }));
 }
 
+/**
+ * IMEM 점수 + α/β/γ 계수를 dailyRoutines에 저장.
+ * 22시 리캡, /score 명령어, get_score 도구 호출 후 실행.
+ * CCS 집계(imemAvg)에 반드시 필요 — 봇 사용자도 score가 기록되도록.
+ * @param {string} uid
+ * @param {string} date YYYY-MM-DD
+ * @param {{ score, alpha, beta, gamma, betaMeal, efficiency }} data
+ */
+async function saveScore(uid, date, { score, alpha, beta, gamma, betaMeal, efficiency }) {
+  const now = new Date();
+  await db().doc(paths.dailyRoutine(uid, date)).set(
+    {
+      score,
+      imem: {
+        alpha_net: alpha,
+        beta_net: beta,
+        gamma_net: gamma,
+        beta_meal: betaMeal ?? 1,
+        efficiency: efficiency ?? null,
+      },
+      _meta: makeMeta(SOURCE.TELEGRAM_BOT, now),
+    },
+    { merge: true },
+  );
+}
+
 module.exports = {
   findUidByChatId,
   consumeLinkCode,
@@ -528,4 +554,5 @@ module.exports = {
   getChallengeConfig,
   markChallengeTriggerProcessed,
   getUserChallengeDays,
+  saveScore,
 };

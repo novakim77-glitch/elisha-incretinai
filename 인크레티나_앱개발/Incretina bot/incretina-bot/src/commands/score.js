@@ -3,7 +3,7 @@
 const {
   calculateIMEM, totalEfficiency, calculateScore, calculateSunTimes,
 } = require('imem-core');
-const { getDailyRoutine, toLogicalDate } = require('../store');
+const { getDailyRoutine, toLogicalDate, saveScore } = require('../store');
 const { resolveUser, checksObjToArray, riskObjToArray } = require('./_shared');
 
 async function scoreCommand(ctx) {
@@ -22,6 +22,20 @@ async function scoreCommand(ctx) {
   const imem = calculateIMEM({ checks, riskActive, recoveryDone, profile, sunset: sun.sunset });
   const score = calculateScore({ checks, riskActive, recoveryDone, week });
   const eff = totalEfficiency(imem);
+
+  // 점수 저장 (CCS 집계용) — 조회할 때마다 최신 값으로 갱신
+  try {
+    await saveScore(uid, date, {
+      score,
+      alpha: Number(imem.alpha_net.toFixed(2)),
+      beta:  Number(imem.beta_net.toFixed(2)),
+      gamma: Number(imem.gamma_net.toFixed(2)),
+      betaMeal: Number((imem.beta_meal || 1).toFixed(3)),
+      efficiency: Number(eff.toFixed(3)),
+    });
+  } catch (e) {
+    console.warn('[score] saveScore failed (non-fatal):', e.message);
+  }
 
   const lines = [
     `📊 *IMEM 점수* (${date}, ${week}주차)`,

@@ -12,7 +12,7 @@ const { db } = require('./firebase');
 const {
   listActiveTelegramUsers, getProfile, getDailyRoutine,
   getRecentDailyRoutines, countHistoryDays, toLogicalDate,
-  getBotSettings, getChallengeConfig, getUserChallengeDays,
+  getBotSettings, getChallengeConfig, getUserChallengeDays, saveScore,
 } = require('./store');
 const { paths, makeEvent, SOURCE, EVENT } = schema;
 
@@ -282,6 +282,20 @@ async function sendDailyRecap(bot) {
     const imem = calculateIMEM({ checks, riskActive, recoveryDone, profile, sunset: sun.sunset });
     const score = calculateScore({ checks, riskActive, recoveryDone, week });
     const doneCount = unlocked.filter((i) => checks[i]).length;
+
+    // ── 점수 저장 (CCS 집계용) — 봇 사용자도 dailyRoutines.score/imem 기록
+    try {
+      await saveScore(uid, date, {
+        score,
+        alpha: Number(imem.alpha_net.toFixed(2)),
+        beta:  Number(imem.beta_net.toFixed(2)),
+        gamma: Number(imem.gamma_net.toFixed(2)),
+        betaMeal: Number((imem.beta_meal || 1).toFixed(3)),
+        efficiency: Number(( (imem.alpha_net + imem.beta_net + imem.gamma_net) / 3 ).toFixed(3)),
+      });
+    } catch (e) {
+      console.warn(`[recap] saveScore failed uid=${uid}:`, e.message);
+    }
 
     // Pick tomorrow's focus — first unlocked routine not done today
     const missed = unlocked.find((i) => !checks[i]);
