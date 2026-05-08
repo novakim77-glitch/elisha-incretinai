@@ -528,11 +528,99 @@ ELISHA (법인)
 
 **핵심 판단**: "보여주지 않지만 준비는 완료된 상태" — 자산은 그대로 두고, 통합 트리거(임상 파트너 확보)가 도래할 때 즉시 가동 가능.
 
+### IMEM 점수 Firestore 저장 추가 (2026-05-04, v43)
+
+**문제**: 봇 사용자의 `dailyRoutines.score` / `imem` 필드가 비어있어 `/ranking` CCS 집계에서 IMEM 평균 35% 비중이 0으로 처리됨.
+
+**원인**: `score`와 `imem`은 앱(HTML)에서만 저장되고, 봇은 계산만 하고 Firestore에 안 씀.
+
+**수정**:
+- `store.js`: `saveScore(uid, date, {score, alpha, beta, gamma, betaMeal, efficiency})` 신규 함수 추가 — `dailyRoutines/{date}` 에 merge:true 저장
+- `notifiers.js`: 22:00 `sendDailyRecap` 에서 imem/score 계산 직후 saveScore 호출 (try/catch로 격리)
+- `commands/score.js`: `/score` 명령어 호출 시에도 saveScore 호출
+
+**결과**: 봇만 사용하는 직원도 매일 22시 또는 `/score` 호출 시점에 점수 기록 → CCS 정상 집계.
+
+**배포**: Fly.io v43 (커밋 `996e097`), 캐시 히트 정상 확인 (`[cache:chat:first] read=3502` 등)
+
+### 미라클 크루 Phase 1 — 계획 수립 (2026-05-08)
+
+**배경**: 사내 16명 챌린지가 사실상 운동 크루처럼 작동 중인 점에서 착안. 동료 간 모티베이션이 IMEM 알고리즘만큼 중요한 동력. 이를 제품에 정식 기능으로 녹이기로 결정.
+
+**컨셉**: "Metabolic Crew" — 운동 크루가 거리·시간으로 함께 달린다면, 미라클 크루는 호르몬 효율과 대사 건강으로 함께 한다.
+
+**Phase 1 MVP 범위**:
+| 기능 | 빈도 | 설명 |
+|------|:---:|------|
+| 일일 리더보드 | 매일 22:00 | 상위 3명 IMEM 점수 + 크루 평균 |
+| 주간 어워드 | 월 09:00 | 종합 1·2·3위 + 부문상(발전·꾸준·도전) |
+| 마일스톤 알림 | 이벤트 시 | 첫 90점, 7일 연속, 첫 1kg 감량 등 |
+| 부드러운 복귀 | 이벤트 시 | 3일+ 비활성 멤버 자동 안내 |
+
+**프라이버시 원칙 (절대 규칙)**:
+- ✅ 공개: 이름/닉네임, IMEM 점수(상위 3명만), 루틴 완수 카운트, 체중 변화율(%)
+- ❌ 비공개: **원본 체중(kg)**, 식사 내용, 키·나이, 하위권 점수
+- 잘하는 사람만 부각, 못하는 사람은 보호 → 비교 불안 차단
+
+**기술 구조 (격리 설계)**:
+```
+신규 파일 (격리):
+  src/commands/crew.js          ← /crew, /nickname, /crew_setup
+  src/crewNotifier.js           ← 그룹챗 발송 모듈
+
+기존 파일 최소 수정:
+  scheduler.js                   ← try/catch 안에 한 줄 추가
+  index.js                       ← 명령어 등록 한 줄 추가
+
+Firestore 신규 컬렉션:
+  crews/miracle-crew
+    name, groupChatId, members[], startDate, endDate, active
+```
+
+**6중 방어 체계 (실제 추가 작업 약 15분)**:
+1. 신규 파일 격리 — 기존 동작 코드 미수정
+2. Feature Flag — `crews/miracle-crew.active = false` 로 무력화 가능
+3. try/catch 격리 — 크루 코드 실패해도 dailyRecap·기존 알림 영향 없음
+4. 테스트 그룹챗 먼저 — 관리자 1명 그룹에서 1주일 검증 후 직원 그룹 전환
+5. 명령어 우선순위 — `bot.command()` 자동 처리, chatHandler 충돌 없음
+6. Pre-deploy 체크리스트 — syntax, 로그, 봇 동작 확인
+
+**롤백 전략**:
+- 메시지 이상 시: Firestore `active: false` (3초)
+- 봇 멈춤 시: Fly.io 이전 버전 롤백 (1분)
+
+**진행 단계 (3 페이즈)**:
+- Phase 1A (1일): Firestore 컬렉션 + 테스트 그룹챗 + active:false 배포
+- Phase 1B (1일): sendCrewLeaderboard 만 테스트 그룹에 1주일 발송 검증
+- Phase 1C (1일): 직원 그룹으로 chat_id 변경 + active:true + 모니터링
+
+**검토 확정 사항**:
+- 크루 이름: **"미라클 크루"** 확정
+- 닉네임: 실명 기본 + `/nickname` 으로 옵션 변경
+- 알림 빈도: 일 1회(22:00) + 주 1회(월 09:00) + 마일스톤
+- 프라이버시: 원본 체중 완전 비공개
+
+**다음 단계**: Phase 1A 작업 진행 (별도 세션에서 시작 예정)
+
 ### 다음 할 일 / 알려진 이슈
+
+**우선순위 높음 (다음 세션에서 진행)**
+- 미라클 크루 Phase 1A 시작 — Firestore 컬렉션 + 테스트 그룹챗 셋업
+- 챌린지 외부인 격리 검토 — 일반인 가입 시 자동 챌린지 편입 방지 (이메일 도메인 필터 또는 명시적 등록 플래그)
+
+**우선순위 중간**
 - `/broadcast` Unknown command 현상 원인 파악 및 수정
 - ADMIN_CHAT_ID Fly.io secrets 설정 완료 확인
 - 챌린지 참가자 /link 연결 + 시작 체중(sw) 설정 가이드 발송
-- 실사용 후 Fly.io 로그에서 `[cache:chat:first]` 캐시 히트 확인
+
+**우선순위 낮음 (모니터링)**
+- 실사용 후 Fly.io 로그에서 `[cache:chat:first]` 캐시 히트 확인 ✅ (확인됨)
 - 앱 측에도 beta_meal/해석 반영 검토 (현재 봇만 적용)
 - 프로액티브 코칭 실사용 피드백 수집 (알림 빈도, 페르소나 톤)
 - 트렌드 분석 정확도 실데이터 확인 (3일 이상 기록 있는 사용자)
+
+**중장기 (챌린지 종료 후)**
+- 챌린지 데이터로 P-01·P-03 특허 출원 실시예 작성
+- 임상 파트너 후보 리서치 (내분비내과, 비만클리닉)
+- δ Modifier 통합 시점 검토 (임상 파트너 확보 시)
+- 미라클 크루 Phase 2 — 앱 내 크루 모듈 (친구 초대, 식사 사진 공유)
