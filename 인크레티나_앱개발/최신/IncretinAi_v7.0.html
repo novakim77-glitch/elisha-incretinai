@@ -54,8 +54,19 @@
         @keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
 
         /* SYNC & USER */
-        .sync-badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;font-size:.55rem;font-weight:700;background:var(--success-glow);color:var(--success)}
+        .sync-badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;font-size:.55rem;font-weight:700;background:var(--success-glow);color:var(--success);cursor:pointer;transition:transform .15s}
+        .sync-badge:active{transform:scale(.95)}
         .sync-badge.offline{background:var(--danger-glow);color:var(--danger)}.sync-badge .dot{width:5px;height:5px;border-radius:50%;background:currentColor}
+        /* Phase A: 3-state sync indicator (2026-05-15) */
+        .sync-badge.syncing{background:#FEF3C7;color:#B45309}
+        .sync-badge.syncing .dot{animation:syncPulse 1.2s ease-in-out infinite}
+        @keyframes syncPulse{0%,100%{opacity:.4}50%{opacity:1}}
+        .sync-time{font-size:.5rem;opacity:.75;margin-left:3px;font-weight:600}
+        /* Phase A: Pull-to-Refresh */
+        .pull-refresh{position:fixed;top:0;left:0;right:0;height:0;display:flex;justify-content:center;align-items:center;background:linear-gradient(180deg,rgba(0,113,227,.08) 0%,transparent 100%);transition:height .2s ease;pointer-events:none;z-index:9999;font-size:.7rem;color:#0071E3;font-weight:700;overflow:hidden}
+        .pull-refresh.refreshing{height:50px}
+        .pull-refresh .ptr-spinner{display:inline-block;width:14px;height:14px;border:2px solid #0071E3;border-right-color:transparent;border-radius:50%;animation:ptrSpin .6s linear infinite;margin-right:6px;vertical-align:middle}
+        @keyframes ptrSpin{to{transform:rotate(360deg)}}
         .user-bar{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;width:100%;padding:8px 4px 0}
         .user-info{display:flex;align-items:center;gap:6px}
         .user-avatar{width:26px;height:26px;border-radius:8px;background:var(--primary);display:flex;align-items:center;justify-content:center;font-size:.65rem;color:#fff;font-weight:800}
@@ -608,7 +619,7 @@
             <div class="user-avatar" id="user-avatar">?</div>
             <div>
                 <div class="user-email" id="user-email">-</div>
-                <div class="sync-badge" id="sync-badge"><span class="dot"></span> Cloud Sync</div>
+                <div class="sync-badge" id="sync-badge" title="클릭하여 새로고침"><span class="dot"></span> <span id="sync-text">Cloud Sync</span><span class="sync-time" id="sync-time"></span></div>
             </div>
         </div>
         <div class="level-bar" id="level-bar">
@@ -1175,6 +1186,22 @@
         <button class="admin-export-btn" id="admin-export-btn" onclick="exportAllUsersExcel()" disabled>
             📥 전체 데이터 엑셀 다운로드
         </button>
+        <!-- ★ 챌린지 독려 메시지 발송 -->
+        <div id="challenge-admin-panel" style="margin-top:20px;padding:18px;background:linear-gradient(135deg,rgba(59,130,246,.06),rgba(16,185,129,.06));border-radius:14px;border:1.5px solid rgba(59,130,246,.15)">
+            <div style="font-weight:700;font-size:.9rem;margin-bottom:6px">📢 챌린지 독려 메시지</div>
+            <div id="challenge-status" style="font-size:.78rem;color:var(--text-sub);margin-bottom:14px">챌린지 설정 로딩 중...</div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+                <button id="challenge-send-btn" onclick="sendChallengeMessage()" disabled
+                    style="display:inline-flex;align-items:center;gap:6px;padding:10px 20px;border-radius:10px;border:none;background:linear-gradient(135deg,#3b82f6,#10b981);color:#fff;font-weight:700;font-size:.83rem;cursor:pointer;transition:all .2s;opacity:.5">
+                    💬 지금 독려 메시지 전송
+                </button>
+                <span id="challenge-send-result" style="font-size:.78rem;color:var(--success)"></span>
+            </div>
+            <div style="margin-top:10px;font-size:.72rem;color:var(--text-sub)">
+                ※ 매주 월요일 09:00 자동 발송 · 필요 시 수동 전송 가능<br>
+                ※ 챌린지 설정: Firestore <code style="background:var(--surface-alt);padding:1px 5px;border-radius:4px">challenges/weekly-challenge</code> 문서
+            </div>
+        </div>
     </div>
 </div>
 
@@ -1485,7 +1512,143 @@ async function saveDailyToCloud(){
     }catch(e){console.error('Daily save:',e);showSyncStatus('offline')}
     finally{window._savePending=false}
 }
-function showSyncStatus(s){const b=document.getElementById('sync-badge');if(s==='synced'){b.className='sync-badge';b.innerHTML='<span class="dot"></span> Cloud Synced'}else{b.className='sync-badge offline';b.innerHTML='<span class="dot"></span> Offline'}}
+// === Phase A: 동기화 신뢰성 개선 (2026-05-15) ===
+// Feature flag — 문제 발생 시 false로 변경하면 즉시 비활성화
+const SYNC_FEATURE = { indicator: true, pullToRefresh: true };
+window._lastSyncAt = null;
+
+function showSyncStatus(s){
+    try{
+        const b=document.getElementById('sync-badge');
+        if(!b)return;
+        const t=document.getElementById('sync-text');
+        const tm=document.getElementById('sync-time');
+        // 'syncing' 신규 상태 (Phase A)
+        if(s==='syncing' && SYNC_FEATURE.indicator){
+            b.className='sync-badge syncing';
+            if(t){t.textContent='동기화 중'}else{b.innerHTML='<span class="dot"></span> Syncing'}
+            if(tm)tm.textContent='';
+            return;
+        }
+        if(s==='synced'){
+            b.className='sync-badge';
+            if(t){t.textContent='동기화됨'}else{b.innerHTML='<span class="dot"></span> Cloud Synced'}
+            window._lastSyncAt = Date.now();
+            updateSyncTimeLabel();
+            return;
+        }
+        // offline (default)
+        b.className='sync-badge offline';
+        if(t){t.textContent='오프라인'}else{b.innerHTML='<span class="dot"></span> Offline'}
+    }catch(e){console.warn('[showSyncStatus] failed (non-fatal):',e)}
+}
+
+function updateSyncTimeLabel(){
+    if(!SYNC_FEATURE.indicator || !window._lastSyncAt)return;
+    try{
+        const tm=document.getElementById('sync-time');
+        if(!tm)return;
+        const sec = Math.floor((Date.now()-window._lastSyncAt)/1000);
+        let txt='';
+        if(sec<10) txt='방금 전';
+        else if(sec<60) txt=sec+'초 전';
+        else if(sec<3600) txt=Math.floor(sec/60)+'분 전';
+        else txt=Math.floor(sec/3600)+'시간 전';
+        tm.textContent=' · '+txt;
+    }catch(_){}
+}
+// 시각 라벨 자동 갱신 (10초마다)
+try{ setInterval(updateSyncTimeLabel, 10000) }catch(_){}
+
+// 클릭/Pull-to-Refresh 시 호출되는 강제 재동기화
+function forceResync(){
+    if(!SYNC_FEATURE.indicator && !SYNC_FEATURE.pullToRefresh)return;
+    try{
+        showSyncStatus('syncing');
+        window._cloudHistory={};
+        if(typeof listenToHistory==='function'){try{listenToHistory()}catch(_){}}
+        if(typeof listenToProfile==='function'){try{listenToProfile()}catch(_){}}
+        // 시각 피드백 — 너무 빨리 'synced'로 돌아가지 않도록 800ms 대기
+        setTimeout(()=>{showSyncStatus('synced')},800);
+    }catch(e){
+        console.warn('[forceResync] failed:',e);
+        showSyncStatus('offline');
+    }
+}
+
+// sync-badge 클릭 핸들러 (DOM 준비 후 1회 부착)
+function _attachSyncBadgeClick(){
+    if(!SYNC_FEATURE.indicator)return;
+    try{
+        const b=document.getElementById('sync-badge');
+        if(b && !b._clickAttached){
+            b.addEventListener('click',forceResync);
+            b._clickAttached = true;
+        }
+    }catch(_){}
+}
+if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded',_attachSyncBadgeClick);
+}else{ _attachSyncBadgeClick() }
+
+// === Pull-to-Refresh (모바일) ===
+function setupPullToRefresh(){
+    if(!SYNC_FEATURE.pullToRefresh)return;
+    try{
+        // Indicator DOM
+        if(!document.getElementById('pull-refresh-bar')){
+            const bar = document.createElement('div');
+            bar.id='pull-refresh-bar';
+            bar.className='pull-refresh';
+            bar.innerHTML='<span id="pull-refresh-content">↓ 당겨서 새로고침</span>';
+            document.body.appendChild(bar);
+        }
+        const bar = document.getElementById('pull-refresh-bar');
+        const content = document.getElementById('pull-refresh-content');
+        let startY=0, currentY=0, pulling=false, refreshing=false;
+        const THRESHOLD = 70;
+
+        document.addEventListener('touchstart',(e)=>{
+            if(refreshing)return;
+            if(window.scrollY > 0)return;
+            startY = e.touches[0].clientY;
+            pulling = true;
+        },{passive:true});
+
+        document.addEventListener('touchmove',(e)=>{
+            if(!pulling || refreshing)return;
+            currentY = e.touches[0].clientY;
+            const diff = currentY - startY;
+            if(diff > 10 && diff < 200){
+                bar.style.height = Math.min(diff*0.5, 50)+'px';
+                content.innerHTML = diff > THRESHOLD ? '↑ 놓으면 새로고침' : '↓ 당겨서 새로고침';
+            }
+        },{passive:true});
+
+        document.addEventListener('touchend',()=>{
+            if(!pulling || refreshing){pulling=false;return}
+            const diff = currentY - startY;
+            pulling = false;
+            if(diff > THRESHOLD){
+                refreshing = true;
+                bar.classList.add('refreshing');
+                content.innerHTML='<span class="ptr-spinner"></span>새로고침 중...';
+                try{ forceResync() }catch(_){}
+                setTimeout(()=>{
+                    bar.classList.remove('refreshing');
+                    bar.style.height='0';
+                    refreshing=false;
+                },1200);
+            }else{
+                bar.style.height='0';
+            }
+        },{passive:true});
+    }catch(e){console.warn('[setupPullToRefresh] failed:',e)}
+}
+if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded',setupPullToRefresh);
+}else{ setupPullToRefresh() }
+// === Phase A 끝 ===
 function listenToProfile(){if(unsubProfile)unsubProfile();unsubProfile=userDoc().onSnapshot(doc=>{if(doc.exists){const p=doc.data();if(p.name)document.getElementById('p-name').value=p.name;if(p.age)document.getElementById('p-age').value=p.age;if(p.gender)document.getElementById('p-gender').value=p.gender;if(p.start)document.getElementById('p-start').value=p.start;if(p.h)document.getElementById('p-h').value=p.h;if(p.sw)document.getElementById('p-sw').value=p.sw;if(p.gw)document.getElementById('p-gw').value=p.gw;if(p.isDiabetic)document.getElementById('p-diabetic').value=p.isDiabetic;if(p.exercise)document.getElementById('p-exercise').value=p.exercise;if(p.wakeup)document.getElementById('p-wakeup').value=p.wakeup;if(p.lat)document.getElementById('p-lat').value=p.lat;loadGamificationFromProfile(p);
 // v7.0: Progressive Unlocking & Comeback 데이터
 // 사용자가 프로필에 입력한 시작일(p.start)을 진실의 원천으로 사용. 없으면 legacy userStartDate.
@@ -3911,6 +4074,54 @@ function exportToExcel(){
 // ============================================================
 let _adminData=null;
 
+// ── 챌린지 독려 메시지 관리자 함수 ──
+async function loadChallengeStatus(){
+    try{
+        const snap=await db.collection('challenges').doc('weekly-challenge').get();
+        const statusEl=document.getElementById('challenge-status');
+        const sendBtn=document.getElementById('challenge-send-btn');
+        if(!snap.exists){
+            statusEl.textContent='챌린지 미설정 — Firestore에 challenges/weekly-challenge 문서를 생성해주세요.';
+            return;
+        }
+        const d=snap.data();
+        const now=new Date();
+        const today=now.toISOString().slice(0,10);
+        const active=d.active&&today>=d.startDate&&today<=d.endDate;
+        statusEl.innerHTML=`<b>${active?'🟢 진행 중':'⚫ 비활성'}</b> &nbsp;|&nbsp; ${d.startDate||'?'} ~ ${d.endDate||'?'}&nbsp;(${d.active?'active':'inactive'})`;
+        if(active){
+            sendBtn.disabled=false;
+            sendBtn.style.opacity='1';
+        }
+    }catch(e){
+        document.getElementById('challenge-status').textContent='챌린지 상태 로드 실패: '+e.message;
+    }
+}
+
+async function sendChallengeMessage(){
+    const btn=document.getElementById('challenge-send-btn');
+    const result=document.getElementById('challenge-send-result');
+    btn.disabled=true; btn.textContent='⏳ 전송 중...';
+    result.textContent='';
+    try{
+        // Firestore에 manualTrigger 기록 → 봇이 onSnapshot으로 감지해 즉시 발송
+        await db.collection('challenges').doc('weekly-challenge').set({
+            manualTrigger:{
+                requestedAt:firebase.firestore.FieldValue.serverTimestamp(),
+                by:currentUser?.email||'admin',
+                processed:false
+            }
+        },{merge:true});
+        result.textContent='✅ 전송 요청 완료! 봇이 수 초 내 발송합니다.';
+        result.style.color='var(--success)';
+    }catch(e){
+        result.textContent='❌ 실패: '+e.message;
+        result.style.color='var(--danger)';
+    }finally{
+        btn.disabled=false; btn.textContent='💬 지금 독려 메시지 전송';
+    }
+}
+
 function openAdminModal(){
     if(!isAdmin())return;
     const modal=document.getElementById('admin-modal');
@@ -3918,6 +4129,7 @@ function openAdminModal(){
     document.getElementById('admin-body').innerHTML='<div class="admin-loading">전체 사용자 데이터를 불러오는 중...</div>';
     document.getElementById('admin-export-btn').disabled=true;
     loadAllUsers();
+    loadChallengeStatus(); // 챌린지 상태 로드
 }
 function closeAdminModal(){document.getElementById('admin-modal').style.display='none'}
 
