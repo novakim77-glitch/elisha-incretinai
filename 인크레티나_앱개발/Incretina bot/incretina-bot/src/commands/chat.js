@@ -20,6 +20,11 @@ const { tryLocalRoute } = require('../localRouter');
 const { withRetry, tryWrite } = require('../writeSafety');
 
 const MAX_TOOL_LOOPS = 5;
+// 응답 토큰 한도 — 한글 약 1,200~1,600자까지 안 잘리고 응답 가능
+// (이전 1024 → 응답 잘림 빈번. 2048 = 식사 분석 등 긴 응답에도 충분)
+const MAX_OUTPUT_TOKENS = 2048;
+// 텔레그램 메시지 최대 길이 (공식 한도 4096, 안전 마진 두어 3800자에서 분할)
+const TG_MSG_LIMIT = 3800;
 
 // ─────────────────────────────────────────────
 // 프롬프트 캐시 사용량 로거
@@ -32,6 +37,50 @@ function logCacheUsage(usage, tag = '') {
   const cr = usage.cache_read_input_tokens || 0;
   if (cw || cr) {
     console.log(`[cache${tag ? ':' + tag : ''}] write=${cw} read=${cr} input=${usage.input_tokens} output=${usage.output_tokens}`);
+  }
+}
+
+// ─────────────────────────────────────────────
+// 응답 잘림 감지 + 안내 추가
+// Claude의 stop_reason='max_tokens'이면 토큰 한도로 잘린 것.
+// 사용자에게 "이어서 자세히 물어보라"는 안내를 끝에 덧붙임.
+// ─────────────────────────────────────────────
+function maybeAppendTruncationNotice(text, stopReason) {
+  if (stopReason !== 'max_tokens' || !text) return text;
+  // 이미 안내가 포함되어 있으면 중복 추가 방지
+  if (text.includes('답변이 길어 일부만') || text.includes('이어서')) return text;
+  return text + '\n\n— — —\n📝 답변이 길어 일부만 보냈어요. "더 자세히" 또는 "이어서" 라고 말씀하시면 나머지를 알려드릴게요.';
+}
+
+// ─────────────────────────────────────────────
+// 텔레그램 4096자 한도 대응 — 긴 메시지 자동 분할 전송
+// 1) 줄바꿈 경계로 자연스럽게 자름
+// 2) 한 줄이 너무 길면 어쩔 수 없이 글자 단위로 자름
+// 3) 각 분할 메시지는 ctx.reply()로 순차 전송
+// ─────────────────────────────────────────────
+async function sendLongReply(ctx, text, opts = {}) {
+  if (!text) return;
+  if (text.length <= TG_MSG_LIMIT) {
+    return ctx.reply(text, opts);
+  }
+  // 분할
+  const chunks = [];
+  let remaining = text;
+  while (remaining.length > TG_MSG_LIMIT) {
+    let cut = remaining.lastIndexOf('\n', TG_MSG_LIMIT);
+    if (cut < TG_MSG_LIMIT * 0.5) cut = TG_MSG_LIMIT; // 줄바꿈 못 찾으면 강제로 자름
+    chunks.push(remaining.substring(0, cut));
+    remaining = remaining.substring(cut).trimStart();
+  }
+  if (remaining) chunks.push(remaining);
+
+  // 순차 전송 (각 메시지는 try/catch로 격리)
+  for (let i = 0; i < chunks.length; i++) {
+    try {
+      await ctx.reply(chunks[i], opts);
+    } catch (e) {
+      console.warn(`[sendLongReply] chunk ${i + 1}/${chunks.length} failed:`, e.message);
+    }
   }
 }
 
@@ -448,7 +497,7 @@ async function chatHandler(ctx) {
     let loop = 0;
     let resp = await client.messages.create({
       model: MODEL,
-      max_tokens: 1024,
+      max_tokens: MAX_OUTPUT_TOKENS,
       system: sys,
       tools: TOOLS,
       messages,
@@ -480,7 +529,7 @@ async function chatHandler(ctx) {
       ctx.api.sendChatAction(ctx.chat.id, 'typing').catch(() => {});
       resp = await client.messages.create({
         model: MODEL,
-        max_tokens: 1024,
+        max_tokens: MAX_OUTPUT_TOKENS,
         system: sys,
         tools: TOOLS,
         messages,
@@ -493,6 +542,11 @@ async function chatHandler(ctx) {
       .map((b) => b.text)
       .join('\n')
       .trim();
+    // 응답 잘림 감지 + 안내 추가
+    finalText = maybeAppendTruncationNotice(finalText, resp.stop_reason);
+    if (resp.stop_reason === 'max_tokens') {
+      console.log(`[truncated] max_tokens reached, output=${resp.usage?.output_tokens}, finalLen=${finalText.length}`);
+    }
   } catch (e) {
     const classified = classifyApiError(e);
     console.error(`Claude API [${classified.logTag}]:`, e?.status || '', e?.message || e);
@@ -502,20 +556,21 @@ async function chatHandler(ctx) {
         console.log(`Fallback: retrying with ${FALLBACK_MODEL}...`);
         const fallbackResp = await client.messages.create({
           model: FALLBACK_MODEL,
-          max_tokens: 1024,
+          max_tokens: MAX_OUTPUT_TOKENS,
           system: sys,
           messages: [...history, userTurn],
         });
         logCacheUsage(fallbackResp.usage, 'fallback');
-        const fbText = fallbackResp.content
+        let fbText = fallbackResp.content
           .filter((b) => b.type === 'text')
           .map((b) => b.text)
           .join('\n')
           .trim();
         if (fbText) {
+          fbText = maybeAppendTruncationNotice(fbText, fallbackResp.stop_reason);
           console.log('Fallback succeeded (Haiku)');
           await appendMessage(session.uid, 'assistant', fbText).catch(() => {});
-          return ctx.reply(fbText);
+          return sendLongReply(ctx, fbText);
         }
       } catch (e2) {
         console.error('Fallback also failed:', e2?.status || '', e2?.message || e2);
@@ -528,7 +583,7 @@ async function chatHandler(ctx) {
   if (!finalText) finalText = '...';
 
   await appendMessage(session.uid, 'assistant', finalText).catch(() => {});
-  return ctx.reply(finalText);
+  return sendLongReply(ctx, finalText);
 }
 
 // ─────────────────────────────────────────────
