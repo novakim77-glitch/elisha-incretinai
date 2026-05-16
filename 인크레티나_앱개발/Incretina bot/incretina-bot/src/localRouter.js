@@ -5,9 +5,9 @@
 const {
   calculateIMEM, totalEfficiency, calculateScore, calculateSunTimes, constants,
 } = require('imem-core');
-const { getDailyRoutine, getWeightHistory, logWeight, toLogicalDate } = require('./store');
+const { getDailyRoutine, getWeightHistory, logWeight, toLogicalDate, appendMeal } = require('./store');
 const { resolveUser, checksObjToArray, riskObjToArray } = require('./commands/_shared');
-const { analyzeMealDay, classifyMealType, MEAL_TYPE_KR } = require('imem-core');
+const { analyzeMealDay, classifyMealType, MEAL_TYPE_KR, calculateTargetCalories } = require('imem-core');
 const { withRetry } = require('./writeSafety');
 
 // ────────────────────
@@ -38,6 +38,11 @@ async function tryLocalRoute(text, ctx) {
   // (query 패턴보다 먼저 확인해야 "오늘 체중 84.5 기록"이 조회가 아닌 저장으로 처리됨)
   const wlog = parseWeightLog(trimmed);
   if (wlog !== null) return handleWeightLog(ctx, wlog);
+
+  // ★ 식단 저장 — Claude hallucination 방지 (2026-05-22)
+  // 칼로리 명시 + 저장 키워드 + 쿼리 아님 조건 모두 만족 시 직접 저장
+  const mlog = parseMealLog(trimmed);
+  if (mlog !== null) return handleMealLog(ctx, mlog);
 
   if (PATTERNS.status.test(trimmed)) return handleStatus(ctx);
   if (PATTERNS.score.test(trimmed)) return handleScore(ctx);
@@ -90,6 +95,141 @@ function parseWeightLog(text) {
   }
 
   return null;
+}
+
+// ────────────────────
+// ★ 식단 저장 직접 처리 (Claude hallucination 차단) — 2026-05-22
+// ────────────────────
+
+/**
+ * 식단 저장 의도인지 판별 후 { menu, kcal, mealTimeHint } 반환. 아니면 null.
+ *
+ * 매칭 조건 (모두 만족):
+ *   1) 저장 키워드 (기록/저장/입력/넣어/적어/추가) 존재
+ *   2) 조회 키워드 (알려/얼마/어때/어떻/알고싶/보여) 미존재
+ *   3) kg/킬로 단위 미존재 (체중과 구분)
+ *   4) 칼로리 숫자 50~3000 범위
+ *   5) 메뉴 또는 끼니 시간 힌트 존재 (둘 다 없으면 모호 → 거부)
+ *
+ * 매칭 예:
+ *   "김치찌개 800kcal 기록"          → { menu: '김치찌개', kcal: 800 }
+ *   "오늘 점심 제육볶음 850 기록"     → { menu: '제육볶음', kcal: 850, mealTimeHint: 'lunch' }
+ *   "저녁 라면 600 기록해줘"          → { menu: '라면', kcal: 600, mealTimeHint: 'dinner' }
+ *   "점심에 비빔밥 700 저장"          → { menu: '비빔밥', kcal: 700, mealTimeHint: 'lunch' }
+ *   "점심 700 기록" (메뉴 없음)       → { menu: '점심식사', kcal: 700, mealTimeHint: 'lunch' }
+ *
+ * 매칭 안 함:
+ *   "200 기록" (메뉴·끼니 모두 없음)  → null (모호 → Claude로 넘김)
+ *   "김치찌개 칼로리 알려줘"           → null (조회)
+ *   "오늘 뭐 먹었지"                  → null (조회)
+ *   "체중 84.5 기록" (kg 의도)        → null (kg 단위 검사로 거부, 또는 parseWeightLog가 먼저 처리)
+ *   "라면 4000 기록" (이상치)         → null (kcal 범위 초과)
+ */
+function parseMealLog(text) {
+  // 1) 저장 키워드 필수
+  if (!/(기록|저장|입력|넣어|적어|추가)/.test(text)) return null;
+  // 2) 조회 키워드 제외
+  if (/(알려|얼마|어때|어떻|알고\s*싶|보여|보내줘|어땠어)/.test(text)) return null;
+  // 3) kg/킬로 단위 제외 (체중 의도)
+  if (/\d+(?:\.\d+)?\s*(?:kg|킬로|kilo)/i.test(text)) return null;
+  // 4) 체중·몸무게 키워드 제외 (체중 의도 — parseWeightLog가 먼저 잡지만 이중 안전망)
+  if (/체중|몸무게/i.test(text)) return null;
+
+  // 4) 칼로리 숫자 추출 (2~4자리)
+  const kcalMatch = text.match(/(\d{2,4})(?:\.\d{1,2})?(?:\s*(?:kcal|칼로리|kc|cal))?/i);
+  if (!kcalMatch) return null;
+  const kcal = Number(kcalMatch[1]);
+  if (kcal < 50 || kcal > 3000) return null;
+
+  // 5) 끼니 시간 힌트 (전체 텍스트 기반)
+  let mealTimeHint = null;
+  if (/(아침|모닝|breakfast)/i.test(text)) mealTimeHint = 'breakfast';
+  else if (/(점심|lunch)/i.test(text)) mealTimeHint = 'lunch';
+  else if (/(저녁|dinner|디너)/i.test(text)) mealTimeHint = 'dinner';
+  else if (/(야식|새벽)/i.test(text)) mealTimeHint = 'lateNight';
+
+  // 6) 메뉴 추출 (kcal 숫자 이전 부분)
+  let menuPart = text.substring(0, kcalMatch.index).trim();
+  // 시간/날짜 prefix 제거
+  menuPart = menuPart.replace(/^(오늘|지금|방금|어제)\s*/i, '');
+  // 끼니 prefix 제거
+  menuPart = menuPart.replace(/^(아침|점심|저녁|간식|야식|새벽|모닝)\s*[에는을를]?\s*/i, '');
+  // 조사 제거
+  menuPart = menuPart.replace(/^(에|는|을|를|이|가|로|으로)\s+/i, '');
+  // 동사 제거 (뒷부분)
+  menuPart = menuPart.replace(/\s*(먹었어|먹음|먹어|먹었|먹은|먹는다|먹어버림)$/i, '').trim();
+
+  // 7) 메뉴 검증
+  if (!menuPart || menuPart.length < 1) {
+    // 메뉴 없지만 끼니 힌트 있으면 기본 메뉴명 사용
+    if (mealTimeHint) {
+      const labels = { breakfast: '아침식사', lunch: '점심식사', dinner: '저녁식사', lateNight: '야식' };
+      menuPart = labels[mealTimeHint];
+    } else {
+      // 메뉴·끼니 모두 없음 → 모호 → Claude로 위임
+      return null;
+    }
+  }
+  if (menuPart.length > 30) menuPart = menuPart.substring(0, 30);
+
+  return { menu: menuPart, kcal, mealTimeHint };
+}
+
+async function handleMealLog(ctx, parsed) {
+  const { uid, profile } = await resolveUser(ctx);
+  const tz = profile.timezone || 'Asia/Seoul';
+  const date = toLogicalDate(new Date(), tz);
+  const now = new Date();
+
+  // 현재 시각 (HH:MM, 사용자 timezone 기준)
+  const time = new Intl.DateTimeFormat('en-GB', {
+    hour: '2-digit', minute: '2-digit', hour12: false, timeZone: tz,
+  }).format(now);
+
+  const meal = {
+    menu: parsed.menu,
+    kcal: parsed.kcal,
+    kcalLow: null,
+    kcalHigh: null,
+    macros: { protein: null, fat: null, carbs: null },
+    hasVeg: false,
+    hasProtein: false,
+    betaScore: 0,
+    ts: now,
+    time,
+    source: 'localRouter.mealLog',
+  };
+
+  let r;
+  try {
+    r = await withRetry(() => appendMeal(uid, date, meal), 'localRouter.appendMeal');
+  } catch (e) {
+    console.error('localRouter meal save failed after retries:', e.message || e);
+    return '⚠️ 식사 저장이 실패했어요. 잠시 후 다시 시도해 주세요.';
+  }
+
+  // 누적 칼로리 + 목표 대비 진행률
+  const totalKcal = r.dailyKcal || 0;
+  const mealCount = r.mealCount || 0;
+  let progressTxt = `\n📊 누적: ${totalKcal} kcal (${mealCount}끼)`;
+
+  try {
+    const dailyTarget = calculateTargetCalories(profile);
+    if (dailyTarget) {
+      const pct = Math.round((totalKcal / dailyTarget) * 100);
+      progressTxt += `\n🎯 목표: ${dailyTarget} kcal (${pct}%)`;
+      const remaining = dailyTarget - totalKcal;
+      if (remaining > 200) {
+        progressTxt += `\n✅ 여유 ${remaining}kcal — 균형 잡힌 식사 가능`;
+      } else if (remaining > 0) {
+        progressTxt += `\n⚠️ 남은 여유 ${remaining}kcal — 가볍게 마무리하세요`;
+      } else {
+        progressTxt += `\n🔴 목표 초과 ${Math.abs(remaining)}kcal — 추가 식사 자제 권장`;
+      }
+    }
+  } catch (_) { /* non-fatal */ }
+
+  return `✅ *${parsed.menu}* ${parsed.kcal}kcal 기록 완료\n📅 ${date} ${time} (앱에 즉시 반영)${progressTxt}`;
 }
 
 async function handleWeightLog(ctx, kg) {
