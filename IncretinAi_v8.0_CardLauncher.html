@@ -1571,7 +1571,7 @@ window.v8RefreshHome = function(){
       var score = (typeof window.currentScore !== 'undefined') ? window.currentScore
                  : (typeof currentScore !== 'undefined' ? currentScore : null);
       if (score == null) {
-        var scoreEl = document.getElementById('score-total');
+        var scoreEl = document.getElementById('score-total') || document.getElementById('vitality-score');
         if (scoreEl) score = parseInt(scoreEl.textContent, 10);
       }
       var sn = document.getElementById('v8-score-num');
@@ -1610,12 +1610,14 @@ window.v8RefreshHome = function(){
     // 3) 루틴 완료 카운트 (_localChecks 우선, 없으면 routine-list의 .checked 카운트)
     try {
       var done = 0, total = 10;
+      // DOM 기준 (.checked 클래스) — Firestore 로드 반영
+      var domDone = document.querySelectorAll('#routine-list .checked').length;
+      // _localChecks 기준 — 현재 세션 클릭 반영
+      var lcDone = 0;
       if (window._localChecks && typeof window._localChecks === 'object') {
-        for (var i=0;i<total;i++) if (window._localChecks[i]) done++;
-      } else {
-        var checked = document.querySelectorAll('#routine-list .checked');
-        done = checked.length;
+        for (var i=0;i<total;i++) if (window._localChecks[i]) lcDone++;
       }
+      done = Math.max(domDone, lcDone);
       var rd = document.getElementById('v8-routine-done'); if (rd) rd.textContent = done;
       var rb = document.getElementById('v8-routine-bar'); if (rb) rb.style.width = (done/total*100) + '%';
     } catch(_) {}
@@ -4967,7 +4969,7 @@ document.getElementById('p-exercise').addEventListener('change',onDataChange);
   observe('alpha-val',       {childList:true, characterData:true, subtree:true});
   observe('beta-val',        {childList:true, characterData:true, subtree:true});
   observe('gamma-val',       {childList:true, characterData:true, subtree:true});
-  observe('score-total',     {childList:true, characterData:true, subtree:true});
+  observe('vitality-score',  {childList:true, characterData:true, subtree:true});
   observe('routine-list',    {childList:true, subtree:true, attributes:true, attributeFilter:['class']});
   observe('risk-list',       {childList:true, subtree:true, attributes:true, attributeFilter:['class']});
   observe('mode-badge',      {childList:true, characterData:true, subtree:true});
