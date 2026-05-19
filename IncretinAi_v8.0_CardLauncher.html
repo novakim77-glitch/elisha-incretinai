@@ -577,7 +577,7 @@
         #v8-home .v8-title-section{padding:8px 20px 20px;text-align:center}
         #v8-home .v8-logo-wrap{display:inline-flex;align-items:flex-start;position:relative}
         #v8-home .v8-logo-text{font-family:'Outfit',sans-serif;font-size:38px;font-weight:800;color:#0C2340;letter-spacing:-.03em;line-height:1}
-        #v8-home .v8-logo-planet{width:34px;height:26px;margin-left:3px;margin-top:2px;flex-shrink:0}
+        #v8-home .v8-logo-planet{width:36px;height:26px;margin-left:4px;margin-top:4px;flex-shrink:0}
         #v8-home .v8-app-subtitle{font-size:13px;color:var(--v8-muted);margin-top:8px;line-height:1.4}
         #v8-home .v8-hero{margin:0 20px 28px;background:linear-gradient(135deg,var(--v8-navy) 0%,var(--v8-teal-dark) 60%,var(--v8-teal) 100%);border-radius:24px;padding:24px;color:#fff;position:relative;overflow:hidden;box-shadow:0 12px 32px rgba(12,35,64,.12);cursor:pointer;transition:transform .2s ease}
         #v8-home .v8-hero:active{transform:scale(.98)}
@@ -752,9 +752,14 @@
         <div class="v8-logo-wrap">
           <span class="v8-logo-text">IncretinAi</span>
           <!-- 토성 아이콘: 오렌지 행성 + 링 -->
-          <svg class="v8-logo-planet" viewBox="0 0 52 36" xmlns="http://www.w3.org/2000/svg" fill="none">
-            <ellipse cx="26" cy="22" rx="24" ry="7.5" fill="#F97316"/>
-            <circle cx="26" cy="15" r="13" fill="#F97316"/>
+          <svg class="v8-logo-planet" viewBox="0 0 56 40" xmlns="http://www.w3.org/2000/svg" fill="none">
+            <!-- 링 뒷부분 -->
+            <ellipse cx="28" cy="20" rx="26" ry="7" fill="#FB923C"/>
+            <!-- 행성 본체 -->
+            <circle cx="28" cy="20" r="13" fill="#F97316"/>
+            <!-- 링 앞부분 (행성 앞으로 나오는 부분) — 아랫면 절반 clip -->
+            <clipPath id="cp-ring-front"><rect x="0" y="20" width="56" height="20"/></clipPath>
+            <ellipse cx="28" cy="20" rx="26" ry="7" fill="#EA6C00" clip-path="url(#cp-ring-front)"/>
           </svg>
         </div>
         <p class="v8-app-subtitle">오늘의 대사 효율을 한눈에 확인하세요</p>
