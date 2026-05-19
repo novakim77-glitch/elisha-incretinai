@@ -58,6 +58,9 @@
 
   /* Recipe card */
   .recipe-grid{display:flex;flex-direction:column;gap:10px}
+  .sci-section-header{font-family:'Outfit','Inter',sans-serif;font-size:13px;font-weight:700;color:var(--navy);padding:14px 4px 6px;display:flex;align-items:center;gap:6px;letter-spacing:.01em}
+  .sci-section-header:first-child{padding-top:4px}
+  .sci-section-header .sci-cnt{font-size:11px;background:var(--surface);color:var(--muted);padding:2px 8px;border-radius:999px;font-weight:600}
   .rcard{background:var(--surface);border-radius:16px;padding:14px;border:1px solid var(--line);cursor:pointer;transition:all .15s;display:flex;gap:12px;align-items:flex-start}
   .rcard:hover{box-shadow:var(--shadow-md);border-color:var(--teal)}
   .rcard:active{transform:scale(.99)}
@@ -136,7 +139,7 @@
   <div class="tabs">
     <div class="tab active" data-tab="preload" onclick="goTab('preload')">🥜 프리로드 <span class="tab-badge">30</span></div>
     <div class="tab" data-tab="bseq" onclick="goTab('bseq')">🥗 본식 순서 <span class="tab-badge">10</span></div>
-    <div class="tab" data-tab="science" onclick="goTab('science')">🔬 인크레틴 과학 <span class="tab-badge">11</span></div>
+    <div class="tab" data-tab="science" onclick="goTab('science')">🔬 인크레틴 과학 <span class="tab-badge">16</span></div>
   </div>
 </header>
 
@@ -167,6 +170,14 @@
 
 <!-- ── SCIENCE PANEL ── -->
 <div class="panel" id="panel-science">
+  <div class="filters" id="science-filters">
+    <div class="filter active" data-cat="all" onclick="setScienceFilter('all')">전체</div>
+    <div class="filter" data-cat="basic" onclick="setScienceFilter('basic')">📚 기초</div>
+    <div class="filter" data-cat="action" onclick="setScienceFilter('action')">💊 작용</div>
+    <div class="filter" data-cat="diet" onclick="setScienceFilter('diet')">🍽️ 식이</div>
+    <div class="filter" data-cat="exercise" onclick="setScienceFilter('exercise')">🏃 운동</div>
+    <div class="filter" data-cat="lifestyle" onclick="setScienceFilter('lifestyle')">🌙 생활</div>
+  </div>
   <div class="content"><div class="recipe-grid" id="science-list"></div></div>
 </div>
 
@@ -410,42 +421,55 @@ const BSEQ = [
 ];
 
 // ═══════════════════════════════════════════════════════════
-// 데이터: 인크레틴 과학 11종
+// 데이터: 인크레틴 과학 16종 (카테고리: basic·action·diet·exercise·lifestyle)
 // ═══════════════════════════════════════════════════════════
 const SCIENCE = [
-  {id:1,emoji:'🧬',name:'GLP-1은 어떻게 분비되는가',sub:'β_pre 프리로드의 핵심 기전',
+  // ══════ 📚 기초 지식 ══════
+  {id:12,cat:'basic',emoji:'🧪',name:'인크레틴이란 무엇인가?',sub:'GLP-1·GIP와 위고비·마운자로의 정체',
+    body:`<p><b>인크레틴(Incretin)</b>은 음식이 들어왔을 때 장에서 분비되어 췌장의 인슐린 분비를 자극하는 호르몬 그룹입니다. 핵심은 두 종류:</p>
+<p><b>① GLP-1 (Glucagon-Like Peptide-1)</b> — 소장 하부 L세포에서 분비. 인슐린 분비 자극 + 글루카곤 억제 + 위 배출 지연 + 식욕 억제. 체중 감량 효과의 핵심.</p>
+<p><b>② GIP (Glucose-dependent Insulinotropic Polypeptide)</b> — 소장 상부 K세포에서 분비. 인슐린 분비 자극 + 지방 저장 신호. 단독 사용 시 체중 증가 가능성도 있음.</p>
+<p><b>중요한 사실</b>: 인크레틴은 본래 우리 몸이 <b>매일 매끼 스스로 분비하는 호르몬</b>입니다. 단지 현대인의 생활습관(불규칙 식사, 가공식품, 운동 부족, 수면 부족)이 그 분비량과 효과를 약화시킨 것이죠.</p>
+<p><b>그럼 GLP-1 주사약들은?</b></p>
+<p><b>💉 위고비/오젬픽 (세마글루타이드)</b> — 인공 GLP-1 유사체. 자연 GLP-1보다 분해가 느려 효과가 오래 지속. 주 1회 주사. 평균 체중 -15% (STEP-1, NEJM 2021).</p>
+<p><b>💉 마운자로 (티르제파타이드)</b> — GLP-1과 GIP를 <b>동시에 작용</b>하는 듀얼 작용제. 위고비보다 체중 감량 효과 강력. 평균 -22% (SURMOUNT-1, NEJM 2022).</p>
+<p><b>💉 삭센다 (리라글루타이드)</b> — 1세대 GLP-1. 매일 주사. 효과는 위고비보다 약함.</p>
+<p><b>핵심 통찰</b>: 이 약물들은 "외부에서 인공 호르몬을 주입"하는 방식입니다. 효과는 강력하나 ① 평생 주사 부담 ② 중단 시 요요 ③ 부작용 가능성이라는 한계가 있습니다.</p>
+<p><b>인크레티나 아이의 접근</b>: 약 없이 <b>내 몸이 스스로 분비하는 GLP-1·GIP를 매일 최적화</b>하는 시스템. α(타이밍) × β(시퀀스) × γ(민감도) 공식으로 매끼 인크레틴 효율을 측정·개선합니다. 평생 지속 가능한 자체 인크레틴 시스템 구축이 목표입니다.</p>`,
+    refs:'Drucker DJ (Cell Metabolism 2018, GLP-1 종설); Nauck MA & Meier JJ (Lancet Diabetes Endocrinol 2018, 인크레틴 종설); STEP-1 (NEJM 2021); SURMOUNT-1 (NEJM 2022).'},
+  {id:1,cat:'basic',emoji:'🧬',name:'GLP-1은 어떻게 분비되는가',sub:'β_pre 프리로드의 핵심 기전',
     body:`<p>GLP-1(Glucagon-Like Peptide-1)은 소장 하부의 <b>L-세포</b>에서 분비되는 호르몬입니다. 다음 세 가지 자극이 결합될 때 가장 강하게 분비됩니다:</p>
 <ol><li><b>단백질</b> — 특히 유청(WPI)과 카세인이 강력 (Vilsbøll 2003: 유청 → GLP-1 +141%)</li>
 <li><b>지방</b> — 단일불포화지방산(MUFA), 오메가-3 (EVOO, 들기름, 등푸른생선)</li>
 <li><b>식이섬유</b> — 수용성 섬유가 SCFA(단쇄지방산)로 발효되며 간접 자극</li></ol>
 <p>식사 15~30분 <b>전에</b> 이 세 가지 자극을 주면, 본 식사 시점에 이미 GLP-1 농도가 상승해 있어 혈당 스파이크를 억제합니다. 이것이 인크레티나 아이의 <b>β_pre = 1.025</b> 의 과학적 근거입니다.</p>`,
     refs:'Vilsbøll T et al. (Am J Clin Nutr 2003); Dougkas A et al. (PMC 2011); 위고비(세마글루타이드)는 인공 GLP-1 유사체입니다.'},
-  {id:2,emoji:'🥗',name:'채소→단백질→탄수화물 순서의 과학',sub:'β_seq 시퀀스 식사의 효과',
+  {id:2,cat:'diet',emoji:'🥗',name:'채소→단백질→탄수화물 순서의 과학',sub:'β_seq 시퀀스 식사의 효과',
     body:`<p>같은 음식을 먹어도 <b>순서가 다르면 혈당이 다르게 반응</b>합니다.</p>
 <p><b>채소 먼저</b>: 수용성 섬유가 위장에 점성을 형성 → 후속 탄수화물의 흡수 속도 지연 (40% 흡수 지연 — Imai et al., 2014)</p>
 <p><b>단백질 다음</b>: GLP-1·CCK 호르몬 분비 → 위 배출 속도 ↓ → 포만감 ↑</p>
 <p><b>탄수화물 마지막</b>: 이미 위장에 채소·단백질 레이어가 깔린 상태 → 혈당 스파이크 37% 감소 (Jenkins et al.)</p>
 <p>한국 식단에서는 나물 반찬·국 건더기를 먼저 먹고, 고기/생선 반찬을 거친 다음, 밥을 마지막에 천천히 먹는 것이 핵심입니다.</p>`,
     refs:'Imai S et al. (J Clin Biochem Nutr 2014); Jenkins DJA (American Journal of Clinical Nutrition); Shukla AP et al. (Diabetes Care 2015).'},
-  {id:3,emoji:'🌅',name:'Bio-Sync 골든타임의 진실',sub:'일주기 리듬과 α 타이밍',
+  {id:3,cat:'lifestyle',emoji:'🌅',name:'Bio-Sync 골든타임의 진실',sub:'일주기 리듬과 α 타이밍',
     body:`<p>인체의 <b>대사 효율은 시간대에 따라 변합니다</b>. 인슐린 감수성, GLP-1 분비 효율, 미토콘드리아 활성 모두 일출~일몰 사이에 최고치를 보입니다.</p>
 <p><b>오전</b>: 코르티솔이 자연적으로 상승하며 혈당 조절 호르몬도 활성화. 아침 식사 시 같은 양의 탄수화물도 혈당 스파이크가 낮음.</p>
 <p><b>해 진 후</b>: 멜라토닌 분비 시작 → 인슐린 분비 능력 ↓. 늦은 저녁 식사는 α 계수에 -0.10 페널티가 적용되는 이유입니다.</p>
 <p><b>실천</b>: 일몰 1~2시간 전 저녁 마감 → 14시간 공복 확보 → AMPK 활성화 + 인슐린 감수성 회복.</p>`,
     refs:'Scheer FAJL et al. (PNAS 2009); Garaulet M et al. (International Journal of Obesity 2013); Bo S et al. (Obesity 2015).'},
-  {id:4,emoji:'🚶',name:'식후 산책의 메타볼릭 효과',sub:'10분 걷기가 만드는 차이',
+  {id:4,cat:'exercise',emoji:'🚶',name:'식후 산책의 메타볼릭 효과',sub:'10분 걷기가 만드는 차이',
     body:`<p>식사 직후 가벼운 산책(10~20분)이 혈당 관리에 미치는 효과는 운동학 분야에서 잘 입증되어 있습니다.</p>
 <p><b>기전</b>: 근육 수축 시 인슐린과 독립적으로 GLUT-4 단백질이 세포막으로 이동 → 혈중 글루코스를 근육이 직접 흡수. 식후 30분 이내 산책 시 혈당 피크를 30% 감소시킬 수 있습니다.</p>
 <p><b>핵심 시간</b>: 식사 종료 후 10~20분 이내. 너무 늦으면(60분+) 이미 혈당 피크가 지나가 효과 감소.</p>
 <p><b>강도</b>: 격렬할 필요 없음. 평지에서 평소 속도로 10~20분 걷기로 충분.</p>`,
     refs:'Reynolds AN et al. (Diabetologia 2016); Buffey AJ et al. (Sports Medicine 2022); DiPietro L et al. (Diabetes Care 2013).'},
-  {id:5,emoji:'⚖️',name:'"천연 위고비"의 과학적 진실',sub:'SNS 트렌드와 IMEM의 차이',
+  {id:5,cat:'diet',emoji:'⚖️',name:'"천연 위고비"의 과학적 진실',sub:'SNS 트렌드와 IMEM의 차이',
     body:`<p>SNS에서 유행하는 <b>"천연 위고비"</b>(달걀+올리브오일을 식전에 섭취)는 실제로 GLP-1 분비를 자극합니다. 단, 위고비(세마글루타이드)와는 다음과 같이 다릅니다:</p>
 <p><b>위고비</b>: 합성 GLP-1 유사체. 효력 강력하지만 처방·주사 필요. 부작용 가능성.</p>
 <p><b>천연 위고비(=β_pre)</b>: 자체 GLP-1을 단기 자극. 효력은 위고비보다 약하지만 <b>안전</b>하고 <b>매일 실천 가능</b>.</p>
 <p>인크레티나 아이는 이 β_pre를 <b>α(타이밍) × β(시퀀스) × γ(민감도)</b> 와 함께 조합하여 매일의 대사 효율을 최적화합니다. "천연 위고비"는 IMEM의 한 요소(β_pre)일 뿐 — 전체 시스템이 더 강력합니다.</p>`,
     refs:'세마글루타이드 작용기전(NEJM 2017); β_pre 임상 근거(Diabetes Care 2018); IMEM 통합 프로토콜은 인크레티나 아이 특허 출원 중.'},
-  {id:6,emoji:'💊',name:'GLP-1이 체중 감량에 도움이 되는 이유',sub:'위고비가 효과 있는 4가지 기전',
+  {id:6,cat:'action',emoji:'💊',name:'GLP-1이 체중 감량에 도움이 되는 이유',sub:'위고비가 효과 있는 4가지 기전',
     body:`<p>GLP-1은 <b>장에서 분비되는 호르몬</b>이지만, 그 작용은 뇌·위·췌장·지방조직 전체에 미칩니다. 체중 감량에 기여하는 핵심 기전 4가지:</p>
 <p><b>① 식욕 억제</b> — 시상하부 활꼴핵(arcuate nucleus)의 POMC 뉴런을 활성화하고 NPY/AgRP 뉴런을 억제 → "배부르다" 신호 강화. 위고비 임상에서 평균 일일 칼로리 -700kcal 감소(STEP-1, NEJM 2021).</p>
 <p><b>② 위 배출 속도 감소</b> — 위에서 소장으로 음식이 넘어가는 속도를 늦춰 포만감을 2~4시간 지속. 자연 GLP-1도 식사 직후 30~60분간 동일한 효과를 냄.</p>
@@ -453,7 +477,7 @@ const SCIENCE = [
 <p><b>④ 지방 산화 우선</b> — 인슐린 농도가 낮게 유지되면서 호르몬민감지질분해효소(HSL) 활성 → 체지방 분해 모드 진입.</p>
 <p><b>인크레티나 아이의 접근</b>: 외부 GLP-1을 주사하는 대신, β_pre·β_seq·α 타이밍으로 <b>내인성 GLP-1 분비를 매일 매끼 최적화</b>합니다. 위고비만큼은 아니지만, 부작용 없이 평생 지속 가능한 방식입니다.</p>`,
     refs:'Wilding JPH et al. (NEJM 2021, STEP-1 trial); Drucker DJ (Cell Metabolism 2018); Müller TD et al. (Molecular Metabolism 2019, GLP-1 review).'},
-  {id:7,emoji:'💉',name:'GLP-1 주사를 끊으면 요요가 오는 이유',sub:'중단 후 1년 내 체중 66% 회복의 메커니즘',
+  {id:7,cat:'action',emoji:'💉',name:'GLP-1 주사를 끊으면 요요가 오는 이유',sub:'중단 후 1년 내 체중 66% 회복의 메커니즘',
     body:`<p>GLP-1 주사(위고비·삭센다·마운자로)는 강력하지만, <b>중단하면 평균 1년 내 잃은 체중의 2/3가 돌아옵니다</b> (STEP-1 extension, Diabetes Obes Metab 2022). 그 이유:</p>
 <p><b>① 내인성 GLP-1 분비 회로 위축</b> — 외부 GLP-1이 충분히 공급되면 자체 분비 신호가 약화. 약을 끊는 순간 기저 GLP-1 농도가 평소보다도 더 낮아짐.</p>
 <p><b>② 시상하부 식욕 조절 회로 원상복귀</b> — 약물이 누르고 있던 식욕 신호(NPY/AgRP)가 다시 활성화 → "참고 있던" 식욕이 폭발.</p>
@@ -461,7 +485,7 @@ const SCIENCE = [
 <p><b>④ 인크레틴 수용체 민감도 변화</b> — 장기간 외부 자극에 노출된 수용체가 일시적으로 둔화. 자체 GLP-1에 대한 반응도 약해짐.</p>
 <p><b>인크레티나 아이의 해법</b>: γ 계수는 인크레틴 <b>수용체 민감도</b>를 측정합니다. 운동·장 건강·수면을 통한 γ 회복은 약물 중단 후에도 GLP-1 효과를 자체적으로 유지하는 핵심 전략입니다. SyncRx 트랙의 δ Modifier는 약물 이력을 반영해 회복 곡선을 개인화합니다.</p>`,
     refs:'Wilding JPH et al. (Diabetes Obes Metab 2022, STEP-1 extension); Aronne LJ et al. (JAMA 2024, SURMOUNT-4); Cava E et al. (Adv Nutr 2017, 근손실 데이터).'},
-  {id:8,emoji:'🌙',name:'인크레틴 호르몬 일주기 과학',sub:'같은 음식, 다른 시간 — 왜 다르게 살찌는가',
+  {id:8,cat:'basic',emoji:'🌙',name:'인크레틴 호르몬 일주기 과학',sub:'같은 음식, 다른 시간 — 왜 다르게 살찌는가',
     body:`<p>인체의 인크레틴 분비와 인슐린 감수성은 <b>24시간 주기로 변동</b>합니다. 같은 700kcal 식사도 시간대에 따라 체중 변화 효과가 다른 이유:</p>
 <p><b>아침(06~10시)</b> — 코르티솔 자연 상승과 동기화되어 GLP-1·GIP 분비 피크. 인슐린 감수성도 가장 높음. 같은 탄수화물도 혈당 스파이크가 30% 낮음(Jakubowicz, Obesity 2013).</p>
 <p><b>점심(11~14시)</b> — GLP-1 분비는 유지되나 GIP 분비 비율이 증가. GIP는 지방 저장 신호도 동반하므로 시퀀스(β_seq) 적용이 더 중요해짐.</p>
@@ -470,7 +494,7 @@ const SCIENCE = [
 <p><b>수면과 호르몬</b> — 수면 부족(<6h) 시: GLP-1 분비 22% 저하 + 그렐린(공복 호르몬) 28% 상승 + 렙틴(포만 호르몬) 18% 감소. 한밤중 식욕 폭발의 과학적 원인.</p>
 <p><b>인크레티나 아이의 α 계수</b>: 식사 시점을 일주기 리듬과 비교해 0.85~1.10 범위로 계산. Bio-Sync 타이머가 "골든타임"으로 시각화하는 이유입니다.</p>`,
     refs:'Jakubowicz D et al. (Obesity 2013, 아침식사 vs 저녁식사); Garaulet M et al. (Int J Obes 2013, 식사 타이밍과 체중 감량); Spiegel K et al. (Ann Intern Med 2004, 수면-식욕 호르몬); Lindgren O et al. (J Clin Endocrinol Metab 2009, GLP-1 일주기).'},
-  {id:9,emoji:'🏋️',name:'GLP-1 호르몬 부스터 생활습관',sub:'약 없이 GLP-1을 끌어올리는 5가지',
+  {id:9,cat:'lifestyle',emoji:'🏋️',name:'GLP-1 호르몬 부스터 생활습관',sub:'약 없이 GLP-1을 끌어올리는 5가지',
     body:`<p>주사 없이도 내인성 GLP-1을 높이는 생활습관 5가지 — 모두 인크레티나 아이의 10개 루틴에 녹아 있습니다.</p>
 <p><b>① 운동 (γ 직접 자극)</b> — HIIT와 중강도 유산소는 운동 후 <b>L세포의 GLP-1 분비 +27%</b>, 수용체 감수성 +30% (Martins et al., J Endocrinol 2007). 근력운동은 GLP-1 수용체 발현 자체를 증가시킴.</p>
 <p><b>② 수면 7~9시간 (호르몬 균형)</b> — 수면이 충분하면 GLP-1·렙틴 회로가 정상화되고 그렐린이 억제됨. 수면 1시간 부족 = 일일 칼로리 +200kcal 자동 증가.</p>
@@ -479,7 +503,7 @@ const SCIENCE = [
 <p><b>⑤ 아침 햇빛 노출 (세로토닌→포만감)</b> — 기상 후 10분 직사광 노출은 세로토닌 분비를 자극 → 식욕 조절 회로(시상하부) 정상화. 동시에 멜라토닌 리듬이 맞춰져 밤의 인슐린 능력도 보존.</p>
 <p><b>인크레티나 아이 매핑</b>: 루틴 1(생체리듬), 2(커피), 3(14h 단식), 7(근력운동), 9(멜라토닌 세이프가드)는 모두 γ를 올리는 설계. 단순한 습관 체크리스트가 아니라 <b>GLP-1 부스터 프로토콜</b>입니다.</p>`,
     refs:'Martins C et al. (J Endocrinol 2007, 운동과 GLP-1); Plovier H et al. (Nat Med 2017, Akkermansia); Spiegel K et al. (Ann Intern Med 2004, 수면-식욕); Wehrens SMT et al. (Curr Biol 2017, 햇빛-대사 리듬).'},
-  {id:10,emoji:'🔥',name:'인슐린 저항성이 살찌는 진짜 이유',sub:'고인슐린·인크레틴 둔화의 악순환',
+  {id:10,cat:'action',emoji:'🔥',name:'인슐린 저항성이 살찌는 진짜 이유',sub:'고인슐린·인크레틴 둔화의 악순환',
     body:`<p>"열심히 운동하고 적게 먹는데도 살이 안 빠진다" — 대부분 인슐린 저항성이 원인입니다. 그 메커니즘:</p>
 <p><b>① 인슐린 저항성 = 세포가 인슐린을 잘 듣지 않음</b> — 같은 혈당을 처리하려면 더 많은 인슐린이 필요. 췌장이 과로하며 만성 고인슐린 상태로 진입.</p>
 <p><b>② 고인슐린 = 지방 저장 모드 ON</b> — 인슐린은 지방세포의 LPL(lipoprotein lipase)을 활성화하고 HSL(hormone-sensitive lipase)을 억제 → <b>지방 저장은 가속, 지방 분해는 정지</b>. 같은 칼로리를 먹어도 더 많이 저장됨.</p>
@@ -488,7 +512,7 @@ const SCIENCE = [
 <p><b>γ 계수의 의미</b>: 인크레티나 아이의 <b>γ(인크레틴 민감도)</b> 계수는 이 인슐린 저항성의 역수에 가깝습니다. γ가 높으면 같은 GLP-1 분비량으로 더 큰 효과를 봄. 운동·14h 단식·고섬유 식단은 모두 γ를 올리는 개입.</p>
 <p><b>위험 요인 연결</b>: R-01(야식), R-04(고탄수 폭식), R-06(가공식품)이 γ를 낮추는 인자로 정의된 것은 이들이 모두 인슐린 저항성을 직접 악화시키기 때문입니다.</p>`,
     refs:'Nauck MA et al. (Diabetologia 1986, incretin effect 감소); Kahn SE et al. (Nature 2006, 인슐린 저항성과 비만); DeFronzo RA (Diabetes Care 2009).'},
-  {id:11,emoji:'⏰',name:'공복 14시간이 특별한 이유',sub:'AMPK 활성화와 인크레틴 리셋',
+  {id:11,cat:'diet',emoji:'⏰',name:'공복 14시간이 특별한 이유',sub:'AMPK 활성화와 인크레틴 리셋',
     body:`<p>인크레티나 아이의 루틴 3번 "14h 단식 해제"는 단순한 IF(간헐적 단식)가 아닙니다. <b>인크레틴 시스템을 매일 리셋하는 프로토콜</b>입니다.</p>
 <p><b>0~12시간 (위장 비우기)</b> — 마지막 식사의 글리코겐이 점차 소진. 인슐린 농도는 기저선으로 하강.</p>
 <p><b>12~14시간 (대사 스위치)</b> — 간 글리코겐 고갈 → <b>지방산화 모드 전환</b>. 케톤체 생성 시작. 인슐린은 최저 농도.</p>
@@ -498,6 +522,98 @@ const SCIENCE = [
 <p><b>주의</b>: 18시간 이상 단식은 코르티솔 상승과 근손실 위험. 인크레티나 아이가 <b>14시간을 선택한 이유</b>는 효과는 충분하면서 안전한 황금 구간이기 때문입니다.</p>
 <p><b>α×γ 동시 리셋</b>: 14h 단식 해제는 α(타이밍)와 γ(수용체 민감도)를 동시에 개선하는 유일한 루틴. 그래서 IMEM 점수에 +7XP가 부여됩니다.</p>`,
     refs:'Anton SD et al. (Obesity 2018, IF와 대사 스위치); Mattson MP et al. (NEJM 2019, 단식의 메커니즘); Sutton EF et al. (Cell Metab 2018, eTRF와 인슐린 감수성); Cabo R et al. (Cell 2014, autophagy와 노화).'},
+  // ══════ 🍽️ 식이 ══════
+  {id:13,cat:'diet',emoji:'☕',name:'커피와 인크레틴 — 마시는 타이밍의 과학',sub:'카페인이 GLP-1을 부스트하는 메커니즘',
+    body:`<p>커피는 <b>그 자체로 GLP-1 분비를 자극</b>합니다. 단, 마시는 시간과 방식이 결과를 좌우합니다.</p>
+<p><b>① 카페인의 직접 효과</b> — 카페인은 장 L세포의 GLP-1 분비를 <b>26% 증가</b>시킵니다(Greenberg et al., Diabetologia 2010). 또한 PDE 억제 작용으로 GLP-1의 분해 속도를 늦춰 효과 지속 시간을 늘림.</p>
+<p><b>② 클로로겐산 (CGA)</b> — 커피에 풍부한 폴리페놀. 장에서 포도당 흡수를 늦추고 인슐린 감수성을 개선 → γ 계수 상승에 기여(Iwai et al., Nutrients 2012).</p>
+<p><b>③ 식욕 억제 시너지</b> — 카페인 단독으로도 식욕 -22% 효과. GLP-1 분비와 결합하면 다음 식사 칼로리 자연 감소.</p>
+<p><b>🟢 최적 타이밍 (인크레티나 아이 루틴 2번과 동기화)</b></p>
+<p><b>아침 7~9시</b> — 코르티솔 자연 피크와 동기화. 지방 산화 효과 최대. <b>공복 블랙커피</b>가 가장 강력 (14시간 단식 종료 시점이라면 더욱).</p>
+<p><b>식전 30분</b> — β_pre로 활용 가능. 카페인 + 단백질(우유 한 큰술 또는 그릭요거트 한 스푼) 조합이 단독 커피보다 GLP-1 분비 +18%.</p>
+<p><b>점심 후 1~2시간</b> — 식후 혈당 피크가 지나간 후 마시면 오후 인슐린 감수성 유지에 도움.</p>
+<p><b>🔴 피해야 할 시간</b></p>
+<p><b>오후 2시 이후</b> — 카페인 반감기 5~6시간 → 수면 질 저하 → 다음날 GLP-1 분비량 22% 감소. 수면 부족이 더 큰 손해.</p>
+<p><b>식사 직후 30분 이내</b> — 철분·칼슘 흡수 저해. 카페인이 위 배출을 가속해 포만감 단축.</p>
+<p><b>🟡 주의 사항</b></p>
+<p>설탕·시럽·크림 추가 시 모든 효과 무효화 + 혈당 스파이크. <b>블랙·아메리카노·우유 약간</b>이 정답. 하루 3~4잔까지가 안전선, 그 이상은 코르티솔 만성 상승 위험.</p>
+<p><b>인크레티나 아이의 루틴 2번 "커피 대사 부스트"</b>가 무가당 블랙커피 1잔(08:30 KST)으로 설정된 과학적 근거입니다.</p>`,
+    refs:'Greenberg JA et al. (Diabetologia 2010, 카페인과 GLP-1); Iwai K et al. (Nutrients 2012, 클로로겐산); van Dam RM et al. (Lancet 2020, 커피와 대사); Salazar-Martinez E et al. (Ann Intern Med 2004, 커피와 당뇨 예방).'},
+  // ══════ 🏃 운동 ══════
+  {id:15,cat:'exercise',emoji:'🏃',name:'시간대별 운동법 — 낮은 유산소, 저녁은 근력',sub:'운동 종류 × 시간대 × 인크레틴 효과',
+    body:`<p>같은 운동도 <b>시간대에 따라 인크레틴 시스템에 미치는 효과가 다릅니다</b>. 인크레티나 아이가 권장하는 시간대별 운동 매트릭스:</p>
+<p><b>🌅 오전 (07~10시) — 공복 유산소가 최강</b></p>
+<p>코르티솔 자연 피크 + 글리코겐 저하 상태 → <b>지방 산화 모드</b>. 30분 가벼운 유산소(빠른 걷기·조깅·자전거)로 GLP-1 분비 +27%, 식욕 호르몬 그렐린 -32%(Larson-Meyer et al., Med Sci Sports Exerc 2012). 빈 속 운동이 가장 효과적인 시간.</p>
+<p><b>☀️ 점심~오후 초반 (11~15시) — 중강도 활동</b></p>
+<p>체온·근력·반응속도 피크. 식후 산책 또는 가벼운 근력운동이 적합. 식후 30분 이내 10분 걷기만으로도 혈당 -30%.</p>
+<p><b>🌇 저녁 (16~19시) — 근력운동의 황금시간</b></p>
+<p>근육 단백질 합성률·관절 가동성·테스토스테론 모두 피크. <b>스쿼트·데드리프트 등 대근육 근력운동이 이 시간에 가장 효과적</b>. 근력운동 후 24~48시간 동안 GLP-1 수용체 발현 +30%(Boon et al., Diabetologia 2010) → γ 계수 직접 상승.</p>
+<p><b>🌙 야간 (20시 이후) — 격렬한 운동 금지</b></p>
+<p>심박수 상승 → 코르티솔 분비 → 멜라토닌 분비 지연 → 수면 질 저하. 저녁 늦은 시간은 가벼운 스트레칭·요가만. 격렬한 운동은 다음날 GLP-1 분비도 약화.</p>
+<p><b>📊 운동 종류별 인크레틴 효과 (요약)</b></p>
+<ul>
+<li><b>유산소 (zone 2)</b>: GLP-1 분비량 ↑↑, 인슐린 감수성 ↑ — 매일 30분</li>
+<li><b>HIIT (고강도 인터벌)</b>: GLP-1 +40%, 수용체 감수성 ++ — 주 2~3회로 충분</li>
+<li><b>근력운동</b>: GLP-1 수용체 발현 ↑↑, 근육량 ↑ → BMR 보존 — 주 3~5회</li>
+<li><b>요가/스트레칭</b>: 코르티솔 ↓ → 간접적 γ 보존 — 매일 가능</li>
+</ul>
+<p><b>🎯 1주일 권장 조합</b>: 오전 유산소 4회(30분) + 저녁 근력 3회(45분) + 매일 식후 산책 + 격일 요가.</p>
+<p><b>인크레티나 아이 매핑</b>: 루틴 7번 "근육 방어 보호막"이 저녁 시간대 근력운동 30분으로 설정된 것은 이 황금시간을 활용하기 위함입니다. 식후 산책(루틴 6) + 골든타임 식사(α) + 근력(γ) 의 3중 시너지로 IMEM 점수가 +18XP까지 누적됩니다.</p>`,
+    refs:'Larson-Meyer DE et al. (Med Sci Sports Exerc 2012, 공복 운동과 호르몬); Boon H et al. (Diabetologia 2010, 근력운동과 GLP-1 수용체); Martins C et al. (J Endocrinol 2007, 운동 종류별 GLP-1); Drust B et al. (Chronobiol Int 2005, 일주기와 운동 능력).'},
+  // ══════ 🌙 생활습관 ══════
+  {id:14,cat:'lifestyle',emoji:'😴',name:'수면이 인크레틴을 살린다 — 7~9시간의 과학',sub:'수면 부족이 GLP-1을 망가뜨리는 메커니즘',
+    body:`<p>"잠을 잘 자야 살이 빠진다" — 단순 격언이 아닌 호르몬 과학입니다. 수면이 인크레틴 시스템에 미치는 영향:</p>
+<p><b>💥 수면 부족 1주일 = GLP-1 시스템 붕괴</b></p>
+<p>주당 평균 수면 5시간 미만 시 (Spiegel et al., Ann Intern Med 2004):</p>
+<ul>
+<li>GLP-1 분비량 <b>-22%</b> (식후 인크레틴 반응 약화)</li>
+<li>그렐린(공복 호르몬) <b>+28%</b> (식욕 폭증)</li>
+<li>렙틴(포만 호르몬) <b>-18%</b> (포만 신호 약화)</li>
+<li>다음날 자동 섭취 칼로리 <b>+385kcal</b></li>
+<li>인슐린 감수성 <b>-30%</b> (γ 계수 추락)</li>
+</ul>
+<p><b>🌙 수면 단계별 호르몬 활동</b></p>
+<p><b>NREM 3단계 (깊은 수면) — 22:00~02:00 비중 최대</b>: 성장호르몬 분비 피크 → 근육 회복 + 지방 분해. 이 시간대 깨어 있으면 다음날 BMR 저하.</p>
+<p><b>REM 수면 — 새벽 04:00~06:00 비중 최대</b>: 뇌의 인슐린 신호 회로 재조정. 이 시간대 부족 시 인슐린 저항성 악화.</p>
+<p><b>코르티솔 일주기 리셋</b>: 깊은 수면이 충분해야 다음날 코르티솔 분비가 정상화. 만성 수면 부족 → 코르티솔 만성 상승 → GLP-1 효과 둔화 + 내장지방 축적.</p>
+<p><b>🟢 인크레틴 친화 수면 프로토콜</b></p>
+<ol>
+<li><b>7~9시간 절대 사수</b> — 5시간 이하는 1주만 지속해도 회복까지 2주 필요</li>
+<li><b>일정한 취침·기상 시간</b> — 주말 차이 1시간 이내. 일주기 리듬 안정 → α 계수 안정</li>
+<li><b>저녁 7시 이후 식사 금지</b> — 야간 인슐린 분비 능력 30% 감소 + 수면 질 저하</li>
+<li><b>23시 이전 취침</b> — 깊은 수면 핵심 구간(22:00~02:00)을 놓치지 않도록</li>
+<li><b>침실 온도 18~20°C</b> — 체온 하강이 멜라토닌 분비 트리거</li>
+<li><b>블루라이트 차단</b> — 취침 1시간 전 화면 사용 중단 또는 야간 모드 (루틴 9번 "멜라토닌 세이프가드"의 근거)</li>
+<li><b>알코올 금지</b> — REM 수면을 50% 감소 → 인슐린 회복 차단</li>
+</ol>
+<p><b>📈 효과</b>: 7~9시간 수면 유지 시 일일 GLP-1 분비량 정상화 + 식욕 자동 -20% + 인슐린 감수성 회복. 다이어트 노력의 30%가 수면 하나로 결정됩니다.</p>
+<p><b>인크레티나 아이의 수면 모니터링</b>: γ 계수는 수면 시간과 일관성을 반영. 루틴 9번 "멜라토닌 세이프가드"(블루라이트 차단·실내 조도 낮추기, 22:00 알림)와 루틴 1번 "생체 리듬 리셋"(기상 10분 내 햇빛 노출)이 수면-인크레틴 축을 보호하는 양대 루틴입니다.</p>`,
+    refs:'Spiegel K et al. (Ann Intern Med 2004, 수면 부족과 식욕 호르몬); Buxton OM et al. (Sci Transl Med 2012, 수면과 인슐린 저항성); St-Onge MP et al. (Circulation 2016, 수면과 비만); Cappuccio FP et al. (Sleep 2008, 수면 시간과 비만 메타분석).'},
+  // ══════ 📚 기초 지식 (추가) ══════
+  {id:16,cat:'basic',emoji:'🩺',name:'인크레틴의 놀라운 효과 — 비만·당뇨·치매까지',sub:'GLP-1이 전신에 미치는 증명된 효과들',
+    body:`<p>인크레틴(특히 GLP-1)은 단순히 체중 감량 호르몬이 아닙니다. 최근 10년 임상 연구는 인크레틴이 <b>전신 만성질환에 광범위한 효과</b>를 가짐을 입증했습니다.</p>
+<p><b>🔵 비만 치료 (1차 효과)</b></p>
+<p>위고비 STEP-1 임상: 평균 체중 <b>-15%</b>, 1/3은 -20% 이상. 마운자로 SURMOUNT-1: 평균 <b>-22%</b>. 비만 치료의 패러다임을 바꾼 효과(NEJM 2021, 2022).</p>
+<p><b>🔵 제2형 당뇨 (FDA 1차 적응증)</b></p>
+<p>HbA1c <b>-1.5~2.0%</b> 감소, 췌장 β세포 보호 작용. 저혈당 위험 없이(glucose-dependent) 혈당 조절. 메트포르민 다음 가는 1차 치료제로 자리잡음(Lancet Diabetes Endocrinol 2023).</p>
+<p><b>🔵 심혈관 보호</b></p>
+<p>LEADER, SUSTAIN-6, REWIND 임상: 심근경색·뇌졸중·심혈관 사망 <b>-13~26%</b>. 직접적 혈관 내피세포 보호 작용 + 염증 감소. 당뇨 환자에게 심혈관 보호 효능 인정(NEJM 2016, 2017, Lancet 2019).</p>
+<p><b>🔵 신장 보호</b></p>
+<p>FLOW 임상: 만성 신장질환 진행 <b>-24%</b>, 신장 사망 -29%. 당뇨성 신증의 새 치료 옵션(NEJM 2024).</p>
+<p><b>🔵 비알코올 지방간 (NASH)</b></p>
+<p>간 지방량 <b>-30~40%</b>, 간섬유증 호전. 현재 비알코올 지방간염 임상 3상 진행 중(NEJM 2021).</p>
+<p><b>🔵 치매·알츠하이머 예방 (가장 주목받는 영역)</b></p>
+<p>GLP-1 수용체가 뇌 해마·전전두엽에도 존재. 신경염증 감소 + 뇌 인슐린 감수성 회복 + 베타 아밀로이드 청소 촉진. 알츠하이머 환자 대상 evoke 임상 3상 진행 중. 사전 코호트 연구에서 GLP-1 사용자 알츠하이머 발병률 <b>-37%</b>(Lancet Healthy Longev 2023).</p>
+<p><b>🔵 중독 행동 감소</b></p>
+<p>음주·흡연·도박 충동 감소 보고 다수. 뇌 도파민 보상 회로 조절 효과. 알코올 사용 장애 임상 진행 중.</p>
+<p><b>🔵 다낭성 난소 증후군 (PCOS)</b></p>
+<p>인슐린 저항성·체중·생리 주기 개선. 가임력 회복 보고.</p>
+<p><b>🔵 골관절염</b></p>
+<p>체중 부하 감소 + 항염증 효과. 무릎 통증·기능 점수 개선.</p>
+<p><b>🌟 통찰: "GLP-1 = 대사 만성질환의 공통 키"</b></p>
+<p>비만·당뇨·치매·심혈관·간·신장·관절은 따로 보면 다른 병이지만, <b>근본 원인이 인슐린 저항성·만성 염증·인크레틴 효과 둔화로 수렴</b>합니다. 그래서 인크레틴 활성화가 이 모든 질환에 효과를 보이는 것입니다.</p>
+<p><b>인크레티나 아이의 의미</b>: 약물 없이 내인성 인크레틴 시스템을 매일 강화한다는 것은 <b>"비만 치료" 이상의 의미</b>를 갖습니다. 당뇨·치매·심혈관 질환의 통합 예방 시스템 — 이것이 IMEM의 진정한 가치입니다. SyncRx(처방 DTx) 트랙이 향후 당뇨·전당뇨·NASH로 확장되는 이유이기도 합니다.</p>`,
+    refs:'STEP-1 (NEJM 2021, 비만); SURMOUNT-1 (NEJM 2022, 비만+당뇨); LEADER (NEJM 2016, 심혈관); SUSTAIN-6 (NEJM 2016, 심혈관); FLOW (NEJM 2024, 신장); Newsome PN et al. (NEJM 2021, NASH); Wang W et al. (Lancet Healthy Longev 2023, 알츠하이머); evoke trial (Alzheimer\'s Dement 2024).'},
 ];
 
 // ═══════════════════════════════════════════════════════════
@@ -506,6 +622,17 @@ const SCIENCE = [
 let currentTab = 'preload';
 let preloadFilter = 'all';
 let bseqFilter = 'all';
+let scienceFilter = 'all';
+
+// 카테고리 표시 순서 + 라벨 (인크레틴 과학 그룹화용)
+const SCIENCE_CAT_ORDER = ['basic','action','diet','exercise','lifestyle'];
+const SCIENCE_CAT_LABEL = {
+  basic:    '📚 기초 지식',
+  action:   '💊 호르몬 작용',
+  diet:     '🍽️ 식이',
+  exercise: '🏃 운동',
+  lifestyle:'🌙 생활습관',
+};
 
 function escapeHtml(s){ return String(s||'').replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
 function stars(n){ return '★'.repeat(n) + '☆'.repeat(5-n); }
@@ -609,15 +736,35 @@ function renderBseq(){
 
 function renderScience(){
   const grid = document.getElementById('science-list');
-  grid.innerHTML = SCIENCE.map(s=>`
+  const cardHtml = s => `
     <div class="rcard fade-in" onclick="showDetail('science',${s.id})">
       <div class="rcard-emoji">${s.emoji}</div>
       <div class="rcard-body">
         <div class="rcard-name">${escapeHtml(s.name)}</div>
         <div class="rcard-sub">${escapeHtml(s.sub)}</div>
       </div>
-    </div>`).join('');
+    </div>`;
+  let html = '';
+  if (scienceFilter === 'all') {
+    // 전체: 카테고리 섹션 헤더와 함께 그룹화 렌더링
+    for (const cat of SCIENCE_CAT_ORDER) {
+      const items = SCIENCE.filter(s => s.cat === cat);
+      if (!items.length) continue;
+      html += `<div class="sci-section-header">${SCIENCE_CAT_LABEL[cat]} <span class="sci-cnt">${items.length}</span></div>`;
+      html += items.map(cardHtml).join('');
+    }
+  } else {
+    // 특정 카테고리만 필터링
+    const items = SCIENCE.filter(s => s.cat === scienceFilter);
+    html = items.map(cardHtml).join('');
+  }
+  grid.innerHTML = html;
   expandAbbrInElement(grid);
+}
+function setScienceFilter(cat){
+  scienceFilter = cat;
+  document.querySelectorAll('#science-filters .filter').forEach(el=>el.classList.toggle('active', el.dataset.cat===cat));
+  renderScience();
 }
 
 function goTab(tab){
