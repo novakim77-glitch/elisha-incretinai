@@ -61,6 +61,17 @@
   .sci-section-header{font-family:'Outfit','Inter',sans-serif;font-size:13px;font-weight:700;color:var(--navy);padding:14px 4px 6px;display:flex;align-items:center;gap:6px;letter-spacing:.01em}
   .sci-section-header:first-child{padding-top:4px}
   .sci-section-header .sci-cnt{font-size:11px;background:var(--surface);color:var(--muted);padding:2px 8px;border-radius:999px;font-weight:600}
+  /* Why IncretinAi 카드 차별화 디자인 */
+  #why-list .rcard{background:linear-gradient(135deg,rgba(26,107,104,.04),rgba(196,154,60,.06));border:1.5px solid rgba(196,154,60,.35);position:relative;padding:18px 16px 16px;align-items:center}
+  #why-list .rcard:hover{border-color:var(--gold);box-shadow:0 6px 20px rgba(196,154,60,.18)}
+  #why-list .rcard::before{content:attr(data-seq);position:absolute;top:10px;right:14px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;color:var(--gold);letter-spacing:.05em;background:rgba(196,154,60,.12);padding:3px 8px;border-radius:999px}
+  #why-list .rcard-emoji{font-size:34px;background:#fff;border-radius:14px;padding:8px;box-shadow:0 2px 8px rgba(12,35,64,.06)}
+  #why-list .rcard-name{font-family:'Outfit',sans-serif;font-weight:700;color:var(--navy);font-size:15px;margin-bottom:4px;padding-right:60px}
+  #why-list .rcard-sub{font-size:12.5px;color:var(--teal-dark);font-weight:500;line-height:1.45}
+  .why-intro-banner{background:linear-gradient(135deg,var(--navy) 0%,var(--teal-dark) 100%);color:#fff;border-radius:16px;padding:18px 18px 16px;margin-bottom:14px;text-align:center}
+  .why-intro-banner h3{font-family:'Outfit',sans-serif;font-size:17px;font-weight:700;margin:0 0 6px;letter-spacing:-.01em}
+  .why-intro-banner p{font-size:12.5px;color:rgba(255,255,255,.85);margin:0;line-height:1.5}
+  .why-intro-banner .pill{display:inline-block;background:rgba(196,154,60,.25);color:var(--gold);font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:999px;margin-bottom:8px;letter-spacing:.05em;text-transform:uppercase}
   .rcard{background:var(--surface);border-radius:16px;padding:14px;border:1px solid var(--line);cursor:pointer;transition:all .15s;display:flex;gap:12px;align-items:flex-start}
   .rcard:hover{box-shadow:var(--shadow-md);border-color:var(--teal)}
   .rcard:active{transform:scale(.99)}
@@ -140,6 +151,7 @@
     <div class="tab active" data-tab="preload" onclick="goTab('preload')">🥜 프리로드 <span class="tab-badge">30</span></div>
     <div class="tab" data-tab="bseq" onclick="goTab('bseq')">🥗 본식 순서 <span class="tab-badge">10</span></div>
     <div class="tab" data-tab="science" onclick="goTab('science')">🔬 인크레틴 과학 <span class="tab-badge">16</span></div>
+    <div class="tab" data-tab="why" onclick="goTab('why')">💎 Why IncretinAi? <span class="tab-badge">6</span></div>
   </div>
 </header>
 
@@ -166,6 +178,11 @@
     <div class="filter" data-cat="out" onclick="setBseqFilter('out')">🏪 외식</div>
   </div>
   <div class="content"><div class="recipe-grid" id="bseq-list"></div></div>
+</div>
+
+<!-- ── WHY INCRETINAI PANEL ── -->
+<div class="panel" id="panel-why">
+  <div class="content"><div class="recipe-grid" id="why-list"></div></div>
 </div>
 
 <!-- ── SCIENCE PANEL ── -->
@@ -643,6 +660,170 @@ const SCIENCE = [
 ];
 
 // ═══════════════════════════════════════════════════════════
+// 데이터: Why IncretinAi? 6종
+// ═══════════════════════════════════════════════════════════
+const WHY = [
+  {id:1,emoji:'✨',name:'한눈에 보는 인크레티나 아이',sub:'위고비 시대에 우리가 만든 것',
+    body:`<p><b>인크레티나 아이(IncretinAi)</b>는 약 없이 평생 GLP-1 시스템을 최적화하기 위한 디지털 건강 플랫폼입니다.</p>
+<p><b>🎯 미션</b></p>
+<p>위고비·마운자로 같은 GLP-1 주사약은 강력하지만, ① 평생 주사 부담 ② 중단 시 요요 ③ 부작용 위험이라는 한계가 있습니다. 우리는 <b>내 몸이 스스로 분비하는 GLP-1·GIP 시스템을 매일 매끼 최적화</b>하는 길을 선택했습니다.</p>
+<p><b>🧬 핵심 자산: IMEM™ (Incretin Metabolic Efficiency Model)</b></p>
+<p>세계 최초 5변수 통합 공식으로 매끼 인크레틴 효율을 정량 측정합니다. α(타이밍) × β(시퀀스) × γ(민감도) × β_meal(식사 품질) × δ(약물 보정).</p>
+<p><b>🏗️ 3-Pillar 플랫폼</b></p>
+<ul>
+<li><b>앱 (PWA)</b> — 나의 도구. 개인 대시보드·체중·루틴·IMEM 점수</li>
+<li><b>텔레그램 봇</b> — 나의 코치. 1:1 AI 코칭·알림·식사 사진 분석</li>
+<li><b>라이브러리</b> — 우리의 광장. 인크레틴 과학·레시피·가이드</li>
+</ul>
+<p><b>📐 한 줄 정의</b></p>
+<p style="padding:14px 16px;background:linear-gradient(135deg,rgba(26,107,104,.08),rgba(196,154,60,.08));border-radius:12px;border-left:3px solid var(--gold);font-weight:600;color:var(--navy);font-size:15px">
+"GLP-1 시스템의 운영체제(OS) — 평생 지속 가능한 자체 인크레틴 시스템 구축"
+</p>
+<p><b>🌟 누구를 위한 도구인가</b></p>
+<ul>
+<li>약 없이 체중을 관리하고 싶은 사람</li>
+<li>GLP-1 주사를 끊고 요요를 막고 싶은 사람</li>
+<li>당뇨 전·당뇨 환자로 인슐린 감수성을 회복하고 싶은 사람</li>
+<li>비만·당뇨·치매를 통합적으로 예방하고 싶은 사람</li>
+</ul>`},
+  {id:2,emoji:'🧮',name:'IMEM™ — 우리만의 핵심 엔진',sub:'5변수 통합으로 매끼 대사 효율을 측정한다',
+    body:`<p><b>IMEM (Incretin Metabolic Efficiency Model)</b>은 인크레티나 아이의 모든 시스템이 작동하는 수학적 기반입니다.</p>
+<p><b>📐 핵심 공식</b></p>
+<p style="padding:16px;background:#0C2340;color:#fff;border-radius:12px;font-family:'JetBrains Mono',monospace;text-align:center;font-size:14px;line-height:1.8">
+ΔWeight = f(BMR) × [α × β × γ] × Compliance<br>
+β = β_pre × β_seq × β_meal<br>
+γ_offramp = γ × δ × (1 + recovery_bonus)
+</p>
+<p><b>🔢 5변수 해부</b></p>
+<ul>
+<li><b>α (Alpha) — 타이밍 (0.85~1.10)</b><br>식사 시점이 일주기 리듬과 얼마나 맞는가. 일출~일몰 사이는 인슐린 감수성·GLP-1 분비 모두 피크.</li>
+<li><b>β_pre — 프리로드 (≤1.025)</b><br>식사 15~30분 전 단백질+지방으로 GLP-1을 미리 자극. "천연 위고비"의 과학.</li>
+<li><b>β_seq — 시퀀스 (≤1.025)</b><br>채소→단백질→탄수화물 순서. 혈당 스파이크 37% 감소.</li>
+<li><b>β_meal — 식사 품질 (0.95~1.025)</b><br>매크로 균형·칼로리 예산·시간대별 적정성을 종합.</li>
+<li><b>γ (Gamma) — 인크레틴 민감도 (0.95~1.10)</b><br>인슐린·GLP-1 수용체가 얼마나 잘 작동하는가. 운동·수면·장 건강이 결정.</li>
+<li><b>δ (Delta) — 약물 보정 (SyncRx 전용)</b><br>GLP-1 약물 이력을 반영해 회복 곡선을 개인화.</li>
+</ul>
+<p><b>🤔 왜 5변수인가?</b></p>
+<p>SNS의 "천연 위고비"는 β_pre 하나만 자극합니다. 그러나 같은 음식도 시간대(α), 식사 순서(β_seq), 인슐린 감수성(γ)에 따라 결과가 천차만별. <b>단일 변수의 +2.5% 효과가 5변수 시너지로 +25%까지 누적</b>됩니다.</p>
+<p><b>📊 매끼 → 매일 → 1년의 차이</b></p>
+<p>매끼 IMEM 점수 0.95 vs 1.10. 1년이면 누적 효과는 <b>같은 식단·같은 체중 시작점에서 7~10kg 차이</b>. "느낌이 아닌 수학"이 인크레티나 아이의 약속입니다.</p>
+<p><b>🏆 특허 자산</b></p>
+<ul>
+<li><b>P-01</b>: δ Modifier (10개 청구항, 명세서 초안 완료) — Off-Ramp 시스템</li>
+<li><b>P-03</b>: IMEM Base (α×β×γ 통합 공식)</li>
+<li><b>P-04~P-08</b>: Bio-Sync 타이머·AI 코칭·앱-봇 동기화·식욕 예측</li>
+</ul>`},
+  {id:3,emoji:'🤖',name:'AI 코치 — 3 페르소나',sub:'당신이 원하는 방식으로 코칭한다',
+    body:`<p>인크레티나 아이의 텔레그램 봇은 Claude Sonnet 기반 AI 코치를 탑재합니다. 같은 IMEM 데이터에서 출발해 <b>3가지 톤으로 1:1 코칭</b>합니다.</p>
+<p><b>🌸 따뜻한 대사 코치 (empathetic)</b></p>
+<p style="padding:12px 14px;background:rgba(26,107,104,.06);border-radius:10px;border-left:3px solid var(--teal);font-size:13.5px;line-height:1.6">
+"오늘 점심 시퀀스 잘하셨네요 💚 채소부터 드신 게 보여요. 어제보다 β_seq가 +0.015 올라갔어요. 작은 변화가 쌓이는 중입니다. 저녁에는 단백질 한 입 먼저 어떠세요?"
+</p>
+<p><b>🩺 GLP-1 임상의 (clinical)</b></p>
+<p style="padding:12px 14px;background:rgba(12,35,64,.06);border-radius:10px;border-left:3px solid var(--navy);font-size:13.5px;line-height:1.6">
+"현재 β_seq=1.015, β_pre=1.020로 IMEM 점수 78점입니다. Imai et al. (2014) 연구에 따르면 채소 우선 섭취는 식후 혈당 스파이크를 37% 감소시킵니다. 다음 식사도 동일 패턴 유지를 권합니다."
+</p>
+<p><b>💪 강인한 트레이너 (driver)</b></p>
+<p style="padding:12px 14px;background:rgba(196,154,60,.08);border-radius:10px;border-left:3px solid var(--gold);font-size:13.5px;line-height:1.6">
+"채소 먼저! 잘했어요. 근데 오늘 운동 0회. 저녁 7시 스쿼트 20개 시작합시다. γ 계수 깨우는 시간! 💯"
+</p>
+<p><b>🔄 페르소나 변경</b></p>
+<p>텔레그램에서 "페르소나 변경" 입력 → 인라인 키보드로 즉시 전환. 컨디션·기분에 따라 매일 다르게 선택 가능.</p>
+<p><b>🎯 코치의 작동 원리</b></p>
+<ul>
+<li><b>실시간 IMEM 컨텍스트</b> — 오늘 α/β/γ 점수, 어제 트렌드, 7일 평균을 알고 응답</li>
+<li><b>식사 사진 자동 분석</b> — 봇에 사진 전송 → kcal·매크로 자동 추출 → β_meal 계산</li>
+<li><b>15개 자동 알림</b> — 06:30~22:00 시간대별 페르소나 톤 알림 (햇빛 노출·골든타임·식후 산책·리캡)</li>
+<li><b>프로액티브 코칭</b> — 3일 연속 체중 증가·동일 루틴 미스 감지 시 자동 개입</li>
+</ul>
+<p><b>📚 학습된 지식 기반</b></p>
+<p>30종 프리로드 레시피 + 10종 본식 순서 가이드 + 16종 인크레틴 과학 콘텐츠 + 100+ 임상 레퍼런스가 코치의 응답 기반.</p>`},
+  {id:4,emoji:'🔁',name:'매일 작동하는 방식',sub:'06:30부터 22:00까지 — 15개의 자동 알림',
+    body:`<p>인크레티나 아이는 <b>당신이 잊어도 시스템이 기억</b>합니다. 하루의 모든 결정 포인트에 자동 코칭이 작동합니다.</p>
+<p><b>⏰ 하루 15개 시간 슬롯</b></p>
+<p style="padding:14px;background:var(--surface);border-radius:12px;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.7">
+06:30 햇빛 노출 · 06:35 야식 회복 · 07:00 모닝 브리핑<br>
+10:30 점심 프리로드 · 11:00 점심 프리코칭 · 11:30 점심 골든<br>
+11:35 프리로드 미완료 · 13:30 시퀀스 미완료<br>
+16:30 저녁 프리코칭 · 17:00 저녁 골든 · 17:30 저녁 프리로드<br>
+18:00 식사 미기록 · 18:30 메타볼릭 스위치<br>
+19:30 저녁 마감 미완료 · 22:00 일일 리캡 + 트렌드 분석
+</p>
+<p><b>🎯 10개 플러스 루틴 (Progressive Unlocking)</b></p>
+<ul>
+<li><b>1주차 (5개)</b>: 생체 리듬 리셋·커피 대사 부스트·14h 단식 해제·호르몬 프리로드·인크레틴 시퀀스</li>
+<li><b>2주차 (+2)</b>: 글루코스 클리어런스(식후 산책)·저녁 마감</li>
+<li><b>3주차 (+2)</b>: 근육 방어 보호막·멜라토닌 세이프가드</li>
+<li><b>4주차 (+1)</b>: 심층 대사 복구 (완전 암막 7~8시간 숙면)</li>
+</ul>
+<p><b>⚠️ 8개 위험 요인 (R-01~R-08)</b></p>
+<p>야식 / 단순당 폭식 / 격렬 운동 후 단백질 부족 / 고탄수 점심 / 알코올 / 가공식품 / 수면 부족 / 만성 스트레스 — 실시간 감지 후 회복 미션 자동 생성.</p>
+<p><b>📷 사진 한 장 = 자동 식사 기록</b></p>
+<p>봇에 식사 사진 전송 → AI 비전이 음식 인식 → kcal·단백질·지방·탄수 자동 산출 → β_meal 계수 갱신 → 다음 끼니 예산 계산 → 페르소나별 피드백.</p>
+<p><b>🔄 앱 ↔ 봇 실시간 동기화</b></p>
+<p>봇에서 체크한 루틴이 앱 대시보드에 즉시 반영. 앱에서 입력한 체중이 봇 IMEM 계산에 즉시 반영. 단일 진실 원천(Firebase) 위에서 두 인터페이스가 협력.</p>
+<p><b>🛡️ 무결점 데이터 보존</b></p>
+<p>네트워크 일시 오류 시 3회 재시도 자동. 식사 저장 성공 후 자동 매핑이 실패해도 식사 기록은 보존. "데이터 손실 0건"이 운영 원칙.</p>`},
+  {id:5,emoji:'📊',name:'데이터 + 예측의 힘',sub:'느낌이 아닌 데이터로 변화한다',
+    body:`<p>다이어트는 보통 "이번엔 다를 거야"라는 막연한 결심으로 시작합니다. 인크레티나 아이는 다릅니다.</p>
+<p><b>📈 매끼 IMEM 점수</b></p>
+<p>식사 직후 0~100점 자동 계산. 시간대(α) × 시퀀스(β_seq) × 식사 품질(β_meal) × 인슐린 감수성(γ)이 어떻게 결합되었는지 한눈에 보임. <b>"오늘 잘했다"가 아니라 "오늘 78점"</b>.</p>
+<p><b>📉 7일·30일 추이 차트</b></p>
+<p>체중·BMI·IMEM 점수·α/β/γ 각각의 추이를 실시간 시각화. Chart.js 기반 인터랙티브 그래프. "그래프가 우상향하고 있다" 같은 객관적 피드백.</p>
+<p><b>🔮 4주 후 체중 예측</b></p>
+<p>현재 IMEM 패턴이 유지될 경우 4주 후 예상 체중을 매일 갱신. 단순 칼로리 계산이 아닌 <b>α·β·γ 누적 효과 + Compliance 기반 시뮬레이션</b>. 예측치가 마음에 안 들면 오늘 행동을 바꿀 동기 발생.</p>
+<p><b>🆚 Before / After 비교</b></p>
+<p>챌린지 시작일과 오늘을 직접 비교: 체중·BMI·인크레틴 게이지·연속 기록·레벨·XP·뱃지. "1개월 전의 나"가 거울이 됩니다.</p>
+<p><b>🚨 트렌드 자동 감지</b></p>
+<ul>
+<li><b>3일 연속 체중 증가</b> → 즉시 페르소나 톤 코칭 발송</li>
+<li><b>전일 대비 α/β/γ 0.1+ 하락</b> → 원인 분석 + 회복 가이드</li>
+<li><b>동일 루틴 3일+ 연속 미스</b> → 부드러운 복귀 메시지</li>
+</ul>
+<p><b>🎮 게이미피케이션</b></p>
+<ul>
+<li><b>XP·레벨</b> — 매일 완료한 루틴별 점수, 30레벨 "인크레틴 레전드"까지</li>
+<li><b>14개 뱃지</b> — 첫 스트릭·1주 전사·2주 마스터·골든타임 마스터·3kg 감량·5kg 감량 등</li>
+<li><b>일일 퀘스트</b> — 매일 3개 미션, 모두 완료 시 보너스 +30 XP</li>
+<li><b>주간 챌린지</b> — 직원 16명 8주 챌린지가 운영 중인 베타 시스템</li>
+</ul>
+<p><b>📊 CCS (Composite Challenge Score)</b></p>
+<p>체중 변화율(40%) + IMEM 평균(35%) + 루틴 완수일(25%) 통합 점수. <b>/ranking</b> 명령어로 실시간 순위 확인. 그러나 잘하는 사람만 부각, 못하는 사람은 보호 — 비교 불안 차단 설계.</p>`},
+  {id:6,emoji:'🌱',name:'우리의 비전 + 다음 단계',sub:'비만 → 당뇨 → 치매 통합 예방 시스템으로',
+    body:`<p>인크레티나 아이의 최종 목표는 단순한 다이어트 앱이 아닙니다.</p>
+<p><b>🧬 인크레틴 시스템 = 만성질환의 공통 키</b></p>
+<p>비만·당뇨·치매·심혈관·간·신장·관절은 따로 보면 다른 병이지만, 그 근본 원인은 <b>인슐린 저항성·만성 염증·인크레틴 효과 둔화로 수렴</b>합니다. GLP-1 활성화가 이 모든 질환에 효과를 보이는 이유입니다.</p>
+<p><b>📐 듀얼 트랙 비전</b></p>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0">
+<div style="padding:14px;background:rgba(26,107,104,.08);border-radius:12px;border:1px solid var(--teal)">
+<div style="font-weight:700;color:var(--teal-dark);font-size:13px;margin-bottom:6px">Synca (싱카)</div>
+<div style="font-size:12px;color:var(--text);line-height:1.5">소비자 웰니스 트랙<br>δ = 1.0<br>약물 이력 없음<br>일반 사용자 대상</div>
+</div>
+<div style="padding:14px;background:rgba(196,154,60,.08);border-radius:12px;border:1px solid var(--gold)">
+<div style="font-weight:700;color:var(--gold);font-size:13px;margin-bottom:6px">SyncRx (싱크알엑스)</div>
+<div style="font-size:12px;color:var(--text);line-height:1.5">DTx 처방 트랙<br>δ &lt; 1.0<br>GLP-1 중단·당뇨 환자<br>의료 파트너십 대상</div>
+</div>
+</div>
+<p><b>🛤️ 개발 로드맵</b></p>
+<ul>
+<li><b>현재 (2026)</b> — 직원 16명 8주 베타 챌린지 (4월 29일~6월 23일)</li>
+<li><b>3~6개월</b> — 데이터 수집 → P-01·P-03 특허 출원 실시예 보강</li>
+<li><b>6~12개월</b> — 임상 파트너 확보 (내분비내과·비만클리닉) → SyncRx 파일럿</li>
+<li><b>12~24개월</b> — TIPS·시드·시리즈 A 펀딩 → MAU 50K·SyncRx IND 신청 시 스핀오프</li>
+</ul>
+<p><b>🌍 글로벌 확장 비전</b></p>
+<p>한국 사용자 검증 → 동남아 (베트남·일본·태국 시간대 인식 이미 구현됨) → 미국·유럽 GLP-1 시장으로. <b>"GLP-1 약물의 글로벌 처방량 1조 달러 시장의 디지털 대안"</b>이 우리의 포지셔닝입니다.</p>
+<p><b>🏥 더 큰 의미</b></p>
+<p>위고비·마운자로의 등장으로 비만 치료가 의료의 영역이 되었지만, 모든 사람이 약을 평생 맞을 수는 없습니다. <b>일반인이 약 없이 GLP-1 시스템을 일상에서 유지하는 디지털 인프라</b> — 이것이 우리가 만들고자 하는 미래입니다.</p>
+<p style="padding:18px;background:linear-gradient(135deg,var(--navy),var(--teal-dark));color:#fff;border-radius:14px;margin-top:14px;text-align:center;font-family:'Outfit',sans-serif;font-size:15px;font-weight:600;line-height:1.6">
+"당신의 매일이<br>다음 환자를 살린다"<br>
+<span style="display:block;font-size:11px;color:var(--gold);font-weight:500;margin-top:8px;letter-spacing:.05em">— IncretinAi Mission</span>
+</p>
+<p><b>📬 함께 만들어 갑니다</b></p>
+<p>피드백·제안은 텔레그램 그룹챗으로. 베타 사용자 여러분의 데이터가 SyncRx 임상의 기반이 되고, P-01·P-03 특허의 실시예가 됩니다. 인크레티나 아이는 우리 모두의 프로젝트입니다.</p>`},
+];
+
+// ═══════════════════════════════════════════════════════════
 // 렌더링
 // ═══════════════════════════════════════════════════════════
 let currentTab = 'preload';
@@ -793,6 +974,27 @@ function setScienceFilter(cat){
   renderScience();
 }
 
+function renderWhy(){
+  const grid = document.getElementById('why-list');
+  if (!grid) return;
+  const total = WHY.length;
+  const banner = `<div class="why-intro-banner">
+    <div class="pill">Why IncretinAi?</div>
+    <h3>위고비 시대에 우리가 만든 것</h3>
+    <p>약 없이 평생 GLP-1 시스템을 최적화하는<br>디지털 인프라의 모든 것</p>
+  </div>`;
+  const seq = i => String(i+1).padStart(2,'0') + ' / ' + String(total).padStart(2,'0');
+  grid.innerHTML = banner + WHY.map((w,i)=>`
+    <div class="rcard fade-in" data-seq="${seq(i)}" onclick="showDetail('why',${w.id})">
+      <div class="rcard-emoji">${w.emoji}</div>
+      <div class="rcard-body">
+        <div class="rcard-name">${escapeHtml(w.name)}</div>
+        <div class="rcard-sub">${escapeHtml(w.sub)}</div>
+      </div>
+    </div>`).join('');
+  expandAbbrInElement(grid);
+}
+
 function goTab(tab){
   currentTab = tab;
   document.querySelectorAll('.tab').forEach(el=>el.classList.toggle('active', el.dataset.tab===tab));
@@ -901,6 +1103,23 @@ function showDetail(type, id){
         <div class="ds-label">📚 참고문헌</div>
         <div class="ds-text" style="font-size:12px;color:var(--muted);font-style:italic">${escapeHtml(s.refs)}</div>
       </div>`;
+  } else if (type==='why') {
+    const w = WHY.find(x=>x.id===id); if (!w) return;
+    const total = WHY.length;
+    const seq = String(id).padStart(2,'0') + ' / ' + String(total).padStart(2,'0');
+    html = `
+      <button class="back-btn" onclick="goTab('why')" style="margin-bottom:14px;width:auto;padding:8px 16px;border-radius:10px;background:var(--surface);font-size:13px;font-weight:600;gap:6px"><svg viewBox="0 0 24 24" width="14" height="14" style="fill:none;stroke:currentColor;stroke-width:2"><path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg> 목록으로</button>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;color:var(--gold);letter-spacing:.08em;margin-bottom:6px">${seq}</div>
+      <div class="detail-header">
+        <div class="detail-emoji">${w.emoji}</div>
+        <div class="detail-title">
+          <h2>${escapeHtml(w.name)}</h2>
+          <p>${escapeHtml(w.sub)}</p>
+        </div>
+      </div>
+      <div class="detail-section" style="background:linear-gradient(135deg,rgba(26,107,104,.04),rgba(196,154,60,.04));border-color:rgba(196,154,60,.3)">
+        <div class="ds-text">${w.body}</div>
+      </div>`;
   }
   const dv = document.getElementById('detail-view');
   dv.innerHTML = html;
@@ -920,6 +1139,7 @@ window.addEventListener('scroll', function(){
 renderPreload();
 renderBseq();
 renderScience();
+renderWhy();
 </script>
 </body>
 </html>
