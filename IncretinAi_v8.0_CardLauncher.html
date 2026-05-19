@@ -798,7 +798,7 @@
           <div class="v8-section-action" onclick="v8DisableFlag()">전체 보기 →</div>
         </div>
         <div class="v8-grid">
-          <div class="v8-grid-card" onclick="v8GoLegacy('routine-section')">
+          <div class="v8-grid-card" onclick="v8GoLegacy('routine-list')">
             <div class="v8-card-icon teal"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></div>
             <div>
               <div class="v8-card-value"><span id="v8-routine-done">0</span><span style="font-size:13px;color:var(--v8-muted);font-weight:500">/<span id="v8-routine-total">10</span></span></div>
@@ -814,7 +814,7 @@
             </div>
             <div class="v8-card-meta"><span id="v8-meal-kcal">0</span> kcal</div>
           </div>
-          <div class="v8-grid-card" onclick="v8GoLegacy('trend-view')">
+          <div class="v8-grid-card" onclick="v8GoBeforeAfter()">
             <div class="v8-card-icon green"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 6-6"/></svg></div>
             <div>
               <div class="v8-card-value"><span id="v8-weight-val">--</span><span style="font-size:11px;color:var(--v8-muted);font-weight:500">kg</span></div>
@@ -830,7 +830,7 @@
             </div>
             <div class="v8-card-meta">레시피 · 가이드</div>
           </div>
-          <div class="v8-grid-card" onclick="v8GoLegacy('sim-view')">
+          <div class="v8-grid-card" onclick="v8GoDetail()">
             <div class="v8-card-icon navy"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 20V10M12 20V4M6 20v-6"/></svg></div>
             <div>
               <div class="v8-card-value">α·β·γ</div>
@@ -838,7 +838,7 @@
             </div>
             <div class="v8-card-meta">7일 추이 보기</div>
           </div>
-          <div class="v8-grid-card" onclick="v8GoLegacy('level-bar')">
+          <div class="v8-grid-card" onclick="v8GoLegacy('badge-inventory')">
             <div class="v8-card-icon purple"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/></svg></div>
             <div>
               <div class="v8-card-value"><span id="v8-badge-done">0</span><span style="font-size:13px;color:var(--v8-muted);font-weight:500">/<span id="v8-badge-total">14</span></span></div>
@@ -1549,6 +1549,29 @@ window.v8GoLegacy = function(elementId){
     } else {
       window.scrollTo({top:0});
     }
+  }, 60);
+};
+// 체중 카드 → legacy 전환 + Before/After 모달 오픈
+window.v8GoBeforeAfter = function(){
+  v8GoLegacy('trend-view');
+  setTimeout(function(){
+    if (typeof openCompareModal === 'function') openCompareModal();
+  }, 150);
+};
+// α·β·γ 분석 카드 → legacy 전환 + detail-section 자동 펼치기 + 스크롤
+window.v8GoDetail = function(){
+  document.body.classList.remove('v8-active');
+  setTimeout(function(){
+    var ds = document.getElementById('detail-section');
+    if (ds) {
+      var cs = getComputedStyle(ds);
+      var hidden = cs.display === 'none' || cs.maxHeight === '0px' || parseFloat(cs.maxHeight) < 10;
+      if (hidden) { var btn = document.getElementById('detail-toggle-btn'); if (btn) btn.click(); }
+    }
+    setTimeout(function(){
+      var target = document.getElementById('vitality-card') || document.getElementById('detail-section');
+      if (target) target.scrollIntoView({behavior:'smooth', block:'start'});
+    }, 80);
   }, 60);
 };
 // v8 홈 카드를 현재 Firestore 상태로 갱신 (읽기 전용 — 쓰기 절대 없음)
