@@ -812,7 +812,7 @@
           <div class="v8-section-action" onclick="v8DisableFlag()">전체 보기 →</div>
         </div>
         <div class="v8-grid">
-          <div class="v8-grid-card" onclick="v8GoLegacy('routine-list')">
+          <div class="v8-grid-card" onclick="v8GoTab('routine','routine-list')">
             <div class="v8-card-icon teal"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></div>
             <div>
               <div class="v8-card-value"><span id="v8-routine-done">0</span><span style="font-size:13px;color:var(--v8-muted);font-weight:500">/<span id="v8-routine-total">10</span></span></div>
@@ -820,7 +820,7 @@
             </div>
             <div class="v8-card-progress"><div class="v8-card-progress-fill" id="v8-routine-bar" style="width:0%"></div></div>
           </div>
-          <div class="v8-grid-card" onclick="v8GoLegacy('meals-card')">
+          <div class="v8-grid-card" onclick="v8GoTab('dashboard','meals-card')">
             <div class="v8-card-icon orange"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11h18M5 11V7a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v4M5 11v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-8"/></svg></div>
             <div>
               <div class="v8-card-value"><span id="v8-meal-count">0</span><span style="font-size:13px;color:var(--v8-muted);font-weight:500">끼</span></div>
@@ -852,7 +852,7 @@
             </div>
             <div class="v8-card-meta">7일 추이 보기</div>
           </div>
-          <div class="v8-grid-card" onclick="v8GoLegacy('badge-inventory')">
+          <div class="v8-grid-card" onclick="v8GoTab('gamification','badge-inventory')">
             <div class="v8-card-icon purple"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/></svg></div>
             <div>
               <div class="v8-card-value"><span id="v8-badge-done">0</span><span style="font-size:13px;color:var(--v8-muted);font-weight:500">/<span id="v8-badge-total">14</span></span></div>
@@ -1565,16 +1565,31 @@ window.v8GoLegacy = function(elementId){
     }
   }, 60);
 };
-// 체중 카드 → legacy 전환 + Before/After 모달 오픈
+// 탭 전환 + 스크롤 통합 헬퍼 (빠른 진입 카드 전용)
+window.v8GoTab = function(tab, elementId){
+  document.body.classList.remove('v8-active');
+  if (typeof switchMainTab === 'function') switchMainTab(tab);
+  setTimeout(function(){
+    var el = elementId && document.getElementById(elementId);
+    if (el && typeof el.scrollIntoView === 'function') {
+      el.scrollIntoView({behavior:'smooth', block:'start'});
+    } else {
+      window.scrollTo({top:0});
+    }
+  }, 120);
+};
+// 체중 카드 → dashboard 탭 전환 + Before/After 모달 오픈
 window.v8GoBeforeAfter = function(){
-  v8GoLegacy('trend-view');
+  document.body.classList.remove('v8-active');
+  if (typeof switchMainTab === 'function') switchMainTab('dashboard');
   setTimeout(function(){
     if (typeof openCompareModal === 'function') openCompareModal();
-  }, 150);
+  }, 200);
 };
-// α·β·γ 분석 카드 → legacy 전환 + detail-section 자동 펼치기 + 스크롤
+// α·β·γ 분석 카드 → dashboard 탭 전환 + detail-section 자동 펼치기 + 스크롤
 window.v8GoDetail = function(){
   document.body.classList.remove('v8-active');
+  if (typeof switchMainTab === 'function') switchMainTab('dashboard');
   setTimeout(function(){
     var ds = document.getElementById('detail-section');
     if (ds) {
@@ -1585,8 +1600,8 @@ window.v8GoDetail = function(){
     setTimeout(function(){
       var target = document.getElementById('vitality-card') || document.getElementById('detail-section');
       if (target) target.scrollIntoView({behavior:'smooth', block:'start'});
-    }, 80);
-  }, 60);
+    }, 100);
+  }, 120);
 };
 // 현재 시간 기준 "지금 할 일" 루틴 반환
 window.v8GetCurrentTask = function(){
