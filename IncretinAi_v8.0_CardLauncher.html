@@ -4908,15 +4908,21 @@ document.getElementById('p-exercise').addEventListener('change',onDataChange);
       }
       // 식사 카운트 + kcal (오늘)
       try {
-        var mealCards = document.querySelectorAll('#meals-card .meal-item, #meals-card .meal-card-item, #meals-list > *');
-        var mc = document.getElementById('v8-meal-count');
-        if (mc) mc.textContent = mealCards.length;
-        // 칼로리 합계 — v7이 노출한 글로벌 또는 DOM 텍스트 탐색
-        var kcalEl = document.getElementById('total-kcal') || document.getElementById('meals-total-kcal');
+        // 끼니 수: v7 meals-count 우선, 없으면 DOM 셀렉터
+        var mcEl = document.getElementById('meals-count');
+        var mealCount = mcEl ? parseInt(mcEl.textContent, 10) : NaN;
+        if (isNaN(mealCount)) {
+          var mealCards = document.querySelectorAll('#meals-card .meal-item, #meals-card .meal-card-item, #meals-list > *');
+          mealCount = mealCards.length;
+        }
+        var mcV8 = document.getElementById('v8-meal-count');
+        if (mcV8) mcV8.textContent = isNaN(mealCount) ? 0 : mealCount;
+        // 칼로리: meals-kcal(v7 실제) → total-kcal → meals-total-kcal 순 폴백
+        var kcalEl = document.getElementById('meals-kcal') || document.getElementById('total-kcal') || document.getElementById('meals-total-kcal');
         var kcalText = kcalEl ? kcalEl.textContent : '';
         var kcal = parseInt(String(kcalText).replace(/[^0-9]/g,''), 10);
         var mk = document.getElementById('v8-meal-kcal');
-        if (mk && !isNaN(kcal)) mk.textContent = kcal.toLocaleString();
+        if (mk) mk.textContent = (!isNaN(kcal) && kcal > 0) ? kcal.toLocaleString() : 0;
       } catch(_) {}
       // Week 표시 — v7의 sw / 시작일 기반 (있다면)
       try {
