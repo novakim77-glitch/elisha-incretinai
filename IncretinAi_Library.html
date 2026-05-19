@@ -114,6 +114,13 @@
   /* Fade-in animation */
   .fade-in{animation:fadeIn .3s ease both}
   @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+  /* Abbreviation expansion — 약자 하단에 작은 폰트로 full name */
+  ruby.abbr{ruby-position:under;-webkit-ruby-position:under;text-underline-position:under;display:inline-flex;flex-direction:column;align-items:center;vertical-align:baseline;line-height:1.15;margin:0 1px}
+  ruby.abbr rt{font-size:8.5px;font-weight:500;color:var(--muted);letter-spacing:-.01em;opacity:.85;display:block;text-align:center;white-space:nowrap;margin-top:1px;line-height:1}
+  ruby.abbr rp{display:none}
+  /* 줄간격이 좁은 컨테이너에서 약자 라벨이 잘리지 않도록 */
+  .ds-text,.rcard-sub,.seq-desc,.dstat{line-height:1.7}
 </style>
 </head>
 <body>
@@ -450,6 +457,63 @@ let bseqFilter = 'all';
 function escapeHtml(s){ return String(s||'').replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
 function stars(n){ return '★'.repeat(n) + '☆'.repeat(5-n); }
 
+// ═══ 약자 사전 — 본문 안에서 자동으로 하단에 풀네임 표시 ═══
+const ABBR_GLOSSARY = {
+  'EVOO':   '엑스트라 버진 올리브오일',
+  'WPI':    '분리 유청 단백질 (Whey Protein Isolate)',
+  'PHGG':   '부분 가수분해 구아검',
+  'SCFA':   '단쇄지방산 (Short-Chain Fatty Acid)',
+  'GLUT-4': '글루코스 수송체 4',
+  'AMPK':   'AMP-activated Protein Kinase',
+  'MUFA':   '단일불포화지방산',
+  'DHA':    'Docosahexaenoic Acid (오메가-3)',
+  'EPA':    'Eicosapentaenoic Acid (오메가-3)',
+  'ALA':    'Alpha-Linolenic Acid (오메가-3)',
+  'CCK':    'Cholecystokinin (콜레시스토키닌)',
+  'GI':     'Glycemic Index (혈당지수)',
+  'ORAC':   'Oxygen Radical Absorbance Capacity',
+  'NEJM':   'New England Journal of Medicine',
+  'PNAS':   'Proceedings of the National Academy of Sciences',
+  'PMC':    'PubMed Central',
+};
+// 긴 약자부터 매칭 (예: GLUT-4가 G보다 먼저)
+const ABBR_KEYS = Object.keys(ABBR_GLOSSARY).sort(function(a,b){return b.length-a.length;});
+
+function expandAbbrInElement(root){
+  if (!root) return;
+  try {
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+    const targets = [];
+    let n;
+    while (n = walker.nextNode()) {
+      // ruby/rt 안의 텍스트는 재처리 안 함
+      const tag = n.parentNode && n.parentNode.tagName;
+      if (tag === 'RT' || tag === 'RUBY' || tag === 'SCRIPT' || tag === 'STYLE') continue;
+      targets.push(n);
+    }
+    for (const tn of targets) {
+      let html = tn.nodeValue;
+      let changed = false;
+      for (const abbr of ABBR_KEYS) {
+        // 약자 양옆이 알파/숫자/하이픈이 아닐 때만 매칭 (단어 경계)
+        const escaped = abbr.replace(/[-[\]{}()*+?.\\^$|]/g, '\\$&');
+        const re = new RegExp('(^|[^A-Za-z0-9\\-])(' + escaped + ')(?![A-Za-z0-9\\-])', 'g');
+        if (re.test(html)) {
+          html = html.replace(re, function(_m, pre, match){
+            return pre + '<ruby class="abbr">' + match + '<rp>(</rp><rt>' + ABBR_GLOSSARY[abbr] + '</rt><rp>)</rp></ruby>';
+          });
+          changed = true;
+        }
+      }
+      if (changed) {
+        const span = document.createElement('span');
+        span.innerHTML = html;
+        tn.parentNode.replaceChild(span, tn);
+      }
+    }
+  } catch(e) { console.warn('[abbr] expand failed:', e); }
+}
+
 function renderPreload(){
   const list = preloadFilter === 'all' ? RECIPES : RECIPES.filter(r=>r.cat===preloadFilter);
   const grid = document.getElementById('preload-list');
@@ -468,6 +532,7 @@ function renderPreload(){
         </div>
       </div>
     </div>`).join('');
+  expandAbbrInElement(grid);
 }
 
 function renderBseq(){
@@ -486,6 +551,7 @@ function renderBseq(){
         </div>
       </div>
     </div>`).join('');
+  expandAbbrInElement(grid);
 }
 
 function renderScience(){
@@ -498,6 +564,7 @@ function renderScience(){
         <div class="rcard-sub">${escapeHtml(s.sub)}</div>
       </div>
     </div>`).join('');
+  expandAbbrInElement(grid);
 }
 
 function goTab(tab){
@@ -611,6 +678,7 @@ function showDetail(type, id){
   }
   const dv = document.getElementById('detail-view');
   dv.innerHTML = html;
+  expandAbbrInElement(dv);
   dv.classList.add('active','fade-in');
   document.querySelectorAll('.panel').forEach(el=>el.classList.remove('active'));
   document.getElementById('footer-bar').style.display='none';
