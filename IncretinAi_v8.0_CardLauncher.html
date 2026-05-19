@@ -751,7 +751,7 @@
         <p class="v8-app-subtitle">오늘의 대사 효율을 한눈에 확인하세요</p>
       </div>
 
-      <div class="v8-hero" onclick="v8GoLegacy('routine-section')">
+      <div class="v8-hero" onclick="v8GoLegacy('routine-list')">
         <svg class="v8-hero-svg" viewBox="0 0 200 100" preserveAspectRatio="none">
           <path d="M0,80 Q40,70 60,55 T120,30 T200,10" stroke="rgba(196,154,60,.6)" stroke-width="2" fill="none" stroke-linecap="round" stroke-dasharray="3 3"/>
           <circle cx="120" cy="30" r="4" fill="#C49A3C"/>
@@ -783,7 +783,7 @@
             <div class="v8-imem-bar"><div class="v8-imem-bar-fill" id="v8-gamma-bar" style="width:0%"></div></div>
           </div>
         </div>
-        <div class="v8-hero-cta" onclick="event.stopPropagation();v8GoLegacy('routine-section')">
+        <div class="v8-hero-cta" onclick="event.stopPropagation();v8GoLegacy('routine-list')">
           <div class="v8-cta-text">
             <span class="v8-cta-label">지금 할 일</span>
             <span class="v8-cta-main" id="v8-cta-main">🥜 점심 프리로드 (30분 전)</span>
@@ -855,7 +855,7 @@
           <div class="v8-section-action" onclick="v8RefreshHome()">새로고침 ↻</div>
         </div>
         <div class="v8-for-you" id="v8-nudges">
-          <div class="v8-nudge" onclick="v8GoLegacy('routine-section')">
+          <div class="v8-nudge" onclick="v8GoLegacy('routine-list')">
             <div class="v8-nudge-emoji urgent">🥜</div>
             <div class="v8-nudge-body">
               <span class="v8-nudge-label urgent">프리로드</span>
@@ -1573,6 +1573,40 @@ window.v8GoDetail = function(){
       if (target) target.scrollIntoView({behavior:'smooth', block:'start'});
     }, 80);
   }, 60);
+};
+// 현재 시간 기준 "지금 할 일" 루틴 반환
+window.v8GetCurrentTask = function(){
+  try {
+    var now = new Date();
+    var nowMin = now.getHours() * 60 + now.getMinutes();
+    var EMOJI = {'α':'🌅','β_pre':'🥜','β_seq':'🥗','γ':'💪'};
+    var missed = null, next = null;
+    document.querySelectorAll('#routine-list .item').forEach(function(el){
+      if (el.classList.contains('checked') || el.classList.contains('done')) return;
+      var body = el.querySelector('.item-body');
+      if (!body) return;
+      var txt = body.innerText || body.textContent;
+      var tm = txt.match(/(\d{1,2}):(\d{2})/);
+      if (!tm) return;
+      var itemMin = parseInt(tm[1]) * 60 + parseInt(tm[2]);
+      var coeff = (txt.match(/·\s*(β_pre|β_seq|α|γ)/) || [])[1] || '';
+      var emoji = EMOJI[coeff] || '✅';
+      var lines = txt.trim().split('\n').map(function(s){return s.trim();}).filter(Boolean);
+      var title = lines[1] || lines[0] || '';
+      var timeStr = tm[1].padStart(2,'0') + ':' + tm[2];
+      if (itemMin <= nowMin) {
+        if (!missed) missed = {emoji:emoji, title:title, timeStr:timeStr, diff:nowMin-itemMin};
+      } else {
+        if (!next) next = {emoji:emoji, title:title, timeStr:timeStr, diff:itemMin-nowMin};
+      }
+    });
+    if (missed) return missed.emoji + ' ' + missed.title + ' (미완료)';
+    if (next) {
+      var d = next.diff;
+      return next.emoji + ' ' + next.title + ' (' + (d < 60 ? d+'분 후' : Math.floor(d/60)+'시간 후') + ')';
+    }
+    return '🎉 오늘 루틴 모두 완료!';
+  } catch(e) { return '✅ 루틴 확인하기'; }
 };
 // v8 홈 카드를 현재 Firestore 상태로 갱신 (읽기 전용 — 쓰기 절대 없음)
 window.v8RefreshHome = function(){
@@ -4972,6 +5006,13 @@ document.getElementById('p-exercise').addEventListener('change',onDataChange);
           } else {
             st.textContent = '골든타임';
           }
+        }
+      } catch(_) {}
+      // "지금 할 일" CTA — 현재 시간 기반 루틴 동적 업데이트
+      try {
+        var ctaEl = document.getElementById('v8-cta-main');
+        if (ctaEl && typeof window.v8GetCurrentTask === 'function') {
+          ctaEl.textContent = window.v8GetCurrentTask();
         }
       } catch(_) {}
     } catch(e) { console.warn('[v8 stage2] enhanced refresh failed:', e); }
