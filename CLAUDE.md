@@ -616,7 +616,9 @@ Telegram Mini App = 우리의 광장 (콘텐츠 + 커뮤니티)
 - arrayUnion 전환 검토 결과: 앱 deleteMeal도 전체 배열 재기록 방식이라 **봇 arrayUnion만으로는 경쟁 미해소**. 근본 해결 = meals 서브컬렉션화 (앱+봇 동시 구조 변경 필요)
 - 챌린지 중 양쪽 쓰기 로직 동시 변경은 위험 (runTransaction 교훈) → 보류. 단일 사용자 봇-봇 동시 기록 확률 극히 낮음
 
-**⚠️ 미완료 — GitHub Pages 푸시**: 로컬 파일(배포 파일+사본+sw.js)은 패치 완료 상태. **git commit+push 해야 실사용자에게 반영** (APP_VERSION 갱신으로 전 사용자 자동 업데이트). 16명 production 영향이므로 대표 확인 후 푸시.
+**✅ GitHub Pages 배포 완료 (대표 승인 후 푸시)**: 커밋 `a6e5f92`(앱 패치) + `40e7334`(봇 소스 동기화 — 세션 14-16 배포분 포함) → push → 라이브 검증 완료 (sw.js APP_VERSION '7.5.1' + forceServerSync 심볼 4개 확인). 직원 16명은 다음 앱 접속 시 자동 업데이트.
+- 부수 정리: 3주 묵은 stale `.git/HEAD.lock` 제거 (5/23 크래시 잔재)
+- 모니터링 항목: 1~2일간 직원 동기화 증상 재발 여부 관찰 → 안정 시 다음 단계(appendMeal 서브컬렉션화, 6/23 챌린지 종료 후)
 
 ### Insight 브릿지 신규 + Market 재배치 — 3개 산출물 일괄 재구조화 (2026-06-09, 세션 26)
 
