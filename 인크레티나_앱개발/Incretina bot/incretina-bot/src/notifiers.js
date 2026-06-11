@@ -13,7 +13,9 @@ const {
   listActiveTelegramUsers, getProfile, getDailyRoutine,
   getRecentDailyRoutines, countHistoryDays, toLogicalDate,
   getBotSettings, getChallengeConfig, getUserChallengeDays, saveScore,
+  getRecentPreloadLogs,
 } = require('./store');
+const { recommendRecipe, formatRecipePreview } = require('./recipes');
 const { paths, makeEvent, SOURCE, EVENT } = schema;
 
 // ─────────────────────────────────────────────
@@ -534,15 +536,105 @@ async function _sendMissedRoutine(bot, routineIdx, message) {
 }
 
 async function sendMissedPreload(bot) {
-  const sent = await _sendMissedRoutine(bot, 3, [
-    `🔔 *호르몬 프리로드 아직 안 했어요!*`,
-    ``,
-    `점심 30분 전에 *단백질 15g + 식이섬유 5g* 먼저 드세요.`,
-    `GLP-1이 선제 분비되어 혈당 급등을 막아줍니다.`,
-    ``,
-    `완료하면: /check 4`,
-  ].join('\n'));
+  // Phase B 업그레이드: 편의점 세트 팁 + 인라인 버튼 (이미 완료한 유저는 _sendMissedRoutine이 자동 skip)
+  const users = await listActiveTelegramUsers();
+  let sent = 0;
+  for (const { uid, chatId } of users) {
+    const profile = (await getProfile(uid)) || {};
+    if (!isEnabled(profile, 'missedRoutine')) continue;
+
+    const tz = profile.timezone || 'Asia/Seoul';
+    const date = toLogicalDate(new Date(), tz);
+    const daily = await getDailyRoutine(uid, date);
+    if (daily.checks && daily.checks[3]) continue; // 이미 프리로드 완료
+
+    const historyDays = await countHistoryDays(uid);
+    const week = getUserWeek({ userStartDate: profile.userStartDate || null, historyDays, now: new Date() });
+    if (!getUnlockedRoutineIndices(week).includes(3)) continue;
+
+    const msg = [
+      `🔔 <b>호르몬 프리로드 아직 안 했어요!</b>`,
+      ``,
+      `점심 30분 전에 <b>단백질 15g + 식이섬유 5g</b> 먼저 드세요.`,
+      `GLP-1이 선제 분비되어 혈당 급등을 막아줍니다.`,
+      ``,
+      `🏪 시간 없을 땐 편의점 세트: <b>삶은 달걀 2개 + 그릭요거트 100g</b>`,
+    ].join('\n');
+    const ok = await safeSend(bot, chatId, msg, {
+      parse_mode: 'HTML',
+      reply_markup: { inline_keyboard: [[
+        { text: '✅ 완료!', callback_data: 'preload:done:c1:편의점 세트' },
+        { text: '건너뛰기', callback_data: 'preload:skip' },
+      ]] },
+    });
+    if (ok) { await logNotification(uid, 'missed_routine', { routineIdx: 3 }); sent++; }
+  }
   console.log(`[notify] missed-preload → ${sent} users`);
+}
+
+// ─────────────────────────────────────────────
+// Phase B — 프리로드 예약 알림 (10:30 점심 / 17:30 저녁)
+// 오늘의 추천 레시피 카드 + 인라인 버튼. 콜백은 commands/preload.js의
+// preloadCallbackHandler가 처리 (detail/next/done/skip 동일 포맷).
+// ─────────────────────────────────────────────
+async function _sendPreloadRecommendation(bot, slot) {
+  const users = await listActiveTelegramUsers();
+  let sent = 0;
+  for (const { uid, chatId } of users) {
+    const profile = (await getProfile(uid)) || {};
+    if (!isEnabled(profile, 'preload')) continue;
+
+    const tz = profile.timezone || 'Asia/Seoul';
+    const date = toLogicalDate(new Date(), tz);
+
+    // 오늘 프리로드 루틴(4번, idx 3) 이미 완료면 skip
+    const daily = await getDailyRoutine(uid, date);
+    if (daily.checks && daily.checks[3]) continue;
+
+    // 루틴 미해제 사용자 skip
+    const historyDays = await countHistoryDays(uid);
+    const week = getUserWeek({ userStartDate: profile.userStartDate || null, historyDays, now: new Date() });
+    if (!getUnlockedRoutineIndices(week).includes(3)) continue;
+
+    // 최근 3일 완료 레시피 제외하고 순환 추천
+    let recentIds = [];
+    try {
+      const logs = await getRecentPreloadLogs(uid, 3, tz);
+      recentIds = logs.filter((l) => l.completed && l.recipeId).map((l) => String(l.recipeId));
+    } catch (_) { /* 추천 이력 조회 실패해도 발송은 진행 */ }
+
+    const hour = slot === 'lunch' ? 10 : 17;
+    const recipe = recommendRecipe('home', hour, recentIds);
+    const title = slot === 'lunch' ? '🥚 <b>점심 프리로드 추천</b>' : '🥚 <b>저녁 프리로드 추천</b>';
+    const lead = slot === 'lunch' ? '점심 식사 30분 전, 오늘의 추천이에요.' : '저녁 식사 30분 전, 오늘의 추천이에요.';
+    const msg = `${title}\n${lead}\n\n${formatRecipePreview(recipe)}\n\n<i>식전 15~30분에 섭취하세요!</i>`;
+
+    const ok = await safeSend(bot, chatId, msg, {
+      parse_mode: 'HTML',
+      reply_markup: { inline_keyboard: [
+        [
+          { text: '📖 레시피 보기', callback_data: `preload:detail:${recipe.id}:home` },
+          { text: '🔄 다른 추천', callback_data: `preload:next:home:${recipe.id}` },
+        ],
+        [
+          { text: '✅ 완료!', callback_data: `preload:done:${recipe.id}:${recipe.name}` },
+          { text: '건너뛰기', callback_data: 'preload:skip' },
+        ],
+      ] },
+    });
+    if (ok) { await logNotification(uid, `${slot}_preload`, { recipeId: recipe.id }); sent++; }
+  }
+  return sent;
+}
+
+async function sendLunchPreload(bot) {
+  const sent = await _sendPreloadRecommendation(bot, 'lunch');
+  console.log(`[notify] lunch-preload → ${sent} users`);
+}
+
+async function sendDinnerPreload(bot) {
+  const sent = await _sendPreloadRecommendation(bot, 'dinner');
+  console.log(`[notify] dinner-preload → ${sent} users`);
 }
 
 async function sendMissedSequence(bot) {
@@ -933,6 +1025,8 @@ module.exports = {
   sendLunchGolden,
   sendDinnerGolden,
   sendMissedPreload,
+  sendLunchPreload,
+  sendDinnerPreload,
   sendMissedSequence,
   sendMissedDinnerClose,
   sendLateNightRecovery,

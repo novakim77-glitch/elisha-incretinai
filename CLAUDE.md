@@ -589,6 +589,23 @@ Telegram Mini App = 우리의 광장 (콘텐츠 + 커뮤니티)
 
 ### 완료된 작업
 
+### Phase B 프리로드 알림 복구 + Phase 1 검증 (2026-06-11, 세션 27 후반) — Fly.io 배포
+
+**🅐 Phase B 프리로드 알림 복구 (소실 발견 → 재구현)**
+- **발견**: CLAUDE.md(5/18)에 "Phase B 배포 완료"로 기록된 10:30/17:30 프리로드 알림·claude.js 프리로드 가이드가 **현재 코드와 배포본에 없음** (Windows 작업분이 Mac 소스에 미반영된 채 Mac 기준 배포가 거듭되며 소실). `/preload` 명령어·자연어 감지·`preload:skip` 콜백·context-builder preloadData는 살아 있었음
+- **재구현 3파일**:
+  - `notifiers.js`: `_sendPreloadRecommendation()` + `sendLunchPreload`(10:30)/`sendDinnerPreload`(17:30) — 오늘의 추천 레시피 카드(최근 3일 순환 제외) + 인라인 버튼 [📖 레시피][🔄 다른 추천][✅ 완료!][건너뛰기] (기존 preloadCallbackHandler 콜백 포맷 재사용, 추가 핸들러 불필요). 이미 완료(checks[3])·루틴 미해제 사용자 자동 skip + `sendMissedPreload`(11:35) 업그레이드: HTML + 편의점 세트 팁 + 버튼
+  - `scheduler.js`: 10:30/17:30 슬롯 추가 (총 15 일일 슬롯 + 월 09:00) + 수동 트리거 lunchpreload/dinnerpreload
+  - `claude.js`: systemPrompt에 "프리로드 코칭 가이드라인" 섹션 (과학 근거·상황별 추천·스트릭 응원·챌린지 중 제품 추천 금지)
+- 검증: 콜백 데이터 최장 51바이트(64 한도 내) + recommendRecipe 순환 제외 동작 확인 + Fly.io 배포 후 부팅 로그에서 "10:30 / 17:30" 슬롯 확인 ✅
+
+**🅑 Phase 1 회복 코칭 S-01~S-03 검증**
+- S-01 (Flag OFF): `features/recovery` 실측 — `active:false` 확인. 코드 경로: 버튼 → "준비 중인 기능이에요!" / 자연어 → null 반환 → Claude 폴백 (기존 동작 무영향) ✅
+- S-02 (정상 동작): 체중·식사·루틴 쓰기 경로는 feeling 분기와 독립 + 배포 2회 정상 부팅 ✅
+- S-03 (화이트리스트): `whitelistChatIds: [8688969666]` (김성보 대표) 등록 완료 — **텔레그램 실측 대기** (봇에 "오늘 컨디션 좋아" 등 입력 → 느낌 응답 + `users/{uid}/feelings/{date}` 저장 확인)
+- ⚠️ **관찰 필요**: parseFeeling 패턴이 넓음 ("좋아", "피곤", "배고프" 등 일상 단어 매치) → 화이트리스트 상태에서 일반 대화가 느낌 기록으로 가로채일 수 있음. 실측에서 확인 후 패턴 정밀화 검토
+- ⚠️ **부수 발견**: `ADMIN_CHAT_ID` Fly.io 시크릿 미설정 실측 확인 → `/broadcast`·`/ranking`이 전 사용자에게 열려 있음. 설정 권장: `flyctl secrets set ADMIN_CHAT_ID=8688969666 --app incretina-bot`
+
 ### 앱↔봇 동기화 신뢰성 패치 (2026-06-11, 세션 27) — SW v7.5.1 / Fly.io 배포
 
 **배경**: 봇으로 기록한 루틴·체중·식사가 앱에 간헐적으로 반영 안 되는 문제. 양쪽 코드 전수 분석 결과 — **데이터는 Firestore에 안전 저장됨**(봇 쓰기는 withRetry 보호). 범인은 "봇이 저장 못 한 것"이 아니라 **"앱이 서버에 다시 물어보지 않는 것"**.

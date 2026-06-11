@@ -6,6 +6,7 @@ const {
   sendMorningBriefing, sendLastCall, sendDailyRecap,
   sendMorningLight, sendLunchGolden, sendDinnerGolden,
   sendMissedPreload, sendMissedSequence, sendMissedDinnerClose,
+  sendLunchPreload, sendDinnerPreload,
   sendLateNightRecovery, sendNoMealNudge,
   sendPreLunchCoaching, sendPreDinnerCoaching,
   sendChallengeEncouragement,
@@ -27,6 +28,11 @@ function startScheduler(bot) {
   // 07:00 KST — morning briefing
   cron.schedule('0 7 * * *', () => {
     sendMorningBriefing(bot).catch((e) => console.error('[cron] morning failed:', e));
+  }, { timezone: TZ });
+
+  // 10:30 KST — 점심 프리로드 추천 (Phase B)
+  cron.schedule('30 10 * * *', () => {
+    sendLunchPreload(bot).catch((e) => console.error('[cron] lunch-preload failed:', e));
   }, { timezone: TZ });
 
   // 11:00 KST — 점심 프리코칭
@@ -59,6 +65,11 @@ function startScheduler(bot) {
     sendDinnerGolden(bot).catch((e) => console.error('[cron] dinner-golden failed:', e));
   }, { timezone: TZ });
 
+  // 17:30 KST — 저녁 프리로드 추천 (Phase B)
+  cron.schedule('30 17 * * *', () => {
+    sendDinnerPreload(bot).catch((e) => console.error('[cron] dinner-preload failed:', e));
+  }, { timezone: TZ });
+
   // 18:00 KST — 식사 미기록 넛지
   cron.schedule('0 18 * * *', () => {
     sendNoMealNudge(bot).catch((e) => console.error('[cron] no-meal-nudge failed:', e));
@@ -84,7 +95,7 @@ function startScheduler(bot) {
     sendChallengeEncouragement(bot, false).catch((e) => console.error('[cron] challenge-encouragement failed:', e));
   }, { timezone: TZ });
 
-  console.log('⏰ Scheduler armed — 06:30 / 06:35 / 07:00 / 11:00 / 11:30 / 11:35 / 13:30 / 16:30 / 17:00 / 18:00 / 18:30 / 19:30 / 22:00 KST | 월 09:00 챌린지 독려');
+  console.log('⏰ Scheduler armed — 06:30 / 06:35 / 07:00 / 10:30 / 11:00 / 11:30 / 11:35 / 13:30 / 16:30 / 17:00 / 17:30 / 18:00 / 18:30 / 19:30 / 22:00 KST | 월 09:00 챌린지 독려');
 }
 
 /**
@@ -105,6 +116,8 @@ async function runManualTrigger(bot) {
     lunch:              () => sendLunchGolden(bot),
     dinner:             () => sendDinnerGolden(bot),
     missedpreload:      () => sendMissedPreload(bot),
+    lunchpreload:       () => sendLunchPreload(bot),
+    dinnerpreload:      () => sendDinnerPreload(bot),
     missedsequence:     () => sendMissedSequence(bot),
     misseddinnerclose:  () => sendMissedDinnerClose(bot),
     latenightrecovery:  () => sendLateNightRecovery(bot),
