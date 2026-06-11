@@ -1,6 +1,6 @@
 // /link <6-digit-code> — bind this Telegram chat to an existing IncretinA i Firebase UID.
 
-const { consumeLinkCode } = require('../store');
+const { consumeLinkCode, importTestResult } = require('../store');
 
 async function linkCommand(ctx) {
   const arg = (ctx.match || '').trim();
@@ -29,10 +29,23 @@ async function linkCommand(ctx) {
     return ctx.reply(`⚠️ ${messages[result.reason] || '알 수 없는 오류가 발생했어요.'}`);
   }
 
+  // Track D: 테스트 결과 pending이면 user 프로필로 이전
+  let testImportMsg = '';
+  try {
+    const imported = await importTestResult(result.uid, ctx.chat.id);
+    if (imported) {
+      const typeLabel = { alpha: '🌅 리듬형', beta: '🥚 순서형', gamma: '💪 민감도형', balanced: '⭐ 밸런스형' }[imported.type] || imported.type;
+      testImportMsg = `\n\n인크레틴 코드 테스트 결과(${typeLabel})가 반영됐어요. 맞춤 코칭이 시작될 거예요 🤍`;
+    }
+  } catch (e) {
+    console.warn('[link] importTestResult failed:', e.message);
+  }
+
   return ctx.reply(
     `🎉 IncretinA i 계정과 연결되었어요!\n\n` +
     `이제 여기서 루틴 체크, 체중 기록, AI 코칭을 받을 수 있어요.\n` +
-    `/check 로 오늘의 루틴을 확인해 보세요.`,
+    `/check 로 오늘의 루틴을 확인해 보세요.` +
+    testImportMsg,
   );
 }
 

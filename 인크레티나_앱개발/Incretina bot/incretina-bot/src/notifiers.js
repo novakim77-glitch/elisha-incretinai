@@ -308,7 +308,7 @@ async function sendDailyRecap(bot) {
     const tone = getTone(persona);
 
     // ── Trend analysis (Phase 2) ──
-    const recentHistory = await getRecentDailyRoutines(uid, 7);
+    const recentHistory = await getRecentDailyRoutines(uid, 7, tz);
     const trendLines = [];
 
     // E: Weight trend

@@ -14,12 +14,15 @@ const { goldenCommand } = require('./commands/golden');
 const { predictCommand } = require('./commands/predict');
 const { chatHandler, personaCommand, photoHandler, mealCallbackHandler, personaCallbackHandler } = require('./commands/chat');
 const { rankingCommand, participantsCommand } = require('./commands/ranking');
+const { preloadCommand, preloadCallbackHandler } = require('./commands/preload');
 const { validateClient } = require('./claude');
 const { startScheduler, runManualTrigger } = require('./scheduler');
 const { initProactive } = require('./proactive');
 const { db } = require('./firebase');
 const { sendChallengeEncouragement } = require('./notifiers');
-const { markChallengeTriggerProcessed } = require('./store');
+const { markChallengeTriggerProcessed, saveTestResultPending } = require('./store');
+const { handleFeelingCallback } = require('./commands/feeling');
+const { decodeTestToken } = require('./utils/testToken');
 
 const TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 if (!TOKEN) {
@@ -39,7 +42,36 @@ try {
 const bot = new Bot(TOKEN);
 
 // ── Commands ──
-bot.command('start',   startCommand);
+// /start — 일반 진입 + Track D deep link (ti_ 토큰 처리)
+bot.command('start', async (ctx) => {
+  const payload = ctx.match?.trim() || '';
+  if (payload.startsWith('ti_')) {
+    // 인크레틴 코드 테스트 deep link
+    const token = payload.slice(3); // "ti_" 제거
+    try {
+      const decoded = decodeTestToken(token);
+      const chatId = ctx.chat.id;
+      await saveTestResultPending(chatId, decoded).catch((e) => {
+        console.warn('[start:ti_] saveTestResultPending failed:', e.message);
+      });
+      const typeLabel = { alpha: '🌅 리듬형', beta: '🥚 순서형', gamma: '💪 민감도형', balanced: '⭐ 밸런스형' }[decoded.type] || decoded.type;
+      await ctx.reply(
+        `인크레틴 코드 테스트 결과를 받았어요 🤍\n\n` +
+        `내 타입: <b>${typeLabel}</b>\n\n` +
+        `앱과 연결하면 이 결과를 바탕으로 맞춤 코칭이 시작돼요.\n` +
+        `이미 연결되어 있다면 테스트 결과가 자동으로 반영됩니다.\n\n` +
+        `앱 연결: /link [6자리 코드]`,
+        { parse_mode: 'HTML' }
+      );
+    } catch (e) {
+      console.warn('[start:ti_] token decode failed:', e.message);
+      // 토큰 오류 시 일반 /start 로 폴백
+      return startCommand(ctx);
+    }
+    return;
+  }
+  return startCommand(ctx);
+});
 bot.command('link',    linkCommand);
 bot.command('check',   checkCommand);
 bot.command('weight',  weightCommand);
@@ -49,10 +81,15 @@ bot.command('predict', predictCommand);
 bot.command('persona', personaCommand);
 bot.command('ranking',      rankingCommand);      // 관리자: CCS 순위
 bot.command('participants', participantsCommand); // 관리자: 참가자 현황
+bot.command('preload',      preloadCommand);      // 프리로드 레시피 추천
 
 // ── Meal confirm/edit/cancel callbacks (must come before text handler) ──
 bot.callbackQuery(/^meal:/, mealCallbackHandler);
 bot.callbackQuery(/^persona:/, personaCallbackHandler);
+// ── Phase 1: 느낌 버튼 콜백 ──
+bot.callbackQuery(/^feeling:/, handleFeelingCallback);
+// ── 프리로드 콜백 ──
+bot.callbackQuery(/^preload:/, preloadCallbackHandler);
 
 // ── Photo handler (vision MVP — food → kcal + IMEM β) ──
 bot.on('message:photo', photoHandler);

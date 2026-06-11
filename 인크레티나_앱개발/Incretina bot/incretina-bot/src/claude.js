@@ -115,6 +115,39 @@ function systemPrompt(persona, ctx) {
     weightLine = '미기록';
   }
 
+  // 체성분 컨텍스트 — 입력된 경우에만 노출
+  let bodyCompLine = '';
+  if (ctx.bodyComp && (ctx.bodyComp.smm || ctx.bodyComp.bfp)) {
+    const bc = ctx.bodyComp;
+    const { computeGammaBodyAdj } = require('imem-core');
+    const adj = computeGammaBodyAdj(bc);
+    const adjStr = adj > 0 ? `+${adj}` : `${adj}`;
+    const smmRef = (ctx.profile && (ctx.profile.gender === 'F' || ctx.profile.gender === 'female')) ? 21 : 27;
+    const bfpRef = (ctx.profile && (ctx.profile.gender === 'F' || ctx.profile.gender === 'female')) ? 25 : 18;
+    const smmStatus = !bc.smm ? '' :
+      bc.smm > smmRef + 4 ? '우수' : bc.smm > smmRef ? '양호' : bc.smm < smmRef - 3 ? '부족' : '보통';
+    const bfpStatus = !bc.bfp ? '' :
+      bc.bfp > bfpRef + 8 ? '높음' : bc.bfp > bfpRef + 3 ? '다소 높음' : bc.bfp < bfpRef - 5 ? '낮음' : '정상';
+    const parts = [];
+    if (bc.smm) parts.push(`골격근 ${bc.smm}kg(${smmStatus})`);
+    if (bc.bfp)  parts.push(`체지방률 ${bc.bfp}%(${bfpStatus})`);
+    if (bc.bmr)  parts.push(`기초대사 ${bc.bmr}kcal`);
+    if (bc.visceralFat) parts.push(`내장지방 ${bc.visceralFat}`);
+    if (bc.phaseAngle)  parts.push(`위상각 ${bc.phaseAngle}°`);
+    bodyCompLine = `\n- 체성분 [${bc.date || '최근'}]: ${parts.join(' · ')} / γ보정 ${adjStr}` +
+      `\n  (코칭 시 체성분 수치를 직접 언급하지 말고, 상태 표현으로 자연스럽게 녹일 것)`;
+  }
+
+  // Track D — 인크레틴 코드 테스트 결과 컨텍스트
+  let testProfileLine = '';
+  if (ctx.testProfile && ctx.testProfile.type) {
+    const tp = ctx.testProfile;
+    const typeLabel = { alpha: '리듬형(α)', beta: '순서형(β)', gamma: '민감도형(γ)', balanced: '밸런스형' }[tp.type] || tp.type;
+    const weakestLabel = { alpha: 'α(타이밍)', beta: 'β(순서)', gamma: 'γ(민감도)' }[tp.weakest] || tp.weakest;
+    testProfileLine = `\n- 인크레틴 코드 테스트: ${typeLabel} / 가장 약한 계수 ${weakestLabel}` +
+      `\n  (cold start 없이 이 정보로 맞춤 코칭을 시작할 것)`;
+  }
+
   return `${base}
 
 # 사용자 컨텍스트 (오늘: ${date})
@@ -122,7 +155,7 @@ function systemPrompt(persona, ctx) {
 - 현재 주차: Week ${week}
 - 잠금 해제 루틴 (1-based): ${unlocked}
 - 오늘 체크 완료 루틴: ${checked}
-- 체중: ${weightLine}
+- 체중: ${weightLine}${bodyCompLine}${testProfileLine}
 
 # 도구 사용 규칙
 - 사용자가 "X 했어", "Y 끝냈어" 같이 행동을 보고하면 바로 mark_routine 도구로 기록.

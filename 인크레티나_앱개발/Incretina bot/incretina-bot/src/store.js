@@ -370,7 +370,7 @@ async function countHistoryDays(uid) {
  * Get recent N days of dailyRoutines ordered by date descending.
  * Returns [{ date, checks, riskActive, recoveryDone, weight, meals, score, imem }]
  */
-async function getRecentDailyRoutines(uid, days = 7) {
+async function getRecentDailyRoutines(uid, days = 7, tz = 'Asia/Seoul') {
   // orderBy('__name__', 'desc') requires a Firestore collection-group index.
   // Instead, compute date strings explicitly and fetch each doc in parallel.
   const limit = Math.max(1, Math.min(30, Number(days) || 7));
@@ -378,7 +378,7 @@ async function getRecentDailyRoutines(uid, days = 7) {
   for (let i = 0; i < limit; i++) {
     const d = new Date();
     d.setDate(d.getDate() - i);
-    dateStrs.push(toLogicalDate(d, 'Asia/Seoul'));
+    dateStrs.push(toLogicalDate(d, tz));
   }
   const snaps = await Promise.all(
     dateStrs.map((date) => db().doc(`users/${uid}/dailyRoutines/${date}`).get()),
@@ -531,6 +531,315 @@ async function saveScore(uid, date, { score, alpha, beta, gamma, betaMeal, effic
   );
 }
 
+
+// ─────────────────────────────────────────────
+// Body Composition (Galaxy Watch / InBody)
+// ─────────────────────────────────────────────
+
+/**
+ * Save body composition measurement.
+ * Stores to users/{uid}/bodyComp/{YYYY-MM-DD} AND mirrors latest to profile
+ * (same pattern as weight/lastWeightDate) for quick access without subcollection query.
+ *
+ * @param {string} uid
+ * @param {string} date  YYYY-MM-DD
+ * @param {{ smm?, bfp?, bmr?, visceralFat?, phaseAngle?, gender?, source? }} data
+ */
+async function saveBodyComp(uid, date, data) {
+  const now = new Date();
+  const batch = db().batch();
+
+  // Per-date record (history) — paths.bodyComp 사용
+  batch.set(
+    db().doc(paths.bodyComp(uid, date)),
+    {
+      ...data,
+      measuredAt: now,
+      _meta: makeMeta(SOURCE.TELEGRAM_BOT, now),
+    },
+    { merge: true },
+  );
+
+  // Mirror latest onto profile for O(1) access (no subcollection query needed)
+  batch.set(
+    db().doc(paths.user(uid)),
+    {
+      bodyComp: { ...data, date, measuredAt: now },
+      lastBodyCompDate: date,
+      _meta: { updatedAt: now, schemaVersion: 2, source: SOURCE.TELEGRAM_BOT },
+    },
+    { merge: true },
+  );
+
+  // Append-only event log (분석용 타임스탬프 이력)
+  batch.set(
+    db().doc(paths.event(uid, `${date}_bodycomp_${now.getTime()}`)),
+    makeEvent({
+      type: EVENT.BODY_COMP_LOG,
+      date,
+      source: SOURCE.TELEGRAM_BOT,
+      payload: { ...data },
+      now,
+    }),
+  );
+
+  await batch.commit();
+}
+
+/**
+ * Get the latest body composition measurement from the user profile cache.
+ * Returns null if never measured.
+ * @returns {{ smm?, bfp?, bmr?, visceralFat?, phaseAngle?, date, source? } | null}
+ */
+async function getLatestBodyComp(uid) {
+  const profile = await getProfile(uid);
+  if (profile && profile.bodyComp && profile.lastBodyCompDate) {
+    return { ...profile.bodyComp, date: profile.lastBodyCompDate };
+  }
+  return null;
+}
+
+// ─────────────────────────────────────────────
+// 프리로드 기록 (/preload 명령어)
+// ─────────────────────────────────────────────
+
+/**
+ * 프리로드 완료 기록 저장.
+ * @param {string} uid
+ * @param {string} date  YYYY-MM-DD
+ * @param {{ mealType:string, recipeId:string, recipeName:string, situation:string, source:string }} data
+ */
+async function savePreloadLog(uid, date, data) {
+  const now = new Date();
+  const ref = db().doc(`users/${uid}/preloadLogs/${date}`);
+  const snap = await ref.get();
+  const existing = snap.exists ? snap.data() : {};
+
+  // mealType별로 저장 (점심/저녁 각각 기록 가능)
+  const key = data.mealType || 'lunch';
+  const batch = db().batch();
+
+  batch.set(ref, {
+    ...existing,
+    [key]: {
+      completed: true,
+      recipeId: data.recipeId || null,
+      recipeName: data.recipeName || null,
+      situation: data.situation || null,
+      source: data.source || SOURCE.TELEGRAM_BOT,
+      recordedAt: now,
+    },
+    date,
+    updatedAt: now,
+    _meta: makeMeta(SOURCE.TELEGRAM_BOT, now),
+  }, { merge: true });
+
+  // 이벤트 로그
+  batch.set(
+    db().doc(paths.event(uid, `${date}_preload_${key}_${now.getTime()}`)),
+    makeEvent({
+      type: EVENT.ROUTINE_CHECK,  // 프리로드 전용 이벤트가 없으므로 ROUTINE_CHECK 재사용
+      date,
+      source: SOURCE.TELEGRAM_BOT,
+      payload: { action: 'preload_complete', mealType: key, recipeId: data.recipeId, recipeName: data.recipeName },
+      now,
+    })
+  );
+
+  await batch.commit();
+}
+
+/**
+ * 최근 N일 프리로드 기록 조회.
+ * 날짜 내림차순으로 반환.
+ * @param {string} uid
+ * @param {number} days
+ * @returns {Promise<Array<{date:string, completed:boolean, recipeId:string|null}>>}
+ */
+async function getRecentPreloadLogs(uid, days = 7, tz = 'Asia/Seoul') {
+  const now = new Date();
+  const results = [];
+
+  for (let i = 0; i < days; i++) {
+    const d = new Date(now);
+    d.setDate(d.getDate() - i);
+    const dateStr = toLogicalDate(d, tz);
+    const snap = await db().doc(`users/${uid}/preloadLogs/${dateStr}`).get().catch(() => null);
+    if (snap && snap.exists) {
+      const data = snap.data();
+      // lunch 또는 dinner 중 완료된 게 있으면 completed:true
+      const completed = !!(data.lunch?.completed || data.dinner?.completed);
+      const recipeId = data.lunch?.recipeId || data.dinner?.recipeId || null;
+      results.push({ date: dateStr, completed, recipeId, raw: data });
+    } else {
+      results.push({ date: dateStr, completed: false, recipeId: null });
+    }
+  }
+
+  return results;
+}
+
+// ─────────────────────────────────────────────
+// Phase 1: 느낌 기록 (회복 코칭)
+// ─────────────────────────────────────────────
+
+/**
+ * Feature Flag — Firestore `features/recovery` 문서로 느낌/회복 코칭 기능 제어.
+ * active:true → 전체 활성화
+ * active:false + whitelistChatIds:[...] → 화이트리스트만 활성화
+ * 문서 없음 → 비활성화 (fail-safe)
+ * @param {number|string} chatId
+ * @returns {Promise<boolean>}
+ */
+async function isFeelingsEnabled(chatId) {
+  try {
+    const snap = await db().doc('features/recovery').get();
+    if (!snap.exists) return false;
+    const data = snap.data();
+    if (data.active === true) return true;
+    const whitelist = data.whitelistChatIds;
+    if (Array.isArray(whitelist) && whitelist.includes(Number(chatId))) return true;
+    if (Array.isArray(whitelist) && whitelist.includes(String(chatId))) return true;
+    return false;
+  } catch (e) {
+    console.warn('[isFeelingsEnabled] error:', e.message);
+    return false; // fail-safe: OFF
+  }
+}
+
+/**
+ * 오늘의 느낌을 Firestore에 기록한다.
+ * @param {string} uid
+ * @param {'good'|'normal'|'bad'} feelingType
+ * @param {number|string} chatId - 출처 식별용
+ */
+async function saveFeeling(uid, feelingType, chatId) {
+  const now = new Date();
+  const date = toLogicalDate(now, 'Asia/Seoul');
+  const batch = db().batch();
+
+  // 날짜별 느낌 문서 (feelings/{date}) — merge로 당일 최신 값 갱신
+  batch.set(
+    db().doc(paths.feelings(uid, date)),
+    {
+      type:  feelingType,
+      chatId: String(chatId),
+      recordedAt: now,
+      _meta: makeMeta(SOURCE.TELEGRAM_BOT, now),
+    },
+    { merge: true },
+  );
+
+  // append-only 이벤트 로그
+  batch.set(
+    db().doc(paths.event(uid, `${date}_feeling_${now.getTime()}`)),
+    makeEvent({
+      type:    EVENT.FEELING_LOG,
+      date,
+      source:  SOURCE.TELEGRAM_BOT,
+      payload: { feelingType, chatId: String(chatId) },
+      now,
+    }),
+  );
+
+  await batch.commit();
+}
+
+/**
+ * 가장 최근의 느낌 기록을 가져온다.
+ * @param {string} uid
+ * @returns {Promise<{ type: string, date: string, recordedAt: Date }|null>}
+ */
+async function getLatestFeeling(uid) {
+  try {
+    const snap = await db()
+      .collection(paths.feelingsCol(uid))
+      .orderBy('recordedAt', 'desc')
+      .limit(1)
+      .get();
+    if (snap.empty) return null;
+    const d = snap.docs[0];
+    return { type: d.data().type, date: d.id, recordedAt: d.data().recordedAt?.toDate?.() ?? null };
+  } catch (e) {
+    return null;
+  }
+}
+
+// ─────────────────────────────────────────────
+// Track D: 인크레틴 코드 테스트 ↔ 봇 통합
+// ─────────────────────────────────────────────
+
+/**
+ * 텔레그램 deep link로 도착한 테스트 결과를 임시 저장.
+ * /link 성공 시 importTestResult()로 사용자 프로필에 이식.
+ * TTL: 7일 (Firestore TTL 정책으로 자동 삭제 — Firebase console에서 설정 필요)
+ * @param {number|string} chatId
+ * @param {{ type: string, scores: object, takenAt: Date }} decoded
+ */
+async function saveTestResultPending(chatId, decoded) {
+  await db().collection('pendingTestResults').doc(String(chatId)).set({
+    type:      decoded.type,
+    scores:    decoded.scores,
+    takenAt:   decoded.takenAt,
+    source:    'telegram_deeplink',
+    createdAt: FieldValue.serverTimestamp(),
+  });
+}
+
+/**
+ * /link 성공 시 호출: pendingTestResults/{chatId} → users/{uid}.testProfile 이식.
+ * @param {string} uid
+ * @param {number|string} chatId
+ * @returns {Promise<{ type: string, weakest: string }|null>} - null이면 pending 없음
+ */
+async function importTestResult(uid, chatId) {
+  const ref = db().collection('pendingTestResults').doc(String(chatId));
+  const snap = await ref.get();
+  if (!snap.exists) return null;
+
+  const data = snap.data();
+
+  // 약점(weakest) 자동 계산 — 가장 낮은 점수 계수
+  const scores = data.scores || { alpha: 50, beta: 50, gamma: 50 };
+  const weakest = Object.entries(scores).reduce(
+    (min, [k, v]) => (v < min.v ? { k, v } : min),
+    { k: 'alpha', v: Infinity },
+  ).k;
+
+  // 사용자 프로필에 병합
+  await db().doc(`users/${uid}`).set(
+    {
+      testProfile: {
+        type:       data.type,
+        scores,
+        weakest,
+        takenAt:    data.takenAt ?? null,
+        importedAt: FieldValue.serverTimestamp(),
+      },
+    },
+    { merge: true },
+  );
+
+  // 원본 즉시 삭제 (개인정보 최소화)
+  await ref.delete();
+
+  return { type: data.type, weakest };
+}
+
+/**
+ * 사용자의 테스트 프로필 조회 (claude.js systemPrompt 컨텍스트용).
+ * @param {string} uid
+ * @returns {Promise<{ type, scores, weakest, takenAt, importedAt }|null>}
+ */
+async function getTestProfile(uid) {
+  try {
+    const snap = await db().doc(`users/${uid}`).get();
+    return snap.exists ? (snap.data().testProfile || null) : null;
+  } catch (e) {
+    return null;
+  }
+}
+
 module.exports = {
   findUidByChatId,
   consumeLinkCode,
@@ -555,4 +864,17 @@ module.exports = {
   markChallengeTriggerProcessed,
   getUserChallengeDays,
   saveScore,
+  saveBodyComp,
+  getLatestBodyComp,
+  // 프리로드 기록
+  savePreloadLog,
+  getRecentPreloadLogs,
+  // Phase 1 — 회복 코칭
+  isFeelingsEnabled,
+  saveFeeling,
+  getLatestFeeling,
+  // Track D — 테스트↔봇 통합
+  saveTestResultPending,
+  importTestResult,
+  getTestProfile,
 };

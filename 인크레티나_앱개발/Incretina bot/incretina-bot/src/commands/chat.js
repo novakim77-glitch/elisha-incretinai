@@ -7,7 +7,7 @@ const {
 } = require('imem-core');
 const {
   getDailyRoutine, setRoutineChecks, logWeight, getWeightHistory, toLogicalDate,
-  getBotSettings, appendMessage, getRecentMessages, appendMeal,
+  getBotSettings, appendMessage, getRecentMessages, appendMeal, getLatestBodyComp, getTestProfile,
 } = require('../store');
 const { InlineKeyboard } = require('grammy');
 const { resolveUser, checksObjToArray, riskObjToArray } = require('./_shared');
@@ -18,6 +18,7 @@ const {
 } = require('../claude');
 const { tryLocalRoute } = require('../localRouter');
 const { withRetry, tryWrite } = require('../writeSafety');
+const { sanitizeResponse } = require('../recovery-sanitize');
 
 const MAX_TOOL_LOOPS = 5;
 // 응답 토큰 한도 — 한글 약 1,200~1,600자까지 안 잘리고 응답 가능
@@ -398,6 +399,10 @@ async function chatHandler(ctx) {
     if (!hit) {
       try {
         const localReply = await tryLocalRoute(text, ctx);
+        if (localReply === '__handled__') {
+          // localRouter가 ctx.reply()를 직접 호출한 경우 (preload 등) — 중복 발송 방지
+          return;
+        }
         if (localReply) {
           await appendMessage(resolved.uid, 'user', text).catch(() => {});
           await appendMessage(resolved.uid, 'assistant', localReply).catch(() => {});
@@ -426,8 +431,12 @@ async function chatHandler(ctx) {
     }
     const _tz = (resolved.profile && resolved.profile.timezone) || 'Asia/Seoul';
     const date = toLogicalDate(new Date(), _tz);
-    const daily = await getDailyRoutine(resolved.uid, date);
-    const settings = await getBotSettings(resolved.uid);
+    const [daily, settings, bodyCompData, testProfileData] = await Promise.all([
+      getDailyRoutine(resolved.uid, date),
+      getBotSettings(resolved.uid),
+      getLatestBodyComp(resolved.uid).catch(() => null),
+      getTestProfile(resolved.uid).catch(() => null),
+    ]);
 
     session = {
       ...resolved,
@@ -441,6 +450,8 @@ async function chatHandler(ctx) {
       lastWeightDate: resolved.profile.lastWeightDate || null, // 마지막 체중 기록 날짜
       meals: daily.meals || [],
       persona: settings.persona || 'empathetic',
+      bodyComp: bodyCompData || null,                  // 체성분 (미입력 시 null)
+      testProfile: testProfileData || null,            // Track D: 인크레틴 코드 테스트 결과
     };
   } catch (e) {
     console.error('chat resolve error:', e);
@@ -581,6 +592,9 @@ async function chatHandler(ctx) {
   }
 
   if (!finalText) finalText = '...';
+
+  // Phase 1 — 체중 수치 노출 방지 (30kg+ 수치 → "그 수치")
+  finalText = sanitizeResponse(finalText);
 
   await appendMessage(session.uid, 'assistant', finalText).catch(() => {});
   return sendLongReply(ctx, finalText);
