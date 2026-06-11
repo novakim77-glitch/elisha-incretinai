@@ -1280,6 +1280,29 @@ renderWhy();
     console.warn('[Telegram Mini App] Init error:', e);
   }
 })();
+
+// ═══════════════════════════════════════════════════════════
+// 딥링크 라우팅 — 특정 콘텐츠 상세로 바로 열기
+//   ?item=science-7  ·  #item=bseq-3  ·  Telegram start_param(science_7)
+// 봇 알림의 [자세히 보기] 버튼이 이 경로를 사용 (97개 목록 건너뜀)
+// ═══════════════════════════════════════════════════════════
+(function deepLinkRoute(){
+  function openFrom(param){
+    if (!param) return false;
+    var m = String(param).match(/^(preload|bseq|science|why)[-_](\d+)$/);
+    if (!m) return false;
+    var type = m[1], id = parseInt(m[2], 10);
+    var pool = type==='preload' ? RECIPES : type==='bseq' ? BSEQ : type==='science' ? SCIENCE : WHY;
+    if (!pool.some(function(x){ return x.id === id; })) return false;
+    try { goTab(type); showDetail(type, id); return true; } catch(e){ return false; }
+  }
+  var qItem = null;
+  try { qItem = new URLSearchParams(location.search).get('item'); } catch(e){}
+  var hItem = (location.hash || '').indexOf('#item=') === 0 ? location.hash.slice(6) : null;
+  var tg = window.Telegram && window.Telegram.WebApp;
+  var sParam = (tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param) || null;
+  openFrom(qItem) || openFrom(hItem) || openFrom(sParam);
+})();
 </script>
 </body>
 </html>
