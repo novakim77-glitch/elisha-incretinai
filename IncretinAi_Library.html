@@ -156,6 +156,9 @@
   ruby.abbr rp{display:none}
   /* 줄간격이 좁은 컨테이너에서 약자 라벨이 잘리지 않도록 */
   .ds-text,.rcard-sub,.seq-desc,.dstat{line-height:1.7}
+  /* Loop 1 — 봇 행동 전환 CTA */
+  .bot-cta{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;margin-top:18px;padding:15px 20px;border-radius:14px;background:linear-gradient(135deg,var(--teal),#15514f);color:#fff;font-size:15px;font-weight:700;text-decoration:none;box-shadow:0 4px 14px rgba(26,107,104,.25);transition:transform .15s,box-shadow .15s}
+  .bot-cta:active{transform:scale(.98);box-shadow:0 2px 8px rgba(26,107,104,.2)}
 </style>
 </head>
 <body>
@@ -1197,6 +1200,11 @@ function showDetail(type, id){
         <div class="ds-text">${w.body}</div>
       </div>`;
   }
+  // Loop 1 — 봇 행동 전환 CTA (읽기 → 오늘의 행동 1개. science/bseq만)
+  if (type === 'science' || type === 'bseq') {
+    html += `
+      <a class="bot-cta" href="https://t.me/incretiA_Bot?start=do_${type}_${id}" target="_blank" rel="noopener">🤖 오늘 이거 해보기 — 코치와 함께</a>`;
+  }
   const dv = document.getElementById('detail-view');
   dv.innerHTML = html;
   expandAbbrInElement(dv);
@@ -1303,6 +1311,14 @@ renderWhy();
   var sParam = (tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param) || null;
   openFrom(qItem) || openFrom(hItem) || openFrom(sParam);
 })();
+
+// 봇 CTA — 텔레그램 미니앱 안에서는 openTelegramLink로 봇 채팅 전환 (외부 브라우저는 일반 링크)
+document.addEventListener('click', function(e){
+  var a = e.target.closest('a.bot-cta');
+  if (!a) return;
+  var tg = window.Telegram && window.Telegram.WebApp;
+  if (tg && tg.openTelegramLink) { e.preventDefault(); tg.openTelegramLink(a.href); }
+});
 </script>
 </body>
 </html>
