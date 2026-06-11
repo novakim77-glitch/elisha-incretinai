@@ -1454,6 +1454,7 @@ window._savePending=false; // saveDailyToCloud 진행 중 플래그 — loadDate
 // → 클라우드 값이 일치할 때만 삭제 (확인 완료)
 window._localChecks={};
 window._localRisks={};
+window._localChecksAt={};window._localRisksAt={}; // ★ Sync패치: TTL 타임스탬프 맵
 async function saveDailyToCloud(){
     if(!currentUser||!_appReady)return;
     let dateKey=document.getElementById('target-date').value;
@@ -1464,7 +1465,7 @@ async function saveDailyToCloud(){
         console.warn('[saveDailyToCloud] stale date detected: '+dateKey+' → '+_todayKey);
         document.getElementById('target-date').value=_todayKey;
         window._lastAutoDate=_todayKey;
-        window._localChecks={};window._localRisks={};
+        window._localChecks={};window._localRisks={};window._localChecksAt={};window._localRisksAt={};
         dateKey=_todayKey;
     }
     const touched=window._userTouchedRoutines||new Set();
@@ -1568,6 +1569,8 @@ function forceResync(){
         window._cloudHistory={};
         if(typeof listenToHistory==='function'){try{listenToHistory()}catch(_){}}
         if(typeof listenToProfile==='function'){try{listenToProfile()}catch(_){}}
+        // ★ Sync패치: 오늘 문서는 서버에서 직접 1회 조회 (오프라인 캐시 우회)
+        if(typeof forceServerSync==='function'){try{forceServerSync()}catch(_){}}
         // 시각 피드백 — 너무 빨리 'synced'로 돌아가지 않도록 800ms 대기
         setTimeout(()=>{showSyncStatus('synced')},800);
     }catch(e){
@@ -1659,7 +1662,7 @@ const _correctDate=toLocalDateStr();const _curDate=document.getElementById('targ
 if(_correctDate!==_curDate&&_curDate===window._lastAutoDate){
     document.getElementById('target-date').value=_correctDate;
     window._lastAutoDate=_correctDate;
-    window._localChecks={};window._localRisks={};
+    window._localChecks={};window._localRisks={};window._localChecksAt={};window._localRisksAt={};
     loadDateData();
 }
 // v7.1: 텔레그램 알림 선호도 + 연결 상태
@@ -1674,10 +1677,22 @@ clearTimeout(_chartTimer);_chartTimer=setTimeout(()=>{try{updateTrendChart();}ca
 setTimeout(()=>showComebackCard(),800);
 }showSyncStatus('synced')},e=>{console.warn('Profile listen:',e);showSyncStatus('offline')})}
 let _loadDateTimer=null;
-function listenToHistory(){if(unsubHistory)unsubHistory();unsubHistory=historyCollection().onSnapshot(snap=>{const hist={};snap.forEach(doc=>{hist[doc.id]=doc.data()});window._cloudHistory=hist;
+window._lastSnapshotAt=0; // ★ Sync패치: 마지막 onSnapshot 수신 시각 (리스너 생존 판정용)
+function listenToHistory(){if(unsubHistory)unsubHistory();unsubHistory=historyCollection().onSnapshot(snap=>{const hist={};snap.forEach(doc=>{hist[doc.id]=doc.data()});window._cloudHistory=hist;window._lastSnapshotAt=Date.now();
 // save 진행 중이면 loadDateData를 지연 — save 완료 후 onSnapshot이 다시 오면 그때 적용
 if(window._savePending){clearTimeout(_loadDateTimer);_loadDateTimer=setTimeout(()=>loadDateData(),1500);return}
 loadDateData();showSyncStatus('synced')},e=>{console.warn('History listen:',e);showSyncStatus('offline')})}
+// ★ Sync패치: 오늘 문서를 서버에서 직접 1회 조회 — 오프라인 캐시(stale) 우회. 읽기 전용, 쓰기 없음.
+async function forceServerSync(){
+    try{
+        const dateKey=toLocalDateStr();
+        const snap=await historyCollection().doc(dateKey).get({source:'server'});
+        (window._cloudHistory=window._cloudHistory||{})[dateKey]=snap.exists?snap.data():{};
+        window._lastSnapshotAt=Date.now();
+        if(!window._savePending)loadDateData();
+        showSyncStatus('synced');
+    }catch(e){console.warn('forceServerSync:',e&&e.message||e)}
+}
 
 // ★ 날짜 동기화: 봇과 동일한 timezone-aware 날짜 계산
 window._userTimezone='Asia/Seoul'; // profile 로드 후 덮어씀
@@ -1702,6 +1717,13 @@ function loadDateData(){
     const lr=window._localRisks||{};
     const touchedR=window._userTouchedRoutines||new Set();
     const touchedK=window._userTouchedRisks||new Set();
+    // ★ Sync패치: 60초 TTL — 온라인 상태에서 60초 지나도 클라우드와 불일치하면 보호 해제 (봇 변경 영구 가림 방지)
+    // 오프라인이면 유지 (사용자 의도가 아직 저장 기회를 못 가짐)
+    if(navigator.onLine!==false){
+        const _ttl=60000,_now=Date.now();
+        Object.keys(lc).forEach(k=>{if(_now-((window._localChecksAt||{})[k]||0)>_ttl){delete lc[k];delete (window._localChecksAt||{})[k];touchedR.delete(Number(k));}});
+        Object.keys(lr).forEach(k=>{if(_now-((window._localRisksAt||{})[k]||0)>_ttl){delete lr[k];delete (window._localRisksAt||{})[k];touchedK.delete(Number(k));}});
+    }
     routine.forEach((_,i)=>{
         const el=document.getElementById(`item-${i}`);
         if(!el)return;
@@ -3645,6 +3667,7 @@ function routineDone(i){
     (window._userTouchedRoutines=window._userTouchedRoutines||new Set()).add(i);
     // ★ BULLETPROOF: 메모리에 의도 저장 — DOM/onSnapshot에 무관하게 보존
     (window._localChecks=window._localChecks||{})[i]=true;
+    (window._localChecksAt=window._localChecksAt||{})[i]=Date.now(); // ★ Sync패치: TTL용 타임스탬프
     if(wasNew){
         el.classList.add('checked');
         // CRITICAL 루틴 → 예측 체중 피드백, 일반 루틴 → 인크레티나 토스트
@@ -3796,6 +3819,7 @@ function toggleRisk(i){
     (window._userTouchedRisks=window._userTouchedRisks||new Set()).add(i);
     // ★ BULLETPROOF: 메모리에 의도 저장
     (window._localRisks=window._localRisks||{})[i]=!wasActive;
+    (window._localRisksAt=window._localRisksAt||{})[i]=Date.now(); // ★ Sync패치: TTL용 타임스탬프
     el.classList.toggle('active');
 
     if(!wasActive){
@@ -4283,9 +4307,12 @@ function initApp(){
         if(_correct&&_cur&&_correct!==_cur&&_cur===window._lastAutoDate){
             document.getElementById('target-date').value=_correct;
             window._lastAutoDate=_correct;
-            window._localChecks={};window._localRisks={};
+            window._localChecks={};window._localRisks={};window._localChecksAt={};window._localRisksAt={};
             loadDateData();
         }
+        // ★ Sync패치: 백그라운드 복귀 시 항상 — ① 리스너가 5분+ 무응답이면 재시작 ② 오늘 문서 서버 강제 조회
+        if(Date.now()-(window._lastSnapshotAt||0)>300000){try{listenToHistory()}catch(_){}}
+        try{forceServerSync()}catch(_){}
     });
     updateBioSyncTimer();setInterval(()=>{updateBioSyncTimer();checkRoutineReminders();updateUpcomingRoutines()},30000);
     // fullRefresh(), generateWeeklyReport(), 차트 → 모두 listenToHistory → loadDateData에서 데이터 로드 후 자동 호출
@@ -4302,7 +4329,7 @@ function initApp(){
     // Init FCM token if already permitted
     if(Notification.permission==='granted'&&swRegistration){saveFCMToken()}
 }
-dateInput.addEventListener('change',()=>{recoveryDone.fill(false);_lastDailyXP=0;window._userTouchedRoutines=new Set();window._userTouchedRisks=new Set();window._localChecks={};window._localRisks={};renderQuests();loadDateData()});
+dateInput.addEventListener('change',()=>{recoveryDone.fill(false);_lastDailyXP=0;window._userTouchedRoutines=new Set();window._userTouchedRisks=new Set();window._localChecks={};window._localRisks={};window._localChecksAt={};window._localRisksAt={};renderQuests();loadDateData()});
 // v7.0: 기상시간 변경 시 루틴 시간표 즉시 갱신
 document.getElementById('p-wakeup').addEventListener('change',()=>{renderList();updateUpcomingRoutines();saveProfileToCloud()});
 // Weight input: sanitize to allow only digits and one decimal point, debounce save
