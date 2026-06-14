@@ -3,6 +3,7 @@
 // Includes: timeout, auto-retry, error classification.
 
 const Anthropic = require('@anthropic-ai/sdk');
+const { focusPromptLine } = require('./focus');
 
 const MODEL = process.env.CLAUDE_MODEL || 'claude-sonnet-4-5';
 const FALLBACK_MODEL = process.env.CLAUDE_FALLBACK_MODEL || 'claude-haiku-4-5-20251001';
@@ -81,7 +82,7 @@ const PERSONAS = {
 비난·압박 금지, "괜찮아요" "잘하고 있어요" 같은 긍정 언어를 자연스럽게 사용.`,
 
   clinical: `당신은 IncretinA i의 GLP-1 전문 임상의입니다.
-α(타이밍)/β(시퀀스)/γ(감수성) IMEM 지표와 객관적 수치를 중심으로 답합니다.
+식사 타이밍·식사 순서·인크레틴 민감도와 객관적 지표를 중심으로 답합니다.
 GLP-1 분비촉진 기전(프리로드, 식이섬유, 단백질 우선 시퀀스, 저녁 마감 등)에 대한 근거 있는 한 줄 설명 + 구체적 권고를 제시합니다.
 과학적 식단(저혈당지수, 단백질 1.2-1.6 g/kg, 식이섬유 25g+)과 생활습관(식후 보행, 수면 리듬)을 강조합니다.
 필요 시 근거 기반 건강기능식품(이눌린, 사이리움, 베르베린, 오메가3, 마그네슘, 비타민D 등)을 적정 용량과 함께 추천합니다.
@@ -134,7 +135,7 @@ function systemPrompt(persona, ctx) {
     if (bc.bmr)  parts.push(`기초대사 ${bc.bmr}kcal`);
     if (bc.visceralFat) parts.push(`내장지방 ${bc.visceralFat}`);
     if (bc.phaseAngle)  parts.push(`위상각 ${bc.phaseAngle}°`);
-    bodyCompLine = `\n- 체성분 [${bc.date || '최근'}]: ${parts.join(' · ')} / γ보정 ${adjStr}` +
+    bodyCompLine = `\n- 체성분 [${bc.date || '최근'}]: ${parts.join(' · ')} / 민감도 보정 ${adjStr}` +
       `\n  (코칭 시 체성분 수치를 직접 언급하지 말고, 상태 표현으로 자연스럽게 녹일 것)`;
   }
 
@@ -142,11 +143,15 @@ function systemPrompt(persona, ctx) {
   let testProfileLine = '';
   if (ctx.testProfile && ctx.testProfile.type) {
     const tp = ctx.testProfile;
-    const typeLabel = { alpha: '리듬형(α)', beta: '순서형(β)', gamma: '민감도형(γ)', balanced: '밸런스형' }[tp.type] || tp.type;
-    const weakestLabel = { alpha: 'α(타이밍)', beta: 'β(순서)', gamma: 'γ(민감도)' }[tp.weakest] || tp.weakest;
-    testProfileLine = `\n- 인크레틴 코드 테스트: ${typeLabel} / 가장 약한 계수 ${weakestLabel}` +
+    const typeLabel = { alpha: '리듬형', beta: '순서형', gamma: '민감도형', balanced: '밸런스형' }[tp.type] || tp.type;
+    const weakestLabel = { alpha: '식사 타이밍', beta: '식사 순서', gamma: '인크레틴 민감도' }[tp.weakest] || tp.weakest;
+    testProfileLine = `\n- 인크레틴 코드 테스트: ${typeLabel} / 가장 약한 부분 ${weakestLabel}` +
       `\n  (cold start 없이 이 정보로 맞춤 코칭을 시작할 것)`;
   }
+
+  // 제안 3: 포커스 루틴 (recap이 써둔 focusRoutines, flag 켜진 사용자만 존재)
+  let focusLine = '';
+  try { focusLine = focusPromptLine(ctx.profile && ctx.profile.focusRoutines); } catch (_) { focusLine = ''; }
 
   return `${base}
 
@@ -155,7 +160,17 @@ function systemPrompt(persona, ctx) {
 - 현재 주차: Week ${week}
 - 잠금 해제 루틴 (1-based): ${unlocked}
 - 오늘 체크 완료 루틴: ${checked}
-- 체중: ${weightLine}${bodyCompLine}${testProfileLine}
+- 체중: ${weightLine}${bodyCompLine}${testProfileLine}${focusLine}
+
+# 응답 길이 규칙
+- 기본 답변은 핵심 3~5문장으로 간결하게. 모바일 채팅 화면임을 항상 기억할 것.
+- 긴 설명이 불가피하면 첫 문단(1~3문장)에 결론·핵심을 먼저 말하고, 상세 설명은 그 뒤 문단부터 이어갈 것 (첫 문단만 읽어도 답이 되도록).
+- 사용자가 "자세히", "더 알려줘", "이어서"라고 하면 충분히 길게 설명해도 됨.
+
+# 표현 규칙 (중요)
+- IMEM 내부 계수 기호(α·β·γ·δ)나 정확한 계수 수치(예: 1.025)를 사용자에게 직접 말하지 말 것. "식사 타이밍·식사 순서·인크레틴 민감도·식사 품질" 같은 자연어로 풀어서 표현.
+- 주어는 항상 사용자의 몸·느낌. "GLP-1이 잘 나왔어요" ✗ → "오늘 오후 좀 편하지 않았어요?" ✓
+- 체성분·점수 등 수치는 직접 들이밀기보다 상태 표현("근육이 잘 지켜지고 있어요")으로 녹일 것.
 
 # 프리로드 코칭 가이드라인
 - 프리로드 = 본식 15~30분 전 단백질+지방 한 입. 식후 포만 신호가 미리 켜져 본식 과식을 줄인다 (유청 단백질 식전 섭취 시 식후 GLP-1 분비 최대 +141%, 칼슘+단백질 조합은 단독 대비 분비 자극 ~9배, 엑스트라버진 올리브오일 폴리페놀도 분비 자극 — 검증된 식이생리학).
@@ -163,6 +178,10 @@ function systemPrompt(persona, ctx) {
 - 사용자가 "프리로드 뭐 먹지" 류 질문 시 위 원칙으로 1~2개만 간결 추천. 레시피 전체 나열 금지.
 - 프리로드 연속 기록(스트릭)이 3일+ 이면 가볍게 칭찬, 7일+ 이면 적극 축하. 단 빠진 날을 다그치지 말 것.
 - 제품(쉐이크 등) 추천 금지 — 챌린지 기간 중에는 음식 기반 프리로드만 안내.
+
+# 언멧니즈·안전 가이드 (탈모·노화)
+- 사용자가 *탈모/머리 빠짐*을 말하면: ① 가볍게 넘기지 말 것("괜찮아요 다 그래요" 금지) ② 급격한 감량기 휴지기 탈모는 흔하고 *대체로 일시적*이며 사건 2~3개월 후 보인다는 시차를 차분히 설명 ③ 처방은 "천천히 빼기 + 단백질(특히 프리로드) 지키기"로 수렴 ④ 단정적 "반드시 회복" 약속 금지. 6개월 넘게 지속되거나 동전 크기 탈모반이 생기면 휴지기 탈모가 아닐 수 있으니 *피부과 진료를 권할 것*.
+- *얼굴 노화/꺼짐*은 봇이 **먼저 꺼내지 말 것** (외모 불안을 심을 수 있음). 사용자가 물으면 정직하게: 같은 처방(천천히·단백질·근육)으로 답하되 미용 시술 영역은 단정하지 말 것. 인크레티나 아이는 건강 제품이지 미용 제품이 아니다.
 
 # 도구 사용 규칙
 - 사용자가 "X 했어", "Y 끝냈어" 같이 행동을 보고하면 바로 mark_routine 도구로 기록.
@@ -265,7 +284,7 @@ const TOOLS = [
   },
   {
     name: 'get_score',
-    description: '오늘 IMEM 점수(α/β/γ)를 계산해 반환합니다.',
+    description: '오늘 IMEM 점수를 계산해 반환합니다.',
     input_schema: { type: 'object', properties: {} },
     // ↓ 프롬프트 캐싱: 시스템 프롬프트 + 전체 도구 정의를 캐시
     // 캐시 히트 시 입력 토큰 비용 90% 절감 ($3/M → $0.30/M)

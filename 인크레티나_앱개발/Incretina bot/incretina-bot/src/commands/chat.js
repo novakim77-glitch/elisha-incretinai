@@ -54,6 +54,35 @@ function maybeAppendTruncationNotice(text, stopReason) {
 }
 
 // ─────────────────────────────────────────────
+// 긴 답변 UX — 리드(요약) + 펼치는 인용문 (expandable blockquote)
+// 임계치 초과 답변은 첫 문단을 리드로 보여주고,
+// 나머지는 텔레그램 네이티브 접힌 인용문(▼ 탭하면 펼침)에 담는다.
+// HTML 파싱 실패 시 기존 plain 분할 전송으로 자동 폴백 (안전 우선).
+// ─────────────────────────────────────────────
+const EXPAND_THRESHOLD = 700; // 이 길이(자) 초과 시 리드+펼치기 적용
+const LEAD_MAX = 350;         // 리드 최대 길이
+
+function escapeHtml(s) {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// 리드/상세 분리 — 첫 문단 경계 우선, 없으면 문장 경계
+function splitLead(text) {
+  const para = text.indexOf('\n\n');
+  if (para >= 20 && para <= LEAD_MAX) {
+    return [text.slice(0, para).trim(), text.slice(para).trim()];
+  }
+  const head = text.slice(0, LEAD_MAX);
+  let cut = Math.max(
+    head.lastIndexOf('. '), head.lastIndexOf('.\n'),
+    head.lastIndexOf('! '), head.lastIndexOf('? '),
+    head.lastIndexOf('\n')
+  );
+  cut = cut < 40 ? LEAD_MAX : cut + 1;
+  return [text.slice(0, cut).trim(), text.slice(cut).trim()];
+}
+
+// ─────────────────────────────────────────────
 // 텔레그램 4096자 한도 대응 — 긴 메시지 자동 분할 전송
 // 1) 줄바꿈 경계로 자연스럽게 자름
 // 2) 한 줄이 너무 길면 어쩔 수 없이 글자 단위로 자름
@@ -61,6 +90,23 @@ function maybeAppendTruncationNotice(text, stopReason) {
 // ─────────────────────────────────────────────
 async function sendLongReply(ctx, text, opts = {}) {
   if (!text) return;
+
+  // 리드 + 펼치는 인용문 적용 (opts에 parse_mode/reply_markup 있으면 충돌 방지 위해 건너뜀)
+  if (text.length > EXPAND_THRESHOLD && !opts.parse_mode && !opts.reply_markup) {
+    const [lead, detail] = splitLead(text);
+    if (lead && detail && detail.length > 200) {
+      const html = escapeHtml(lead) + '\n\n<blockquote expandable>' + escapeHtml(detail) + '</blockquote>';
+      if (html.length <= TG_MSG_LIMIT) {
+        try {
+          return await ctx.reply(html, { ...opts, parse_mode: 'HTML' });
+        } catch (e) {
+          console.warn('[sendLongReply] expandable HTML failed, fallback to plain:', e.message);
+          // 아래 plain 경로로 폴백
+        }
+      }
+    }
+  }
+
   if (text.length <= TG_MSG_LIMIT) {
     return ctx.reply(text, opts);
   }
@@ -406,7 +452,13 @@ async function chatHandler(ctx) {
         if (localReply) {
           await appendMessage(resolved.uid, 'user', text).catch(() => {});
           await appendMessage(resolved.uid, 'assistant', localReply).catch(() => {});
-          return ctx.reply(localReply);
+          // localRouter 응답은 *굵게* 마크다운을 포함 → Markdown 파싱 적용.
+          // 단 메뉴명 등 사용자 텍스트의 '_'/'*'로 파싱 실패할 수 있으니 plain 폴백.
+          try {
+            return await ctx.reply(localReply, { parse_mode: 'Markdown' });
+          } catch (_) {
+            return ctx.reply(localReply);
+          }
         }
       } catch (e) {
         console.warn('localRouter error (falling through to AI):', e.message);
@@ -461,7 +513,7 @@ async function chatHandler(ctx) {
   // Load history (already chronological)
   let history = [];
   try {
-    history = await getRecentMessages(session.uid, MAX_TURNS * 2);
+    history = await getRecentMessages(session.uid, MAX_TURNS * 2, (session.profile && session.profile.timezone) || 'Asia/Seoul');
   } catch (e) {
     console.warn('history load failed:', e.message);
   }
@@ -613,7 +665,7 @@ const PERSONA_LABELS = {
 };
 const PERSONA_DESC = {
   empathetic: '감정 공감 + 작은 실천 칭찬, 부드러운 제안',
-  clinical:   'IMEM α/β/γ 수치 + GLP-1 기전 근거, 과학적 식단·건기식 추천',
+  clinical:   '인크레틴 지표 + GLP-1 기전 근거, 과학적 식단·건기식 추천',
   driver:     '짧고 강한 푸시, 운동·식단 집중, 변명 차단',
 };
 

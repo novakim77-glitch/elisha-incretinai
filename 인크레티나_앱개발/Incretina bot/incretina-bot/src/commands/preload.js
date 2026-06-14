@@ -166,10 +166,10 @@ async function handlePreloadDone(ctx, recipeId, recipeName) {
 
   await ctx.editMessageText(
     [
-      `✅ <b>프리로드 완료! β_pre = 1.025</b>`,
+      `✅ <b>프리로드 완료!</b>`,
       ``,
       `점심 식사 때 채소 → 단백질 → 탄수화물 순서까지 지키면`,
-      `β_seq까지 추가돼서 β = <b>1.051</b>로 올라가요!`,
+      `채소부터 먹는 순서까지 더하면 효과가 한층 커져요!`,
       streakMsg,
       ``,
       `<i>/score 로 오늘 IMEM 점수를 확인해 보세요.</i>`,

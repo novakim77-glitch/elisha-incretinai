@@ -5,9 +5,14 @@
 const {
   calculateIMEM, totalEfficiency, calculateScore, calculateSunTimes, constants,
 } = require('imem-core');
-const { getDailyRoutine, getWeightHistory, logWeight, toLogicalDate, appendMeal, saveBodyComp, getLatestBodyComp } = require('./store');
+const { getDailyRoutine, getWeightHistory, logWeight, toLogicalDate, appendMeal, saveBodyComp, getLatestBodyComp, getBodyCompHistory, saveCheckinState } = require('./store');
+const {
+  compareMeasurements, muscleGuardLevel, muscleGuardMessage, changeNarrative,
+  personalizedGuidance, summarizeTrend,
+} = require('./bodyComp');
 const { preloadCommand } = require('./commands/preload');
 const { handleFeelingText, parseFeeling } = require('./commands/feeling');
+const { isAwaitingWeight } = require('./checkin');
 const { resolveUser, checksObjToArray, riskObjToArray } = require('./commands/_shared');
 const { analyzeMealDay, classifyMealType, MEAL_TYPE_KR, calculateTargetCalories } = require('imem-core');
 const { withRetry } = require('./writeSafety');
@@ -23,7 +28,8 @@ const PATTERNS = {
   weightSimple: /^(체중|몬무게)\s*$/i,
   meal: /^(\s*오늘\s*)?(식단|식사|뭐\s*먹|뭘\s*먹|먹은\s*거|먹은거|칼로리|kcal|끼니|밥|식사\s*(기록|현황|요약|리스트|목록|평가|분석)|오늘\s*뭐\s*먹|하루\s*식단)/i,
   bodyCompSave: /골격근|근육량|SMM|체지방률|체지방|BFP|기초대사|BMR|내장지방|위상각/i,
-  bodyCompQuery: /^(?:내\s*)?체성분/i,
+  bodyCompQuery: /^(?:내\s*)?체성분(?!\s*추이)/i,
+  bodyCompTrend: /체성분\s*추이|추이\s*체성분|근육\s*추이/i,
   // 프리로드 자연어 감지 — "프리로드", "식전 뭐", "오늘 프리로드" 등
   preload: /프리로드|식\s*전\s*(뭐|추천|레시피|뭐\s*먹|먹을|메뉴)|preload/i,
   // 체중 저장 패턴 — Claude hallucination 방지를 위해 직접 저장
@@ -40,6 +46,8 @@ async function tryLocalRoute(text, ctx) {
   if (!text) return null;
   const trimmed = text.trim();
 
+  // ★ 체성분 추이 (query보다 먼저 — "내 체성분 추이" 포함)
+  if (PATTERNS.bodyCompTrend.test(trimmed)) return handleBodyCompTrend(ctx);
   // ★ 체성분 query
   if (PATTERNS.bodyCompQuery.test(trimmed)) return handleBodyCompQuery(ctx);
   // ★ 체성분 save
@@ -50,6 +58,30 @@ async function tryLocalRoute(text, ctx) {
   // (query 패턴보다 먼저 확인해야 "오늘 체중 84.5 기록"이 조회가 아닌 저장으로 처리됨)
   const wlog = parseWeightLog(trimmed);
   if (wlog !== null) return handleWeightLog(ctx, wlog);
+
+  // ★ Phase 0: 체중 안부 후 "맨 숫자"만 보낸 경우 (예: "72.4") — awaiting 상태일 때만 저장.
+  // 맨 숫자 정규식에 걸릴 때만 resolveUser를 호출 → 일반 메시지엔 추가 read 비용 없음.
+  const bare = trimmed.match(/^(\d{2,3}(?:\.\d{1,2})?)\s*$/);
+  if (bare) {
+    const kg = Number(bare[1]);
+    if (kg >= 25 && kg <= 300) {
+      try {
+        const { uid, profile } = await resolveUser(ctx);
+        const tz = profile.timezone || 'Asia/Seoul';
+        const today = toLogicalDate(new Date(), tz);
+        if (isAwaitingWeight(profile, today)) {
+          // 한 번 쓰면 해제 (다음 맨 숫자가 또 저장되지 않게)
+          const st = Object.assign({}, profile.checkinState || {});
+          delete st.awaitingWeight;
+          await saveCheckinState(uid, st).catch(() => {});
+          return handleWeightLog(ctx, kg);
+        }
+      } catch (e) {
+        console.warn('[localRouter] awaiting-weight check failed:', e.message);
+      }
+      // awaiting 아니면 기존처럼 통과 (Claude로 폴백) — 동작 변화 없음
+    }
+  }
 
   // ★ 식단 저장 — Claude hallucination 방지 (2026-05-22)
   // 칼로리 명시 + 저장 키워드 + 쿼리 아님 조건 모두 만족 시 직접 저장
@@ -313,83 +345,174 @@ async function handleBodyCompSave(ctx, parsed) {
   const { uid, profile } = await resolveUser(ctx);
   const tz = profile.timezone || 'Asia/Seoul';
   const date = toLogicalDate(new Date(), tz);
+  const gender = profile.gender || 'M';
 
-  // gamma 변화 계산 (저장 전 미리)
-  var computeGammaBodyAdj;
+  // 이전 측정값 조회 (추이 비교용) — 저장 전에 먼저
+  var history = [];
+  try { history = await getBodyCompHistory(uid, 3); } catch (_) {}
+  var prev = history.find(function(h) { return h.date !== date; }) || null;
+
+  // 저장 (withRetry)
   try {
-    computeGammaBodyAdj = require('imem-core').computeGammaBodyAdj;
-  } catch(_) { computeGammaBodyAdj = function() { return 0; }; }
-
-  var adjAfter = computeGammaBodyAdj ? computeGammaBodyAdj(Object.assign({}, parsed, { gender: profile.gender })) : 0;
-
-  // 저장 (withRetry: 일시적 네트워크 오류 3회 재시도 — 다른 쓰기 경로와 동일 보호)
-  try {
-    await withRetry(() => saveBodyComp(uid, date, Object.assign({}, parsed, { gender: profile.gender || null })), 'localRouter.saveBodyComp');
+    await withRetry(() => saveBodyComp(uid, date, Object.assign({}, parsed, { gender: gender })), 'localRouter.saveBodyComp');
   } catch (e) {
     console.error('[bodyComp] save failed after retries:', e.message);
     return '⚠️ 체성분 저장에 실패했어요. 잠시 후 다시 시도해 주세요.';
   }
 
-  // 응답 메시지
+  // 분석
+  var diff = compareMeasurements(Object.assign({ date: date }, parsed), prev);
+  var guardLevel = muscleGuardLevel(parsed, prev, gender);
+  var guardMsg = muscleGuardMessage(guardLevel, diff ? diff.smmDelta : null);
+  var narrative = changeNarrative(diff);
+  var tips = personalizedGuidance(parsed, guardLevel, gender);
+
+  // ── 메시지 조립 ──
   var lines = ['✅ *체성분 기록 완료*  ' + date, ''];
 
+  // 측정값 + 변화량
   lines.push('📊 *측정값*');
-  if (parsed.smm)         lines.push('  💪 골격근량: ' + parsed.smm + ' kg');
-  if (parsed.bfp)         lines.push('  🔸 체지방률: ' + parsed.bfp + '%');
-  if (parsed.bmr)         lines.push('  ⚡ 기초대사량: ' + String(parsed.bmr) + ' kcal');
-  if (parsed.visceralFat) lines.push('  🔴 내장지방레벨: ' + parsed.visceralFat);
-  if (parsed.phaseAngle)  lines.push('  🔬 위상각: ' + parsed.phaseAngle + '°');
-  lines.push('');
-
-  // gamma 해석
-  lines.push('🔬 *γ (인크레틴 민감도) 분석*');
-  var smmRef = (profile.gender === 'F') ? 21 : 27;
-  var bfpRef = (profile.gender === 'F') ? 25 : 18;
-
-  if (parsed.smm) {
-    if (parsed.smm > smmRef + 4) {
-      lines.push('  ✅ 골격근량 우수 → GLP-1 수용 능력 높음 (γ ↑)');
-    } else if (parsed.smm > smmRef) {
-      lines.push('  ✅ 골격근량 양호 → 인크레틴 반응성 기본 이상');
-    } else if (parsed.smm < smmRef - 3) {
-      lines.push('  ⚠️ 골격근량 부족 → 근력운동 강화 권장 (γ ↑ 경로)');
+  if (parsed.smm != null) {
+    var smmLine = '  💪 골격근  ' + parsed.smm + ' kg';
+    if (diff && diff.smmDelta != null) {
+      var smmSign = diff.smmDelta >= 0 ? '+' : '';
+      var smmIcon = diff.smmDelta > 0 ? '↑' : diff.smmDelta < 0 ? '↓' : '–';
+      smmLine += '  ' + smmIcon + ' ' + smmSign + diff.smmDelta + ' (' + prev.date + ')';
     }
+    lines.push(smmLine);
   }
-
-  if (parsed.bfp) {
-    var bfpDiff = parsed.bfp - bfpRef;
-    if (bfpDiff > 8)      lines.push('  🔴 체지방률 높음 → 인크레틴 수용체 억제 가능 (γ ↓)');
-    else if (bfpDiff > 3) lines.push('  ⚠️ 체지방률 경계 초과 → 내장지방 확인 권장');
-    else if (bfpDiff < 0) lines.push('  ✅ 체지방률 양호');
+  if (parsed.bfp != null) {
+    var bfpLine = '  🔸 체지방률  ' + parsed.bfp + '%';
+    if (diff && diff.bfpDelta != null) {
+      var bfpSign = diff.bfpDelta >= 0 ? '+' : '';
+      var bfpIcon2 = diff.bfpDelta < 0 ? '↓' : diff.bfpDelta > 0 ? '↑' : '–';
+      bfpLine += '  ' + bfpIcon2 + ' ' + bfpSign + diff.bfpDelta + ' (' + prev.date + ')';
+    }
+    lines.push(bfpLine);
   }
-
-  if (parsed.visceralFat) {
-    if (parsed.visceralFat > 10)     lines.push('  🔴 내장지방 높음 → 식후 산책을 오늘의 최우선 루틴으로');
-    else if (parsed.visceralFat > 5) lines.push('  ⚠️ 내장지방 경계 → 저녁 마감(19시) 준수가 핵심');
-    else                             lines.push('  ✅ 내장지방 양호');
-  }
-
-  if (adjAfter > 0.015) {
-    lines.push('  📈 체성분 기반 γ: 기본 설문보다 유리한 조건으로 코칭 조정됨');
-  } else if (adjAfter < -0.015) {
-    lines.push('  📉 체성분 기반 γ: 개선 여지 반영 — 코칭 강도 조정됨');
-  }
+  if (parsed.bmr)         lines.push('  ⚡ 기초대사량  ' + parsed.bmr + ' kcal');
+  if (parsed.visceralFat) lines.push('  🔴 내장지방  레벨 ' + parsed.visceralFat);
+  if (parsed.phaseAngle)  lines.push('  🔬 위상각  ' + parsed.phaseAngle + '°');
   lines.push('');
 
-  // InBody 업그레이드 힌트
+  // 근육 보호 현황
+  lines.push('🛡️ *근육 보호 현황*');
+  lines.push('  ' + guardMsg);
+  if (narrative) lines.push('  ' + narrative);
+  lines.push('');
+
+  // 오늘 집중할 것
+  if (tips.length) {
+    lines.push('🎯 *지금 집중할 것*');
+    tips.forEach(function(t) { lines.push('  • ' + t); });
+    lines.push('');
+  }
+
+  // InBody 업그레이드 힌트 (갤럭시 워치만 입력한 경우)
   if (parsed.source === 'galaxy_watch') {
-    lines.push('💡 *InBody 측정 시 추가 입력*');
-    lines.push('  내장지방레벨 + 위상각 → γ 정밀도 한 단계 더 향상');
+    lines.push('💡 내장지방레벨 + 위상각 추가 입력 시 분석이 더 정밀해져요');
     lines.push('  예: "내장지방레벨 4 위상각 5.8"');
     lines.push('');
   }
 
-  lines.push('/score 로 업데이트된 IMEM 점수 확인');
-  return lines.join('\n');
+  var text = lines.join('\n');
+
+  // 인라인 버튼
+  var keyboard = {
+    inline_keyboard: [[
+      { text: '💬 오늘 어떻게 해야 해?', callback_data: 'bca:today' },
+      { text: '📊 지금까지 추이', callback_data: 'bca:trend' },
+    ]],
+  };
+
+  // ctx가 있으면 버튼 포함 전송, 없으면 텍스트만 반환
+  if (ctx && ctx.reply) {
+    try {
+      var md;
+      try {
+        await ctx.reply(text, { parse_mode: 'Markdown', reply_markup: keyboard });
+        return null; // 직접 전송 완료
+      } catch (_) {
+        await ctx.reply(text.replace(/\*/g, ''), { reply_markup: keyboard });
+        return null;
+      }
+    } catch (e) {
+      console.warn('[bodyComp] reply with keyboard failed:', e.message);
+    }
+  }
+  return text;
+}
+
+/**
+ * bca: 인라인 버튼 콜백 핸들러
+ * callback_data: 'bca:today' | 'bca:trend'
+ */
+async function handleBodyCompCallback(ctx) {
+  const action = (ctx.callbackQuery && ctx.callbackQuery.data || '').replace('bca:', '');
+  var { uid, profile } = await resolveUser(ctx);
+  var gender = profile.gender || 'M';
+
+  // 버튼 눌림 표시
+  try { await ctx.answerCallbackQuery(); } catch (_) {}
+
+  if (action === 'today') {
+    // 오늘 어떻게 해야 해 → 최신 체성분 기반 상세 지침
+    var bc = null;
+    try { bc = await (require('./store').getLatestBodyComp)(uid); } catch (_) {}
+    if (!bc) {
+      return ctx.reply('체성분 데이터가 없어요. 먼저 체성분을 입력해 주세요.');
+    }
+    var history2 = [];
+    try { history2 = await getBodyCompHistory(uid, 3); } catch (_) {}
+    var prev2 = history2.find(function(h) { return h.date !== bc.date; }) || null;
+    var guardLevel2 = muscleGuardLevel(bc, prev2, gender);
+    var tips2 = personalizedGuidance(bc, guardLevel2, gender);
+
+    var lines2 = ['🎯 *오늘의 체성분 코칭*', ''];
+    if (guardLevel2 === 'alert') {
+      lines2.push('근육 보호가 가장 우선순위예요.');
+    } else if (guardLevel2 === 'caution') {
+      lines2.push('근육 감소를 막는 게 지금 중요해요.');
+    } else {
+      lines2.push('지금 방향이 좋아요. 이걸 유지해봐요.');
+    }
+    lines2.push('');
+    tips2.forEach(function(t) { lines2.push('• ' + t); });
+    lines2.push('');
+    lines2.push('코칭 더 자세히 원하시면 자유롭게 말씀해 주세요 💬');
+
+    try {
+      await ctx.reply(lines2.join('\n'), { parse_mode: 'Markdown' });
+    } catch (_) {
+      await ctx.reply(lines2.join('\n').replace(/\*/g, ''));
+    }
+    return;
+  }
+
+  if (action === 'trend') {
+    // 지금까지 추이 → 최근 5회 분석
+    var hist = [];
+    try { hist = await getBodyCompHistory(uid, 5); } catch (_) {}
+    if (!hist || hist.length < 2) {
+      return ctx.reply('아직 비교할 측정값이 없어요. 2회 이상 측정 후 추이를 볼 수 있어요.');
+    }
+    var summary = summarizeTrend(hist, gender);
+    var trendText = summary
+      ? '*📈 체성분 추이*\n\n' + summary + '\n\n재측정을 꾸준히 하면 추이가 더 정확해져요.'
+      : '아직 분석하기에 데이터가 충분하지 않아요. 조금 더 쌓이면 보여드릴게요!';
+
+    try {
+      await ctx.reply(trendText, { parse_mode: 'Markdown' });
+    } catch (_) {
+      await ctx.reply(trendText.replace(/\*/g, ''));
+    }
+    return;
+  }
 }
 
 async function handleBodyCompQuery(ctx) {
   const { uid, profile } = await resolveUser(ctx);
+  const gender = profile.gender || 'M';
   const bc = await getLatestBodyComp(uid).catch(function() { return null; });
 
   if (!bc) {
@@ -397,26 +520,101 @@ async function handleBodyCompQuery(ctx) {
       '📊 아직 체성분 데이터가 없어요.\n\n' +
       '갤럭시 워치 또는 인바디 측정 후 이렇게 입력하세요:\n' +
       '  "골격근량 33.9 체지방률 25.6 기초대사량 1744"\n\n' +
-      '입력하면 γ(인크레틴 민감도)가 설문 기반에서\n체성분 기반으로 정밀해져요.'
+      '입력하면 인크레틴 민감도 분석이 설문 기반에서 체성분 기반으로 정밀해져요.'
     );
   }
 
-  var computeGammaBodyAdj;
-  try { computeGammaBodyAdj = require('imem-core').computeGammaBodyAdj; } catch(_) {}
+  // 추이 비교용 이전 측정값
+  var history = [];
+  try { history = await getBodyCompHistory(uid, 3); } catch (_) {}
+  var prev = history.find(function(h) { return h.date !== bc.date; }) || null;
 
-  var adj = computeGammaBodyAdj ? computeGammaBodyAdj(Object.assign({}, bc, { gender: profile.gender })) : 0;
-  var adjSign = adj >= 0 ? '+' : '';
+  var diff = compareMeasurements(Object.assign({ date: bc.date }, bc), prev);
+  var guardLevel = muscleGuardLevel(bc, prev, gender);
+  var guardMsg = muscleGuardMessage(guardLevel, diff ? diff.smmDelta : null);
+  var narrative = changeNarrative(diff);
 
-  var lines = ['📊 *최근 체성분*  ' + bc.date + '  (' + (bc.source === 'inbody' ? 'InBody' : '갤럭시 워치') + ')', ''];
-  if (bc.smm)         lines.push('  💪 골격근량: ' + bc.smm + ' kg');
-  if (bc.bfp)         lines.push('  🔸 체지방률: ' + bc.bfp + '%');
-  if (bc.bmr)         lines.push('  ⚡ 기초대사량: ' + String(bc.bmr) + ' kcal');
-  if (bc.visceralFat) lines.push('  🔴 내장지방레벨: ' + bc.visceralFat);
-  if (bc.phaseAngle)  lines.push('  🔬 위상각: ' + bc.phaseAngle + '°');
+  var sourceLabel = bc.source === 'inbody' ? 'InBody' : '갤럭시 워치';
+  var lines = ['📊 *최근 체성분*  ' + bc.date + '  (' + sourceLabel + ')', ''];
+
+  if (bc.smm != null) {
+    var smmLine = '  💪 골격근  ' + bc.smm + ' kg';
+    if (diff && diff.smmDelta != null) {
+      var smmSign = diff.smmDelta >= 0 ? '+' : '';
+      smmLine += '  (' + smmSign + diff.smmDelta + ')';
+    }
+    lines.push(smmLine);
+  }
+  if (bc.bfp != null) {
+    var bfpLine = '  🔸 체지방률  ' + bc.bfp + '%';
+    if (diff && diff.bfpDelta != null) {
+      var bfpSign = diff.bfpDelta >= 0 ? '+' : '';
+      bfpLine += '  (' + bfpSign + diff.bfpDelta + ')';
+    }
+    lines.push(bfpLine);
+  }
+  if (bc.bmr)         lines.push('  ⚡ 기초대사량  ' + bc.bmr + ' kcal');
+  if (bc.visceralFat) lines.push('  🔴 내장지방  레벨 ' + bc.visceralFat);
+  if (bc.phaseAngle)  lines.push('  🔬 위상각  ' + bc.phaseAngle + '°');
   lines.push('');
-  lines.push('🔬 γ 보정값: ' + adjSign + adj.toFixed(3) + '  (체성분 기반 오버레이)');
-  lines.push('재측정 후 새 값 입력 시 즉시 업데이트됩니다.');
-  return lines.join('\n');
+
+  lines.push('🛡️ *근육 보호 현황*');
+  lines.push('  ' + guardMsg);
+  if (narrative) lines.push('  ' + narrative);
+  lines.push('');
+  lines.push('추이를 보려면 "내 체성분 추이"라고 말씀해 주세요.');
+
+  var text = lines.join('\n');
+
+  // 인라인 버튼 포함 전송
+  if (ctx && ctx.reply) {
+    var keyboard = {
+      inline_keyboard: [[
+        { text: '💬 오늘 어떻게 해야 해?', callback_data: 'bca:today' },
+        { text: '📊 지금까지 추이', callback_data: 'bca:trend' },
+      ]],
+    };
+    try {
+      await ctx.reply(text, { parse_mode: 'Markdown', reply_markup: keyboard });
+      return null;
+    } catch (_) {
+      try {
+        await ctx.reply(text.replace(/\*/g, ''), { reply_markup: keyboard });
+        return null;
+      } catch (e2) {
+        console.warn('[bodyCompQuery] reply failed:', e2.message);
+      }
+    }
+  }
+  return text;
+}
+
+async function handleBodyCompTrend(ctx) {
+  const { uid, profile } = await resolveUser(ctx);
+  const gender = profile.gender || 'M';
+
+  var hist = [];
+  try { hist = await getBodyCompHistory(uid, 5); } catch (_) {}
+
+  if (!hist || hist.length < 2) {
+    return '아직 비교할 측정값이 없어요.\n2회 이상 측정 후 추이를 볼 수 있어요.\n\n측정 후: "골격근량 33.9 체지방률 25.6 기초대사량 1744"';
+  }
+
+  var summary = summarizeTrend(hist, gender);
+  var text = summary
+    ? '*📈 체성분 추이*\n\n' + summary + '\n\n재측정을 꾸준히 하면 추이가 더 정확해져요.'
+    : '아직 분석하기에 데이터가 충분하지 않아요. 조금 더 쌓이면 보여드릴게요!';
+
+  if (ctx && ctx.reply) {
+    try {
+      await ctx.reply(text, { parse_mode: 'Markdown' });
+      return null;
+    } catch (_) {
+      await ctx.reply(text.replace(/\*/g, ''));
+      return null;
+    }
+  }
+  return text;
 }
 
 async function handleWeightLog(ctx, kg) {
@@ -718,4 +916,4 @@ async function handleMealSummary(ctx) {
   return lines.join('\n');
 }
 
-module.exports = { tryLocalRoute };
+module.exports = { tryLocalRoute, handleBodyCompCallback };

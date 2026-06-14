@@ -5,7 +5,7 @@
 const {
   calculateIMEM, calculateScore, calculateSunTimes, interpretIMEM,
   getUserWeek, getUnlockedRoutineIndices, getMinutesToSunset,
-  constants,
+  constants, calibrate,
 } = require('imem-core');
 const { schema } = require('imem-core');
 const { db } = require('./firebase');
@@ -13,10 +13,28 @@ const {
   listActiveTelegramUsers, getProfile, getDailyRoutine,
   getRecentDailyRoutines, countHistoryDays, toLogicalDate,
   getBotSettings, getChallengeConfig, getUserChallengeDays, saveScore,
-  getRecentPreloadLogs,
+  getRecentPreloadLogs, saveTeaserShown,
+  isCheckinEnabled, saveCheckinState,
+  isPredictionEnabled, savePredictionState,
+  isFocusEnabled, saveFocusRoutines, isUnmetEnabled, saveUnmetSent,
+  getLatestBodyComp, getBodyCompHistory,
 } = require('./store');
+const { needsRemeasure, muscleGuardLevel, muscleGuardMessage, summarizeTrend } = require('./bodyComp');
 const { recommendRecipe, formatRecipePreview } = require('./recipes');
+const { pickTeaser, teaserHtmlLines, teaserKeyboard, getIntentEcho } = require('./library-teasers');
+const { shouldNudgeWeight, buildWeightNudge, recordNudgeState } = require('./checkin');
+const {
+  shouldOfferPrediction, buildPredictionLine, recordPredictionState,
+  shouldAskVerification, buildAfternoonCheck, markAsked,
+} = require('./prediction');
+const { resolveFocus, makeFocusRecord, focusDisplayLine } = require('./focus');
+const { weeksSinceStart, dueUnmet } = require('./unmet');
 const { paths, makeEvent, SOURCE, EVENT } = schema;
+
+// HTML 메시지에 동적/사용자 텍스트(이름 등) 삽입 시 escape (parse_mode:'HTML' 안전)
+function escapeHtml(s) {
+  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
 
 // ─────────────────────────────────────────────
 // Persona-aware message formatting
@@ -121,20 +139,71 @@ async function sendMorningBriefing(bot) {
       driver: `🌅 *${name}! 일어나! 오늘도 시작이다!*`,
     };
 
+    // ── Loop 2: 모닝 메아리 — 어제 라이브러리 글에서 [좋아요]한 약속을 한 줄로 상기
+    // d===어제인 'yes' 의향만 (자연스럽게 다음날 아침 1회로 제한, 추가 쓰기 없음)
+    let echoLine = null;
+    try {
+      const tz = profile.timezone || 'Asia/Seoul';
+      const yesterday = toLogicalDate(new Date(Date.now() - 86400000), tz);
+      const intent = (profile.contentIntents || []).find((i) => i && i.s === 'yes' && i.d === yesterday);
+      if (intent) echoLine = getIntentEcho(intent.k);
+    } catch (e) {
+      console.warn(`[morning] echo failed uid=${uid}:`, e.message);
+    }
+
+    // ── Phase 0: 아침 체중 안부 — 한 줄 + 버튼 (설문 아닌 안부, 거절 시 backoff)
+    // 완전 격리: flag OFF거나 어떤 오류가 나도 모닝 브리핑 발송엔 영향 없음.
+    let checkinLine = null;
+    let checkinKeyboard = null;
+    try {
+      const enabled = await isCheckinEnabled(chatId);
+      if (enabled) {
+        const tz = profile.timezone || 'Asia/Seoul';
+        const today = toLogicalDate(new Date(), tz);
+        const decision = shouldNudgeWeight(profile, today);
+        if (decision.nudge) {
+          const nudge = buildWeightNudge(persona);
+          checkinLine = nudge.line;
+          checkinKeyboard = nudge.keyboard;
+          // 오늘 한 번 보냈음을 기록 (중복 방지) — 발송 전 기록해도 무방(idempotent)
+          await saveCheckinState(uid, recordNudgeState(profile.checkinState || {}, today));
+        }
+      }
+    } catch (e) {
+      console.warn(`[morning] checkin nudge failed uid=${uid}:`, e.message);
+    }
+
+    // ── 제안 3: 오늘의 포커스 루틴 한 줄 (flag 격리, recap이 써둔 focusRoutines 사용)
+    let focusLine = null;
+    try {
+      if (await isFocusEnabled(chatId)) {
+        focusLine = focusDisplayLine(profile.focusRoutines);
+      }
+    } catch (e) {
+      console.warn(`[morning] focus line failed uid=${uid}:`, e.message);
+    }
+
     const text = [
       greetings[persona] || greetings.empathetic,
       ``,
       `오늘은 ${week}주차 · 해제된 루틴 ${unlocked.length}개`,
       `🕐 골든타임: *${String(sun.sunrise.h).padStart(2,'0')}:${String(sun.sunrise.m).padStart(2,'0')}* ~ *${String(sun.sunset.h).padStart(2,'0')}:${String(sun.sunset.m).padStart(2,'0')}*`,
+      // 제안 3 포커스 (있을 때만)
+      ...(focusLine ? [``, focusLine] : []),
+      // 모닝 메아리 (있을 때만)
+      ...(echoLine ? [``, `🔖 ${echoLine}`] : []),
       ``,
       firstRoutine
         ? `첫 루틴: ${firstRoutine.icon} *${firstRoutine.title}* (${firstRoutine.t})\n_${firstRoutine.action}_`
         : tone.encourage,
+      // Phase 0 체중 안부 (있을 때만)
+      ...(checkinLine ? [``, checkinLine] : []),
       ``,
       `오늘의 루틴 보기: /check`,
     ].join('\n');
 
-    const ok = await safeSend(bot, chatId, text);
+    const sendOpts = checkinKeyboard ? { reply_markup: checkinKeyboard } : {};
+    const ok = await safeSend(bot, chatId, text, sendOpts);
     if (ok) await logNotification(uid, 'morning_briefing', { week });
   }
 }
@@ -333,6 +402,38 @@ async function sendDailyRecap(bot) {
       trendLines.push(tone.warn(`${ms.title} ${ms.days}일 연속 미완료`));
     }
 
+    // ── 제안 3: 포커스 루틴 갱신 (flag 켜진 사용자만 30일 fetch→calibrate→저장)
+    // 내일 모닝 브리핑 + claude 코칭이 이 focusRoutines를 사용. 리캡 발송엔 영향 없음.
+    try {
+      if (await isFocusEnabled(chatId)) {
+        const deepHistory = await getRecentDailyRoutines(uid, 30, tz);
+        const fp = calibrate(deepHistory, { name: profile.name || uid });
+        const focus = resolveFocus(fp);
+        await saveFocusRoutines(uid, makeFocusRecord(focus, date));
+      }
+    } catch (e) {
+      console.warn(`[recap] focus compute failed uid=${uid}:`, e.message);
+    }
+
+    // ── 오늘의 한 장 (라이브러리 티저) — 실패해도 리캡 발송에 영향 없음
+    // 맥락 우선순위: 오늘 늦은 식사/야식(R-06·R-07) → β 낮음 → 테스트 약한 계수 → 전체 순환
+    let teaser = null;
+    try {
+      // 노출 이력(teaserHistory) + 실제 읽은 글(contentIntents 클릭) 모두 추천에서 제외
+      const recentKeys = [
+        ...(profile.teaserHistory || []).map((h) => h && h.k),
+        ...(profile.contentIntents || []).map((i) => i && i.k),
+      ].filter(Boolean);
+      teaser = pickTeaser({
+        recentKeys,
+        lateNight: !!(riskActive[5] || riskActive[6]),
+        lowBeta: imem.beta_net < 0.95,
+        weakest: (profile.testProfile && profile.testProfile.weakest) || null,
+      });
+    } catch (e) {
+      console.warn(`[recap] teaser pick failed uid=${uid}:`, e.message);
+    }
+
     const text = [
       `🌙 <b>오늘의 리캡</b> — ${date}`,
       ``,
@@ -355,11 +456,19 @@ async function sendDailyRecap(bot) {
       focus
         ? `🎯 <b>내일 집중</b>: ${focus.icon} ${focus.title}\n<i>${focus.action}</i>`
         : `🎯 내일도 오늘처럼 완벽하게!`,
+      // 오늘의 한 장 — 후킹 문구 + [자세히 보기] 버튼으로 라이브러리 유도
+      ...(teaser ? teaserHtmlLines(teaser) : []),
       ``,
       tone.close,
     ].join('\n');
 
-    const ok = await safeSend(bot, chatId, text, { parse_mode: 'HTML' });
+    const sendOpts = { parse_mode: 'HTML' };
+    if (teaser) sendOpts.reply_markup = teaserKeyboard(teaser);
+    const ok = await safeSend(bot, chatId, text, sendOpts);
+    if (ok && teaser) {
+      saveTeaserShown(uid, teaser.key, date, profile.teaserHistory || []).catch((e) =>
+        console.warn(`[recap] teaser history save failed uid=${uid}:`, e.message));
+    }
     if (ok) await logNotification(uid, 'daily_recap', {
       score, doneCount,
       trends: {
@@ -777,11 +886,92 @@ async function sendPreLunchCoaching(bot) {
       ],
     };
 
-    const text = (msgs[persona] || msgs.empathetic).join('\n');
+    // ── 제안 1+2: 예측 한 줄 — "점심 전 한 입 → 오후가 편할 것" (완전 격리)
+    let predictionLine = null;
+    try {
+      const enabled = await isPredictionEnabled(chatId);
+      if (enabled) {
+        const tz = profile.timezone || 'Asia/Seoul';
+        const today = toLogicalDate(new Date(), tz);
+        if (shouldOfferPrediction(profile, today)) {
+          predictionLine = buildPredictionLine(persona);
+          await savePredictionState(uid, recordPredictionState(profile.predictionState || {}, today));
+        }
+      }
+    } catch (e) {
+      console.warn(`[pre-lunch] prediction failed uid=${uid}:`, e.message);
+    }
+
+    const baseMsg = (msgs[persona] || msgs.empathetic);
+    const text = (predictionLine ? baseMsg.concat(['', predictionLine]) : baseMsg).join('\n');
     const ok = await safeSend(bot, chatId, text);
     if (ok) { await logNotification(uid, 'pre_lunch_coaching'); sent++; }
   }
   console.log(`[notify] pre-lunch coaching → ${sent} users`);
+}
+
+// ─────────────────────────────────────────────
+// 제안 1+2 — 16:00 오후 검증: "아까 편했어요?" (예측 건 사용자만)
+// ─────────────────────────────────────────────
+async function sendAfternoonComfortCheck(bot) {
+  const users = await listActiveTelegramUsers();
+  let sent = 0;
+  console.log(`[notify] afternoon comfort check → ${users.length} users`);
+  for (const { uid, chatId } of users) {
+    try {
+      const enabled = await isPredictionEnabled(chatId);
+      if (!enabled) continue;
+
+      const profile = (await getProfile(uid)) || {};
+      const tz = profile.timezone || 'Asia/Seoul';
+      const today = toLogicalDate(new Date(), tz);
+      if (!shouldAskVerification(profile, today)) continue;
+
+      const persona = await getUserPersona(uid);
+      const { text, keyboard } = buildAfternoonCheck(persona);
+      const ok = await safeSend(bot, chatId, text, { reply_markup: keyboard });
+      if (ok) {
+        await savePredictionState(uid, markAsked(profile.predictionState || {}, today));
+        await logNotification(uid, 'afternoon_comfort_check');
+        sent++;
+      }
+    } catch (e) {
+      console.warn(`[afternoon-check] failed uid=${uid}:`, e.message);
+    }
+  }
+  console.log(`[notify] afternoon comfort check → ${sent} sent`);
+}
+
+// ─────────────────────────────────────────────
+// 제안 4 — 시간축 언멧니즈(탈모) 주간 발송: 예고/동행/회복신호 한 번씩
+// 단일 따뜻한 목소리(페르소나 무관). 얼굴 노화는 여기서 다루지 않음(봇이 먼저 X).
+// ─────────────────────────────────────────────
+async function sendUnmetContent(bot) {
+  const users = await listActiveTelegramUsers();
+  let sent = 0;
+  console.log(`[notify] unmet content → ${users.length} users`);
+  for (const { uid, chatId } of users) {
+    try {
+      if (!(await isUnmetEnabled(chatId))) continue;
+      const profile = (await getProfile(uid)) || {};
+      const tz = profile.timezone || 'Asia/Seoul';
+      const today = toLogicalDate(new Date(), tz);
+      const start = profile.userStartDate || profile.start || null;
+      const weeks = weeksSinceStart(start, today);
+      const due = dueUnmet(weeks, profile.unmetSent || []);
+      if (!due) continue;
+
+      const ok = await safeSend(bot, chatId, due.text);
+      if (ok) {
+        await saveUnmetSent(uid, due.key);
+        await logNotification(uid, 'unmet_content', { key: due.key, weeks });
+        sent++;
+      }
+    } catch (e) {
+      console.warn(`[unmet] failed uid=${uid}:`, e.message);
+    }
+  }
+  console.log(`[notify] unmet content → ${sent} sent`);
 }
 
 // ─────────────────────────────────────────────
@@ -866,7 +1056,7 @@ function getEncouragementTip(p) {
     {
       rank: p.imemRank,
       tips: [
-        '오늘 식사 후 10분만 걸어보세요. γ(인슐린 감수성)이 쑥 올라간답니다 🚶',
+        '오늘 식사 후 10분만 걸어보세요. 인슐린 감수성이 쑥 올라간답니다 🚶',
         '텔레그램 봇에 오늘 식사를 짧게라도 남겨보세요! 기록이 IMEM 점수를 만들어요 📝',
       ],
     },
@@ -917,7 +1107,9 @@ async function sendChallengeEncouragement(bot, isManual = false) {
       const startWeight = parseFloat(profile.sw) || 0;
       if (!startWeight) continue; // 시작 체중 없으면 집계 불가
 
-      const days = await getUserChallengeDays(uid, startDate, today);
+      // 사용자별 timezone 기준 today로 집계 (per-user 정확성)
+      const userToday = toLogicalDate(now, profile.timezone || 'Asia/Seoul');
+      const days = await getUserChallengeDays(uid, startDate, userToday);
       let latestWeight = startWeight;
       let totalScore = 0;
       let scoreDays = 0;
@@ -989,7 +1181,7 @@ async function sendChallengeEncouragement(bot, isManual = false) {
       const pctAbs = Math.abs(p.weightChangePct).toFixed(1);
 
       const text = [
-        `🌟 ${p.name}님, 챌린지 ${weekNum}주차 현황이에요!\n`,
+        `🌟 ${escapeHtml(p.name)}님, 챌린지 ${weekNum}주차 현황이에요!\n`,
         `현재 <b>${rankLabel(p.overallRank)}</b> / 총 ${n}명 중\n`,
         `📊 나의 누적 성과`,
         `├ 체중 변화율: ${pctSign}${pctAbs}% (${p.weightRank}위)`,
@@ -1017,6 +1209,57 @@ async function sendChallengeEncouragement(bot, isManual = false) {
   console.log(`[challenge] 독려 메시지 발송 완료 → ${sent}/${n}명 (${weekNum}주차, manual=${isManual})`);
 }
 
+/**
+ * 체성분 재측정 리마인더 — 14일 이상 미측정 + 측정 이력 있는 사용자에게만 발송
+ * 시간: 매일 10:00 KST (scheduler.js)
+ */
+async function sendBodyCompReminder(bot) {
+  const users = await listActiveTelegramUsers();
+  let sent = 0;
+  for (const { uid, chatId } of users) {
+    try {
+      const profile = (await getProfile(uid)) || {};
+      const tz = profile.timezone || 'Asia/Seoul';
+      const lastDate = profile.lastBodyCompDate || null;
+
+      // 체성분 이력이 아예 없으면 패스 (입력한 적 없는 사람엔 보내지 않음)
+      if (!lastDate) continue;
+      // 14일 이상 지나지 않았으면 패스
+      if (!needsRemeasure(lastDate, 14)) continue;
+
+      // 최신 체성분으로 guard level 계산
+      const bc = await getLatestBodyComp(uid).catch(() => null);
+      const hist = await getBodyCompHistory(uid, 3).catch(() => []);
+      const prev = hist.find((h) => bc && h.date !== bc.date) || null;
+      const gender = profile.gender || 'M';
+      const guardLevel = bc ? muscleGuardLevel(bc, prev, gender) : null;
+
+      // 메시지 — guard level에 따라 긴박도 조절
+      let urgencyLine = '체성분을 다시 측정할 때가 됐어요.';
+      if (guardLevel === 'alert') {
+        urgencyLine = '마지막으로 근육이 줄었어요. 다시 재면 어떻게 변했는지 확인할 수 있어요.';
+      } else if (guardLevel === 'caution') {
+        urgencyLine = '근육이 조금씩 줄고 있었어요. 재측정으로 지금 상태를 확인해봐요.';
+      }
+
+      const daysSince = Math.round((Date.now() - new Date(lastDate).getTime()) / 86400000);
+      const text =
+        `📊 *체성분 재측정 알림*\n\n` +
+        `마지막 측정으로부터 ${daysSince}일이 지났어요.\n` +
+        `${urgencyLine}\n\n` +
+        `갤럭시 워치 또는 InBody 측정 후:\n` +
+        `  "골격근량 00.0 체지방률 00.0 기초대사량 0000"\n\n` +
+        `꾸준히 재면 추이가 보여요 💪`;
+
+      const ok = await safeSend(bot, chatId, text, { parse_mode: 'Markdown' });
+      if (ok) sent++;
+    } catch (e) {
+      console.warn('[bodycomp-reminder] user error:', e.message);
+    }
+  }
+  console.log(`[bodycomp-reminder] 발송 완료 → ${sent}/${users.length}명`);
+}
+
 module.exports = {
   sendMorningBriefing,
   sendLastCall,
@@ -1033,5 +1276,8 @@ module.exports = {
   sendNoMealNudge,
   sendPreLunchCoaching,
   sendPreDinnerCoaching,
+  sendAfternoonComfortCheck,
+  sendUnmetContent,
   sendChallengeEncouragement,
+  sendBodyCompReminder,
 };
