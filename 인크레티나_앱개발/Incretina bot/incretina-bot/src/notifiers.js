@@ -21,7 +21,7 @@ const {
 } = require('./store');
 const { needsRemeasure, muscleGuardLevel, muscleGuardMessage, summarizeTrend } = require('./bodyComp');
 const { recommendRecipe, formatRecipePreview } = require('./recipes');
-const { pickTeaser, teaserHtmlLines, teaserKeyboard, getIntentEcho } = require('./library-teasers');
+const { pickTeaser, teaserHtmlLines, teaserKeyboard, getIntentEcho, getActiveIntentEcho } = require('./library-teasers');
 const { shouldNudgeWeight, buildWeightNudge, recordNudgeState } = require('./checkin');
 const {
   shouldOfferPrediction, buildPredictionLine, recordPredictionState,
@@ -239,7 +239,20 @@ async function sendLastCall(bot) {
       ],
     };
 
-    const text = (msgs[persona] || msgs.empathetic).join('\n');
+    // ── Loop 1-③: 오늘 [좋아요]한 '저녁 일찍 닫기' 약속을 마감 신호에서 이행 (격리)
+    let echoLine = null;
+    try {
+      const profile = (await getProfile(uid)) || {};
+      const tz = profile.timezone || 'Asia/Seoul';
+      const today = toLogicalDate(new Date(), tz);
+      echoLine = getActiveIntentEcho(profile.contentIntents, ['timing'], today);
+    } catch (e) {
+      console.warn(`[last-call] intent echo failed uid=${uid}:`, e.message);
+    }
+
+    let baseMsg = (msgs[persona] || msgs.empathetic);
+    if (echoLine) baseMsg = baseMsg.concat(['', echoLine]);
+    const text = baseMsg.join('\n');
     const ok = await safeSend(bot, chatId, text);
     if (ok) await logNotification(uid, 'metabolic_switch_lastcall');
   }
@@ -902,7 +915,18 @@ async function sendPreLunchCoaching(bot) {
       console.warn(`[pre-lunch] prediction failed uid=${uid}:`, e.message);
     }
 
-    const baseMsg = (msgs[persona] || msgs.empathetic);
+    // ── Loop 1-③: 오늘 [좋아요]한 식사 관련 약속을 식사 전 코칭에서 이행 (격리)
+    let echoLine = null;
+    try {
+      const tz = profile.timezone || 'Asia/Seoul';
+      const today = toLogicalDate(new Date(), tz);
+      echoLine = getActiveIntentEcho(profile.contentIntents, ['mealseq', 'preload', 'walk', 'move'], today);
+    } catch (e) {
+      console.warn(`[pre-lunch] intent echo failed uid=${uid}:`, e.message);
+    }
+
+    let baseMsg = (msgs[persona] || msgs.empathetic);
+    if (echoLine) baseMsg = baseMsg.concat(['', echoLine]);
     const text = (predictionLine ? baseMsg.concat(['', predictionLine]) : baseMsg).join('\n');
     const ok = await safeSend(bot, chatId, text);
     if (ok) { await logNotification(uid, 'pre_lunch_coaching'); sent++; }
@@ -1030,7 +1054,17 @@ async function sendPreDinnerCoaching(bot) {
       ],
     };
 
-    const text = (msgs[persona] || msgs.empathetic).join('\n');
+    // ── Loop 1-③: 오늘 [좋아요]한 식사 관련 약속을 저녁 코칭에서 이행 (격리)
+    let echoLine = null;
+    try {
+      echoLine = getActiveIntentEcho(profile.contentIntents, ['mealseq', 'preload', 'walk', 'move'], date);
+    } catch (e) {
+      console.warn(`[pre-dinner] intent echo failed uid=${uid}:`, e.message);
+    }
+
+    let baseMsg = (msgs[persona] || msgs.empathetic);
+    if (echoLine) baseMsg = baseMsg.concat(['', echoLine]);
+    const text = baseMsg.join('\n');
     const ok = await safeSend(bot, chatId, text);
     if (ok) { await logNotification(uid, 'pre_dinner_coaching'); sent++; }
   }

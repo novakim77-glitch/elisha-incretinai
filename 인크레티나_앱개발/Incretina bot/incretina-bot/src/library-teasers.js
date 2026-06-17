@@ -140,6 +140,29 @@ function getIntentEcho(key) {
   return ACTION_ECHOES[act.cat] || ACTION_ECHOES.insight;
 }
 
+// Loop 1-③ — 당일 메아리: 오늘 [좋아요]한 약속을 같은 날 정규 슬롯(프리코칭/마감)에서 이행
+// "어제~"가 아닌 "아까~" 톤. 안전: plain text(특수 parse 없음), 이모지만.
+const ACTION_ECHOES_TODAY = {
+  walk:    '🔖 아까 식후 산책 해보기로 하셨죠 🚶 이번 식사 후 10분이면 충분해요.',
+  move:    '🔖 아까 몸 움직여보기로 하셨죠 💪 이번 식사 후 10분 걷기 어때요.',
+  mealseq: '🔖 아까 "채소 먼저" 해보기로 하셨죠 🥗 이번 끼니에서 바로 시작해봐요.',
+  preload: '🔖 아까 프리로드 해보기로 하셨죠 🥚 본식 15~30분 전 단백질 한 입이에요.',
+  timing:  '🔖 아까 저녁 일찍 닫기로 하셨죠 ⏰ 오늘 그 약속, 지금부터 지켜봐요.',
+  sleep:   '🔖 아까 수면 챙기기로 하셨죠 😴 오늘 밤 화면 한 시간 일찍 꺼봐요.',
+  insight: '🔖 아까 읽으신 글, 오늘 기록에 같이 녹여봐요 🤍',
+};
+
+// 오늘(today) 'yes'한 contentIntent 중 cats에 해당하는 가장 최근 1개 → 당일 메아리 문구 | null
+//   intents: users/{uid}.contentIntents [{ k, s, d }]  (s: click/yes/no, d: YYYY-MM-DD)
+function getActiveIntentEcho(intents, cats, today) {
+  if (!Array.isArray(intents) || !today) return null;
+  const hit = intents.find((i) =>
+    i && i.s === 'yes' && i.d === today &&
+    ACTIONS[i.k] && cats.includes(ACTIONS[i.k].cat));
+  if (!hit) return null;
+  return ACTION_ECHOES_TODAY[ACTIONS[hit.k].cat] || null;
+}
+
 // /start do_science_4 → { key:'science-4', propose, confirm } | null
 function getContentAction(payload) {
   const m = String(payload || '').match(/^do_(science|bseq)_(\d+)$/);
@@ -195,4 +218,4 @@ function teaserKeyboard(teaser) {
   };
 }
 
-module.exports = { TEASERS, ACTIONS, LIBRARY_URL, pickTeaser, teaserHtmlLines, teaserKeyboard, getContentAction, getIntentEcho };
+module.exports = { TEASERS, ACTIONS, LIBRARY_URL, pickTeaser, teaserHtmlLines, teaserKeyboard, getContentAction, getIntentEcho, getActiveIntentEcho };
