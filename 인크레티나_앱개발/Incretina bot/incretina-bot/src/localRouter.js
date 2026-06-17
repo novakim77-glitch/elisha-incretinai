@@ -629,20 +629,9 @@ async function handleWeightLog(ctx, kg) {
     return '⚠️ 체중 저장이 실패했어요. 잠시 후 다시 시도해 주세요.';
   }
 
-  // 이전 기록과 변화량 계산
-  let deltaTxt = '';
-  try {
-    const series = await getWeightHistory(uid, 7);
-    const prior = series.filter((s) => s.date < date).slice(-1)[0];
-    if (prior) {
-      const delta = Number((kg - prior.weight).toFixed(1));
-      const sign = delta > 0 ? '+' : '';
-      const icon = delta < -0.1 ? '🟢' : delta > 0.1 ? '🔴' : '➖';
-      deltaTxt = `\n${icon} 이전(${prior.date}) ${prior.weight}kg 대비 ${sign}${delta}kg`;
-    }
-  } catch (_) { /* non-fatal */ }
-
-  return `✅ 체중 *${kg} kg* 기록 완료\n📅 ${date} (앱에 즉시 반영)${deltaTxt}\n\n예측을 보시려면 /predict`;
+  // 근본가치 원칙: 봇은 대화에서 체중 증감 숫자를 들이밀지 않는다("어제보다 -0.8kg" ✗).
+  // 입력값 확인(echo)만 하고, 추이·비교는 앱 그래프·/predict 로 넘긴다.
+  return `✅ 체중 *${kg} kg* 기록 완료\n📅 ${date} (앱에 즉시 반영)\n\n추이와 예측은 /predict 로 볼 수 있어요`;
 }
 
 // ────────────────────

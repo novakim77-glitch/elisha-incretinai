@@ -168,8 +168,8 @@ async function handlePreloadDone(ctx, recipeId, recipeName) {
     [
       `✅ <b>프리로드 완료!</b>`,
       ``,
-      `점심 식사 때 채소 → 단백질 → 탄수화물 순서까지 지키면`,
-      `채소부터 먹는 순서까지 더하면 효과가 한층 커져요!`,
+      `다음 본식 때 채소 → 단백질 → 탄수화물 순서까지 지키면`,
+      `효과가 한층 커져요!`,
       streakMsg,
       ``,
       `<i>/score 로 오늘 IMEM 점수를 확인해 보세요.</i>`,
