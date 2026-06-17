@@ -1,7 +1,7 @@
-// /score — today's normalized IMEM score + α/β/γ breakdown
+// /score — 오늘의 IMEM 종합 점수 + 자연어 해석 (내부 계수값은 비노출)
 
 const {
-  calculateIMEM, totalEfficiency, calculateScore, calculateSunTimes,
+  calculateIMEM, totalEfficiency, calculateScore, calculateSunTimes, interpretIMEM,
 } = require('imem-core');
 const { getDailyRoutine, toLogicalDate, saveScore } = require('../store');
 const { resolveUser, checksObjToArray, riskObjToArray } = require('./_shared');
@@ -37,15 +37,17 @@ async function scoreCommand(ctx) {
     console.warn('[score] saveScore failed (non-fatal):', e.message);
   }
 
+  const interp = interpretIMEM(imem, score);
   const lines = [
     `📊 *IMEM 점수* (${date}, ${week}주차)`,
     ``,
-    `총점: *${score}* / 100`,
-    `대사 효율(α·β·γ): *${eff.toFixed(2)}*`,
+    `총점: *${score}* / 100  —  ${interp.score}`,
     ``,
-    `α (타이밍):     ${imem.alpha_net.toFixed(2)}`,
-    `β (시퀀스):     ${imem.beta_net.toFixed(2)}`,
-    `γ (민감도):     ${imem.gamma_net.toFixed(2)}`,
+    `🔹 일주기 리듬 — ${interp.alpha}`,
+    `🔹 영양 시퀀스 — ${interp.beta}`,
+    `🔹 신체 활동 — ${interp.gamma}`,
+    ``,
+    `📊 ${interp.efficiency}`,
     ``,
     `루틴 확인: /check    예측 보기: /predict`,
   ];

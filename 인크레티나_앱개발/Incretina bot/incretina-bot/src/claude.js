@@ -186,7 +186,7 @@ function systemPrompt(persona, ctx) {
 # 도구 사용 규칙
 - 사용자가 "X 했어", "Y 끝냈어" 같이 행동을 보고하면 바로 mark_routine 도구로 기록.
 - 체중 숫자(예: "72.5", "오늘 73kg")를 말하면 log_weight 도구로 기록.
-- 식사 텍스트 설명(예: "점심으로 제육볶음 먹었어 칼로리 알려줘")엔 먼저 추정 칼로리/매크로/β 평가를 대화로 답변. 그 다음 사용자가 "기록해줘", "저장해줘", "점심 기록" 등으로 명시 요청하면 log_meal 도구 호출.
+- 식사 텍스트 설명(예: "점심으로 제육볶음 먹었어 칼로리 알려줘")엔 먼저 추정 칼로리/매크로/식사 순서 평가를 대화로 답변. 그 다음 사용자가 "기록해줘", "저장해줘", "점심 기록" 등으로 명시 요청하면 log_meal 도구 호출.
 - ★ 매우 중요: 사용자가 식사 저장 의도를 표현하면 반드시 log_meal 도구를 호출하라. 도구 호출 없이 "기록했어요", "저장 완료" 같은 텍스트만 응답하는 것은 절대 금지. 도구 결과(ok:true)를 받은 후에만 사용자에게 저장 완료를 알릴 것. 도구가 실패(ok:false)하면 명확히 실패를 알리고 재시도 안내.
 - 점수/현황 질문엔 get_score 또는 get_today_status 사용.
 - "남은 루틴", "뭐 남았어", "오늘 할 거" 같은 질문엔 get_today_status 호출 후 remaining 배열을 활용해:
@@ -271,7 +271,7 @@ const TOOLS = [
         carbs: { type: 'integer', description: '탄수 g (선택)' },
         hasVeg: { type: 'boolean', description: '채소 포함 여부' },
         hasProtein: { type: 'boolean', description: '단백질 포함 여부' },
-        betaScore: { type: 'number', description: 'IMEM β 시퀀스 품질 0-1' },
+        betaScore: { type: 'number', description: '식사 순서/섬유 품질 0-1' },
         time: { type: 'string', description: 'HH:MM (선택, 미제공시 현재시각)' },
       },
       required: ['menu', 'kcal'],

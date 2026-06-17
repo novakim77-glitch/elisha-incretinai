@@ -858,7 +858,7 @@ async function handleMealSummary(ctx) {
       var dinnerBudget = Math.max(0, analysis.remaining);
       lines.push('  🍲 저녁 예산: ~' + Math.min(dinnerBudget, Math.round(analysis.dailyTarget * 0.3)) + 'kcal');
     } else if (nowH >= 19) {
-      lines.push('  🌙 19시 이후 — 야식은 β 페널티가 적용돼요. 물이나 허브차 추천!');
+      lines.push('  🌙 19시 이후 — 야식은 대사 리듬에 불리해요. 물이나 허브차 추천!');
     }
 
     // Protein check
@@ -885,9 +885,9 @@ async function handleMealSummary(ctx) {
     if (betaScores.length > 0) {
       var avgBeta = betaScores.reduce(function(a, b) { return a + b; }, 0) / betaScores.length;
       if (avgBeta >= 0.7) {
-        lines.push('  🏆 식사 순서 점수 우수! (평균 β ' + avgBeta.toFixed(2) + ')');
+        lines.push('  🏆 식사 순서 점수 우수! 👍');
       } else if (avgBeta < 0.4) {
-        lines.push('  📋 식사 순서 개선 필요 (평균 β ' + avgBeta.toFixed(2) + ') — 채소 먼저!');
+        lines.push('  📋 식사 순서 개선 필요 — 채소 먼저!');
       }
     }
 

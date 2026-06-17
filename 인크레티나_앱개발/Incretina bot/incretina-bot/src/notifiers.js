@@ -223,18 +223,18 @@ async function sendLastCall(bot) {
         `19시 저녁 마감까지 *30분* 남았어요.`,
         `지금 마지막 식사를 준비하시면 내일 아침 14시간 공복을 지킬 수 있습니다.`,
         ``,
-        `_"α 계수는 타이밍에서 나옵니다."_`,
+        `_"좋은 타이밍이 내일 아침 컨디션을 만들어요."_`,
       ],
       clinical: [
         `⏰ *Metabolic Switch — 라스트콜*`,
         ``,
         `19:00 마감 30분 전. 14h 공복 확보 → 아침 인슐린 감수성 최적화.`,
-        `α 보전을 위해 지금 식사를 마무리하세요.`,
+        `식사 타이밍을 지키려면 지금 마무리하세요.`,
       ],
       driver: [
         `⏰ *30분 남았다! 지금 먹어!*`,
         ``,
-        `19시 넘기면 α 계수 깎인다.`,
+        `19시 넘기면 내일 아침 리듬 흐트러진다.`,
         `지금 당장 마지막 식사 완료!`,
       ],
     };
@@ -296,9 +296,9 @@ function analyzeIMEMDrop(todayIMEM, history) {
 
   const drops = [];
   const coeffs = [
-    { key: 'alpha_net', label: 'α' },
-    { key: 'beta_net', label: 'β' },
-    { key: 'gamma_net', label: 'γ' },
+    { key: 'alpha_net', label: '식사 타이밍' },
+    { key: 'beta_net', label: '식사 순서' },
+    { key: 'gamma_net', label: '인크레틴 민감도' },
   ];
   for (const c of coeffs) {
     const prevVal = prev.imem[c.key];
@@ -405,7 +405,7 @@ async function sendDailyRecap(bot) {
     const imemDrops = analyzeIMEMDrop(imem, recentHistory);
     if (imemDrops) {
       for (const d of imemDrops) {
-        trendLines.push(tone.warn(`${d.coeff} 계수 -${d.drop} 하락 (전일 대비)`));
+        trendLines.push(tone.warn(`${d.coeff} 흐름이 어제보다 조금 내려갔어요`));
       }
     }
 
@@ -453,11 +453,11 @@ async function sendDailyRecap(bot) {
       `점수: <b>${score}</b> / 100  —  ${interp.score}`,
       `루틴: <b>${doneCount}/${unlocked.length}</b> 완료`,
       ``,
-      `🔹 α 일주기 리듬 ${imem.alpha_net.toFixed(2)}`,
+      `🔹 일주기 리듬`,
       `   ${interp.alpha}`,
-      `🔹 β 영양 시퀀스 ${imem.beta_net.toFixed(2)}`,
+      `🔹 영양 시퀀스`,
       `   ${interp.beta}`,
-      `🔹 γ 신체 활동 ${imem.gamma_net.toFixed(2)}`,
+      `🔹 신체 활동`,
       `   ${interp.gamma}`,
       ``,
       `📊 ${interp.efficiency}`,
@@ -520,7 +520,7 @@ async function sendMorningLight(bot) {
         `눈을 뜨고 *10분 안에* 자연광을 *10분 이상* 받아주세요.`,
         `→ 코르티솔·세로토닌 리듬 정돈, 멜라토닌 분비 시각 고정`,
         ``,
-        `_"γ 감수성은 빛에서 시작됩니다."_`,
+        `_"아침 햇빛이 몸의 민감도를 깨워요."_`,
       ],
       clinical: [
         `☀️ *광노출 프로토콜*`,
@@ -560,7 +560,7 @@ async function sendLunchGolden(bot) {
         `12:00–13:30 사이에 점심을 드시면 인크레틴 반응이 가장 큽니다.`,
         `오늘의 식사 순서: *🥬 채소 → 🥩 단백질 → 🍚 탄수화물*`,
         ``,
-        `식사 직후 *10분 산책* 한 번이면 β 시퀀스 +0.3`,
+        `식사 직후 *10분 산책* 한 번이면 식사 순서 효과가 더 커져요`,
       ],
       clinical: [
         `🍽 *점심 골든타임 — 11:30~13:30*`,
@@ -573,7 +573,7 @@ async function sendLunchGolden(bot) {
         `🍽 *골든타임이다! 점심 준비!*`,
         ``,
         `채소 먼저, 단백질 다음, 밥은 마지막.`,
-        `식사 후 바로 10분 걸어! β +0.3 올린다!`,
+        `식사 후 바로 10분 걸어! 효과 확 올린다!`,
       ],
     };
 
@@ -607,12 +607,12 @@ async function sendDinnerGolden(bot) {
         `🌇 *저녁 타임윈도우 — 17:00~19:00*`,
         ``,
         `19시 이전 마감 → 14h 공복 → AMPK 활성화 + 인슐린 감수성 회복.`,
-        `19시 이후 식사: α -0.10 페널티 + R-06 리스크 활성화.`,
+        `19시 이후 식사: 대사 리듬에 불리 + 야식 위험 증가.`,
       ],
       driver: [
         `🌇 *저녁 타임! 지금 준비해!*`,
         ``,
-        `19시까지 식사 끝내라. 넘기면 α 깎인다.`,
+        `19시까지 식사 끝내라. 넘기면 내일 리듬 깎인다.`,
         `단백질 확보하고 탄수 줄여!`,
       ],
     };
@@ -764,7 +764,7 @@ async function sendMissedSequence(bot) {
     `🔔 *인크레틴 시퀀스 놓치지 마세요!*`,
     ``,
     `오늘 점심에 *채소 → 단백질 → 탄수화물* 순서 지키셨나요?`,
-    `식사 순서만으로 β 계수가 +0.025 올라갑니다.`,
+    `식사 순서만 지켜도 인크레틴 반응이 좋아져요.`,
     ``,
     `완료하면: /check 5`,
   ].join('\n'));
@@ -776,7 +776,7 @@ async function sendMissedDinnerClose(bot) {
     `⚠️ *저녁 마감(19시) 시간이 지났어요*`,
     ``,
     `이미 지났다면 지금이라도 식사를 마무리하세요.`,
-    `19시 이후 식사는 α 계수에 *-0.10 페널티*가 적용됩니다.`,
+    `19시 이후 식사는 대사 리듬에 불리해요.`,
     ``,
     `이미 마감했다면: /check 7`,
   ].join('\n'));
@@ -848,7 +848,7 @@ async function sendNoMealNudge(bot) {
       `음식 사진 한 장 보내주시면 자동으로 칼로리·매크로를 분석해드려요.`,
       `또는 "점심에 비빔밥 먹었어" 처럼 텍스트로도 기록 가능해요.`,
       ``,
-      `식사 기록 → β 보정 → 더 정확한 IMEM 계수!`,
+      `식사 기록 → 더 정확한 코칭으로 이어져요!`,
     ].join('\n');
 
     const ok = await safeSend(bot, chatId, text);
@@ -1042,7 +1042,7 @@ async function sendPreDinnerCoaching(bot) {
         ``,
         `타겟: 18:00 식사 시작 → 19:00 마감`,
         `단백질 20g+ 확보. 정제탄수 최소화.`,
-        `19시 이후 식사 → α 페널티 -0.10.`,
+        `19시 이후 식사 → 대사 리듬에 불리.`,
       ],
       driver: [
         `🌇 *저녁 준비 시작! 지금!*`,
