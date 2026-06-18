@@ -14,7 +14,7 @@ const {
   sendUnmetContent,
   sendBodyCompReminder,
 } = require('./notifiers');
-const { sendCrewLeaderboard } = require('./crewNotifier');
+const { sendCrewLeaderboard, sendCrewMilestones, sendCrewReturnNudge } = require('./crewNotifier');
 
 const TZ = 'Asia/Seoul';
 
@@ -104,6 +104,16 @@ function startScheduler(bot) {
     sendCrewLeaderboard(bot).catch((e) => console.error('[cron] crew-leaderboard failed:', e));
   }, { timezone: TZ });
 
+  // 22:35 KST — 크루 마일스톤 축하 (그룹챗, 새 달성만)
+  cron.schedule('35 22 * * *', () => {
+    sendCrewMilestones(bot).catch((e) => console.error('[cron] crew-milestone failed:', e));
+  }, { timezone: TZ });
+
+  // 14:00 KST — 크루 부드러운 복귀 (3일+ 비활성 멤버 개인 DM)
+  cron.schedule('0 14 * * *', () => {
+    sendCrewReturnNudge(bot).catch((e) => console.error('[cron] crew-return failed:', e));
+  }, { timezone: TZ });
+
   // 09:00 KST 매주 월요일 — 챌린지 주간 독려 메시지
   cron.schedule('0 9 * * 1', () => {
     sendChallengeEncouragement(bot, false).catch((e) => console.error('[cron] challenge-encouragement failed:', e));
@@ -119,7 +129,7 @@ function startScheduler(bot) {
     sendBodyCompReminder(bot).catch((e) => console.error('[cron] bodycomp-reminder failed:', e));
   }, { timezone: TZ });
 
-  console.log('⏰ Scheduler armed — 06:30 / 06:35 / 07:00 / 10:00 체성분리마인더 / 10:30 / 11:00 / 11:30 / 11:35 / 13:30 / 16:00 / 16:30 / 17:00 / 17:30 / 18:00 / 18:30 / 19:30 / 22:00 / 22:30 크루리더보드 KST | 월 09:00 챌린지 독려 · 월 09:30 언멧니즈');
+  console.log('⏰ Scheduler armed — 06:30 / 06:35 / 07:00 / 10:00 체성분리마인더 / 10:30 / 11:00 / 11:30 / 11:35 / 13:30 / 16:00 / 16:30 / 17:00 / 17:30 / 18:00 / 18:30 / 14:00 크루복귀 / 19:30 / 22:00 / 22:30 크루리더보드 / 22:35 크루마일스톤 KST | 월 09:00 챌린지 독려 · 월 09:30 언멧니즈');
 }
 
 /**
@@ -153,6 +163,8 @@ async function runManualTrigger(bot) {
     challenge:          () => sendChallengeEncouragement(bot, true),
     bodycompreminder:   () => sendBodyCompReminder(bot),
     crewleaderboard:    () => sendCrewLeaderboard(bot, { manual: true }),
+    crewmilestones:     () => sendCrewMilestones(bot, { manual: true }),
+    crewreturn:         () => sendCrewReturnNudge(bot, { manual: true }),
   }[nowKind];
   if (!fn) {
     console.warn(`[notify] unknown NOTIFY_NOW value: ${nowKind}`);

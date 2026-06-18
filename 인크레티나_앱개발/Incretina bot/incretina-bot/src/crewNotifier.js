@@ -3,8 +3,15 @@
 // 가드: crew 미설정 / groupChatId 없음 / 비활성(active=false) / 멤버<2 → 발송 안 함.
 //   → 1A 상태(active:false·groupChatId 미등록)에선 자동 발송 0. 기존 동작 무영향.
 
-const { getCrew, getProfile, getUserChallengeDays, toLogicalDate } = require('./store');
-const { resolveNickname, isCrewActive, rankByCCS, crewAverages } = require('./crew');
+const {
+  getCrew, getProfile, getUserChallengeDays, toLogicalDate,
+  addMilestone, saveCrewReturnState,
+} = require('./store');
+const {
+  resolveNickname, isCrewActive, rankByCCS, crewAverages,
+  computeStreak, daysSinceLastRecord, detectMilestones, milestoneMessage,
+  shouldNudgeReturn, returnNudgeMessage,
+} = require('./crew');
 
 function escapeHtml(s) {
   return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -22,13 +29,17 @@ async function collectMemberStats(uid, startDate, endDate) {
   let totalScore = 0;
   let scoreDays = 0;
   let completionDays = 0;
+  let maxScore = 0;
+  const recordDates = [];
   days.forEach((day) => {
+    recordDates.push(day.date);
     const w = parseFloat(day.weight);
     if (w > 0) latestWeight = w;
     if (typeof day.score === 'number') {
       totalScore += day.score;
       scoreDays++;
       if (day.score >= 50) completionDays++;
+      if (day.score > maxScore) maxScore = day.score;
     }
   });
 
@@ -39,6 +50,11 @@ async function collectMemberStats(uid, startDate, endDate) {
     weightChangePct,
     imemAvg: scoreDays > 0 ? totalScore / scoreDays : 0,
     completionDays,
+    // 마일스톤용 지표
+    maxScore,
+    weightLost: startWeight - latestWeight,
+    streak: computeStreak(recordDates, endDate),
+    recordDates,
   };
 }
 
@@ -104,4 +120,67 @@ async function sendCrewLeaderboard(bot, opts = {}) {
   }
 }
 
-module.exports = { sendCrewLeaderboard, collectMemberStats };
+/**
+ * 마일스톤 축하 — 멤버가 새로 달성한 마일스톤을 그룹챗에 축하 (긍정만).
+ * 중복 방지: users/{uid}.milestones[]. 가드는 리더보드와 동일.
+ */
+async function sendCrewMilestones(bot, opts = {}) {
+  const crew = await getCrew();
+  if (!crew || !crew.groupChatId) return;
+  const today = toLogicalDate(new Date(), 'Asia/Seoul');
+  if (!opts.manual && !isCrewActive(crew, today)) return;
+
+  const members = Array.isArray(crew.memberUids) ? crew.memberUids : [];
+  let celebrated = 0;
+  for (const uid of members) {
+    try {
+      const profile = await getProfile(uid);
+      if (!profile) continue;
+      const stats = await collectMemberStats(uid, crew.startDate, today);
+      if (!stats) continue;
+      const earned = detectMilestones(stats, profile.milestones || []);
+      for (const key of earned) {
+        const msg = milestoneMessage(key, stats.nickname);
+        if (!msg) continue;
+        const ok = await bot.api.sendMessage(crew.groupChatId, msg, { parse_mode: 'HTML' })
+          .then(() => true).catch((e) => { console.error('[crew-milestone] send:', e.description || e.message); return false; });
+        if (ok) { await addMilestone(uid, key).catch((e) => console.warn('[crew-milestone] save:', e.message)); celebrated++; }
+      }
+    } catch (e) {
+      console.warn(`[crew-milestone] ${uid} 실패:`, e.message);
+    }
+  }
+  console.log(`[crew] 마일스톤 축하 ${celebrated}건`);
+}
+
+/**
+ * 부드러운 복귀 — 3일+ 비활성 멤버에게 개인 DM 안부 (그룹엔 절대 노출 안 함).
+ * 5일 backoff. 회복 코칭 톤.
+ */
+async function sendCrewReturnNudge(bot, opts = {}) {
+  const crew = await getCrew();
+  if (!crew) return;
+  const today = toLogicalDate(new Date(), 'Asia/Seoul');
+  if (!opts.manual && !isCrewActive(crew, today)) return;
+
+  const members = Array.isArray(crew.memberUids) ? crew.memberUids : [];
+  let nudged = 0;
+  for (const uid of members) {
+    try {
+      const profile = await getProfile(uid);
+      if (!profile || !profile.telegramChatId) continue;
+      const days = await getUserChallengeDays(uid, crew.startDate, today);
+      const inactive = daysSinceLastRecord(days.map((d) => d.date), today);
+      if (!shouldNudgeReturn(profile.crewReturnState, inactive, today)) continue;
+
+      const ok = await bot.api.sendMessage(profile.telegramChatId, returnNudgeMessage(resolveNickname(profile)))
+        .then(() => true).catch((e) => { console.error('[crew-return] send:', e.description || e.message); return false; });
+      if (ok) { await saveCrewReturnState(uid, { lastNudge: today }).catch(() => {}); nudged++; }
+    } catch (e) {
+      console.warn(`[crew-return] ${uid} 실패:`, e.message);
+    }
+  }
+  console.log(`[crew] 부드러운 복귀 ${nudged}명`);
+}
+
+module.exports = { sendCrewLeaderboard, collectMemberStats, sendCrewMilestones, sendCrewReturnNudge };

@@ -562,6 +562,22 @@ async function setNickname(uid, nickname) {
   );
 }
 
+/** 달성한 마일스톤 key 기록 (중복 방지 — arrayUnion). users/{uid}.milestones[] */
+async function addMilestone(uid, key) {
+  await withRetry(
+    () => db().doc(paths.user(uid)).set({ milestones: FieldValue.arrayUnion(key) }, { merge: true }),
+    'addMilestone',
+  );
+}
+
+/** 부드러운 복귀 넛지 상태(backoff) 저장. users/{uid}.crewReturnState */
+async function saveCrewReturnState(uid, state) {
+  await withRetry(
+    () => db().doc(paths.user(uid)).set({ crewReturnState: state || {} }, { merge: true }),
+    'saveCrewReturnState',
+  );
+}
+
 /**
  * 챌린지 기간의 특정 사용자 dailyRoutines 읽기
  */
@@ -1077,4 +1093,6 @@ module.exports = {
   saveCrewConfig,
   setCrewMembers,
   setNickname,
+  addMilestone,
+  saveCrewReturnState,
 };

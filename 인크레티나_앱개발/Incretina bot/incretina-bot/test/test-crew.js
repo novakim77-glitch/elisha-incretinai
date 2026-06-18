@@ -1,5 +1,8 @@
 // test-crew.js — 크루 순수 로직 단위 테스트
-const { resolveNickname, isCrewActive, isMember, parseSetupArgs, validateNickname, rankByCCS, crewAverages } = require('../src/crew');
+const {
+  resolveNickname, isCrewActive, isMember, parseSetupArgs, validateNickname, rankByCCS, crewAverages,
+  computeStreak, daysSinceLastRecord, detectMilestones, milestoneMessage, shouldNudgeReturn, returnNudgeMessage,
+} = require('../src/crew');
 
 let pass = 0, fail = 0;
 const ok = (cond, msg) => { if (cond) pass++; else { fail++; console.log('  ❌', msg); } };
@@ -58,6 +61,33 @@ const avg = crewAverages(parts);
 ok(avg.count === 3, '평균 count 3');
 ok(Math.abs(avg.avgImem - 60) < 0.01, '평균 IMEM 60');
 ok(crewAverages([]).count === 0, '빈 평균 방어');
+
+// computeStreak: 오늘 포함 연속 / 오늘 미기록 시 어제부터
+ok(computeStreak(['2026-07-13', '2026-07-14', '2026-07-15'], '2026-07-15') === 3, '오늘 포함 3일 연속');
+ok(computeStreak(['2026-07-13', '2026-07-14'], '2026-07-15') === 2, '오늘 미기록 → 어제부터 2일');
+ok(computeStreak(['2026-07-10', '2026-07-14', '2026-07-15'], '2026-07-15') === 2, '끊긴 날 제외');
+ok(computeStreak([], '2026-07-15') === 0, '빈 기록 0');
+
+// daysSinceLastRecord
+ok(daysSinceLastRecord(['2026-07-10', '2026-07-12'], '2026-07-15') === 3, '마지막 기록 3일 전');
+ok(daysSinceLastRecord([], '2026-07-15') === Infinity, '기록 없음 Infinity');
+
+// detectMilestones: 달성+미축하만, 이미 한 건 제외
+ok(JSON.stringify(detectMilestones({ maxScore: 92, streak: 8, weightLost: 1.2 }, [])) ===
+   JSON.stringify(['score90', 'streak7', 'lost1kg']), '3종 동시 달성');
+ok(detectMilestones({ maxScore: 92 }, ['score90']).length === 0, '이미 축하한 건 제외');
+ok(detectMilestones({ maxScore: 80, streak: 5, weightLost: 0.5 }, []).length === 0, '미달성 없음');
+ok(detectMilestones({ streak: 14 }, []).includes('streak14'), '14일 연속 감지');
+ok(milestoneMessage('streak7', '철이').includes('철이'), '마일스톤 메시지에 닉네임');
+ok(milestoneMessage('없는키', '철이') === null, '미지의 key null');
+
+// shouldNudgeReturn: 3일+ & 5일 backoff, Infinity(기록 0) 제외
+ok(shouldNudgeReturn({}, 3, '2026-07-15') === true, '3일 비활성 넛지');
+ok(shouldNudgeReturn({}, 2, '2026-07-15') === false, '2일은 아직');
+ok(shouldNudgeReturn({}, Infinity, '2026-07-15') === false, '기록 0은 제외');
+ok(shouldNudgeReturn({ lastNudge: '2026-07-13' }, 5, '2026-07-15') === false, '5일 backoff 내 재발송 안 함');
+ok(shouldNudgeReturn({ lastNudge: '2026-07-08' }, 5, '2026-07-15') === true, 'backoff 지나면 재발송');
+ok(returnNudgeMessage('철이').includes('철이'), '복귀 메시지에 닉네임');
 
 console.log(`\ncrew 로직: ${pass} pass, ${fail} fail`, fail === 0 ? '✅' : '❌');
 process.exit(fail ? 1 : 0);
