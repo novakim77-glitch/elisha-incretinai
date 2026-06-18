@@ -23,6 +23,12 @@ const { sendChallengeEncouragement } = require('./notifiers');
 const { markChallengeTriggerProcessed, saveTestResultPending } = require('./store');
 const { handleFeelingCallback } = require('./commands/feeling');
 const { decodeTestToken } = require('./utils/testToken');
+const { handleContentStart, contentActionCallback } = require('./commands/contentAction');
+const { handleCheckinCallback } = require('./commands/checkin');
+const { handlePredictionCallback } = require('./commands/prediction');
+const { broadcastCommand } = require('./commands/broadcast');
+const { handleBodyCompCallback } = require('./localRouter');
+const { crewSetupCommand, nicknameCommand, crewCommand } = require('./commands/crew');
 
 const TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 if (!TOKEN) {
@@ -45,6 +51,16 @@ const bot = new Bot(TOKEN);
 // /start — 일반 진입 + Track D deep link (ti_ 토큰 처리)
 bot.command('start', async (ctx) => {
   const payload = ctx.match?.trim() || '';
+  if (payload.startsWith('do_')) {
+    // Loop 1: 라이브러리 [오늘 이거 해보기] deep link
+    try {
+      const handled = await handleContentStart(ctx, payload);
+      if (handled) return;
+    } catch (e) {
+      console.warn('[start:do_] failed:', e.message);
+    }
+    return startCommand(ctx); // 알 수 없는 키 → 일반 /start 폴백
+  }
   if (payload.startsWith('ti_')) {
     // 인크레틴 코드 테스트 deep link
     const token = payload.slice(3); // "ti_" 제거
@@ -54,7 +70,8 @@ bot.command('start', async (ctx) => {
       await saveTestResultPending(chatId, decoded).catch((e) => {
         console.warn('[start:ti_] saveTestResultPending failed:', e.message);
       });
-      const typeLabel = { alpha: '🌅 리듬형', beta: '🥚 순서형', gamma: '💪 민감도형', balanced: '⭐ 밸런스형' }[decoded.type] || decoded.type;
+      // decoded.type은 딥링크 토큰 출처 → 알려진 값만 표시(원문 HTML 주입 차단)
+      const typeLabel = { alpha: '🌅 리듬형', beta: '🥚 순서형', gamma: '💪 민감도형', balanced: '⭐ 밸런스형' }[decoded.type] || '내 타입';
       await ctx.reply(
         `인크레틴 코드 테스트 결과를 받았어요 🤍\n\n` +
         `내 타입: <b>${typeLabel}</b>\n\n` +
@@ -81,7 +98,12 @@ bot.command('predict', predictCommand);
 bot.command('persona', personaCommand);
 bot.command('ranking',      rankingCommand);      // 관리자: CCS 순위
 bot.command('participants', participantsCommand); // 관리자: 참가자 현황
+bot.command('broadcast',    broadcastCommand);    // 관리자: 전체 공지 (ADMIN_CHAT_ID 게이팅)
 bot.command('preload',      preloadCommand);      // 프리로드 레시피 추천
+// ── 크루 시스템 Phase 1A ──
+bot.command('crew_setup',   crewSetupCommand);    // 관리자: 크루 생성·설정 (그룹챗에서)
+bot.command('nickname',     nicknameCommand);     // 멤버: 표시 이름 변경
+bot.command('crew',         crewCommand);         // 멤버: 내 크루 정보
 
 // ── Meal confirm/edit/cancel callbacks (must come before text handler) ──
 bot.callbackQuery(/^meal:/, mealCallbackHandler);
@@ -90,6 +112,14 @@ bot.callbackQuery(/^persona:/, personaCallbackHandler);
 bot.callbackQuery(/^feeling:/, handleFeelingCallback);
 // ── 프리로드 콜백 ──
 bot.callbackQuery(/^preload:/, preloadCallbackHandler);
+// ── Loop 1: 콘텐츠 행동 제안 콜백 ──
+bot.callbackQuery(/^doact:/, contentActionCallback);
+// ── Phase 0: 아침 체중 안부 콜백 ──
+bot.callbackQuery(/^checkin:/, handleCheckinCallback);
+// ── 제안 1+2: 오후 검증(예측→검증) 콜백 ──
+bot.callbackQuery(/^pvfeel:/, handlePredictionCallback);
+// ── 체성분 인라인 버튼 콜백 ──
+bot.callbackQuery(/^bca:/, handleBodyCompCallback);
 
 // ── Photo handler (vision MVP — food → kcal + IMEM β) ──
 bot.on('message:photo', photoHandler);

@@ -4,6 +4,7 @@
 
 const { db, FieldValue } = require('./firebase');
 const { schema } = require('imem-core');
+const { withRetry } = require('./writeSafety');
 const { paths, makeMeta, makeEvent, SOURCE, EVENT } = schema;
 
 // ─────────────────────────────────────────────
@@ -37,6 +38,13 @@ async function consumeLinkCode({ code, chatId, username, firstName }) {
   if (expiresAt < new Date()) return { ok: false, reason: 'expired' };
 
   const uid = codeData.uid;
+
+  // 이벤트 로그 날짜를 사용자 timezone 기준으로 기록 (기본 Asia/Seoul)
+  let linkTz = 'Asia/Seoul';
+  try {
+    const uSnap = await db().doc(paths.user(uid)).get();
+    if (uSnap.exists && uSnap.data().timezone) linkTz = uSnap.data().timezone;
+  } catch (_) { /* non-fatal — 기본 tz 사용 */ }
 
   // Atomic batch: link doc + reverse index + consume code + event log
   const batch = db().batch();
@@ -74,7 +82,7 @@ async function consumeLinkCode({ code, chatId, username, firstName }) {
     db().collection(paths.events(uid)).doc(),
     makeEvent({
       type: 'profile_update',
-      date: toLogicalDate(now),
+      date: toLogicalDate(now, linkTz),
       source: SOURCE.TELEGRAM_BOT,
       payload: { field: 'telegram_link', action: 'linked', chatId },
       now,
@@ -147,6 +155,31 @@ function toLogicalDate(d, tz = 'Asia/Seoul') {
 async function getProfile(uid) {
   const snap = await db().doc(paths.user(uid)).get();
   return snap.exists ? snap.data() : null;
+}
+
+// ─────────────────────────────────────────────
+// 라이브러리 티저 노출 이력 — users/{uid}.teaserHistory [{k,d}] 최근 14개
+// (리캡 "오늘의 한 장" 중복 방지. prevHistory는 getProfile 결과 재사용 — 추가 읽기 없음)
+// ─────────────────────────────────────────────
+async function saveTeaserShown(uid, key, date, prevHistory = []) {
+  const entry = { k: key, d: date };
+  const hist = [entry, ...(Array.isArray(prevHistory) ? prevHistory : []).filter((h) => h && h.k !== key)].slice(0, 14);
+  await withRetry(() => db().doc(paths.user(uid)).set({ teaserHistory: hist }, { merge: true }), 'saveTeaserShown');
+}
+
+// ─────────────────────────────────────────────
+// Loop 1 — 콘텐츠 행동 의향 기록 — users/{uid}.contentIntents [{k,s,d}] 최근 20개
+// s: 'click'(버튼 진입) | 'yes'(해볼게요) | 'no'(패스)
+// ─────────────────────────────────────────────
+async function saveContentIntent(uid, key, status) {
+  const ref = db().doc(paths.user(uid));
+  const snap = await ref.get();
+  const data = snap.exists ? snap.data() : {};
+  const prev = Array.isArray(data.contentIntents) ? data.contentIntents : [];
+  // 이미 fetch한 user doc에서 timezone을 읽어 모닝 메아리(Loop2) 날짜 비교와 정합 유지
+  const tz = data.timezone || 'Asia/Seoul';
+  const entry = { k: key, s: status, d: toLogicalDate(new Date(), tz) };
+  await withRetry(() => ref.set({ contentIntents: [entry, ...prev].slice(0, 20) }, { merge: true }), 'saveContentIntent');
 }
 
 async function getDailyRoutine(uid, date) {
@@ -431,7 +464,7 @@ async function appendMessage(uid, role, content) {
   });
 }
 
-async function getRecentMessages(uid, limit = 20) {
+async function getRecentMessages(uid, limit = 20, tz = 'Asia/Seoul') {
   const snap = await db()
     .collection(`users/${uid}/messages`)
     .orderBy('createdAt', 'desc')
@@ -443,9 +476,9 @@ async function getRecentMessages(uid, limit = 20) {
     .map((m) => ({
       role: m.role,
       content: m.content,
-      // 날짜 경계 감지용 — chatHandler에서 date marker 주입에 사용
+      // 날짜 경계 감지용 — chatHandler에서 date marker 주입에 사용 (사용자 tz 기준)
       date: m.createdAt
-        ? toLogicalDate(m.createdAt.toDate ? m.createdAt.toDate() : new Date(m.createdAt))
+        ? toLogicalDate(m.createdAt.toDate ? m.createdAt.toDate() : new Date(m.createdAt), tz)
         : null,
     }));
 }
@@ -490,6 +523,42 @@ async function markChallengeTriggerProcessed() {
   await db().doc('challenges/weekly-challenge').set(
     { manualTrigger: { processed: true } },
     { merge: true },
+  );
+}
+
+// ─────────────────────────────────────────────
+// 크루 시스템 (Phase 1) — crews/{crewId} + users/{uid}.crewId·nickname
+// 단일 크루 단계: crewId = 'miracle-crew' 고정. 다중 확장 시 인자만 동적.
+// ─────────────────────────────────────────────
+const CREW_ID = 'miracle-crew';
+
+/** 크루 설정 읽기. 없으면 null. */
+async function getCrew(crewId = CREW_ID) {
+  const snap = await db().doc(`crews/${crewId}`).get();
+  return snap.exists ? { id: crewId, ...snap.data() } : null;
+}
+
+/** 크루 설정 저장(merge) — 관리자 셋업용. */
+async function saveCrewConfig(crewId, patch) {
+  await withRetry(
+    () => db().doc(`crews/${crewId}`).set({ ...patch, updatedAt: new Date() }, { merge: true }),
+    'saveCrewConfig',
+  );
+}
+
+/** 크루 멤버 목록 교체. */
+async function setCrewMembers(crewId, memberUids) {
+  await withRetry(
+    () => db().doc(`crews/${crewId}`).set({ memberUids: memberUids || [] }, { merge: true }),
+    'setCrewMembers',
+  );
+}
+
+/** 사용자 닉네임(그룹 공개용) 설정. */
+async function setNickname(uid, nickname) {
+  await withRetry(
+    () => db().doc(paths.user(uid)).set({ nickname: nickname || null }, { merge: true }),
+    'setNickname',
   );
 }
 
@@ -597,6 +666,28 @@ async function getLatestBodyComp(uid) {
     return { ...profile.bodyComp, date: profile.lastBodyCompDate };
   }
   return null;
+}
+
+/**
+ * Get the most recent N body composition measurements (descending by date).
+ * Uses subcollection orderBy on doc id (YYYY-MM-DD strings sort correctly).
+ * @param {string} uid
+ * @param {number} n  — max records to return (default 5)
+ * @returns {Array<{ smm?, bfp?, bmr?, visceralFat?, phaseAngle?, date, source? }>}
+ */
+async function getBodyCompHistory(uid, n = 5) {
+  try {
+    const snap = await db()
+      .collection(paths.bodyComps(uid))
+      .orderBy('__name__', 'desc')
+      .limit(n)
+      .get();
+    if (snap.empty) return [];
+    return snap.docs.map((d) => ({ ...d.data(), date: d.id }));
+  } catch (e) {
+    console.warn('[store] getBodyCompHistory failed:', e.message);
+    return [];
+  }
 }
 
 // ─────────────────────────────────────────────
@@ -707,15 +798,106 @@ async function isFeelingsEnabled(chatId) {
   }
 }
 
+// ─────────────────────────────────────────────
+// Phase 0 — 아침 체중 안부 (low-friction check-in)
+// Feature flag `features/checkin { active, whitelistChatIds[] }` — mirrors recovery.
+// State persisted on users/{uid}.checkinState { lastNudge, skips, snoozeUntil, awaitingWeight }.
+// ─────────────────────────────────────────────
+async function isCheckinEnabled(chatId) {
+  try {
+    const snap = await db().doc('features/checkin').get();
+    if (!snap.exists) return false;
+    const data = snap.data();
+    if (data.active === true) return true;
+    const whitelist = data.whitelistChatIds;
+    if (Array.isArray(whitelist) && whitelist.includes(Number(chatId))) return true;
+    if (Array.isArray(whitelist) && whitelist.includes(String(chatId))) return true;
+    return false;
+  } catch (e) {
+    console.warn('[isCheckinEnabled] error:', e.message);
+    return false; // fail-safe: OFF
+  }
+}
+
+async function saveCheckinState(uid, state) {
+  await withRetry(() => db().doc(paths.user(uid)).set({ checkinState: state || {} }, { merge: true }), 'saveCheckinState');
+}
+
+// ─────────────────────────────────────────────
+// 제안 1+2 — 예측→검증 느낌 루프
+// Feature flag `features/prediction { active, whitelistChatIds[] }`.
+// State: users/{uid}.predictionState { date, kind, asked }
+// Log:   users/{uid}.predictionLog [{ d, o, pre }] 최근 20 (향후 calibrate 느낌 축)
+// 오후 느낌 자체는 기존 saveFeeling(feelings/{date})로 저장 → calibrate 단일 소스.
+// ─────────────────────────────────────────────
+async function isPredictionEnabled(chatId) {
+  try {
+    const snap = await db().doc('features/prediction').get();
+    if (!snap.exists) return false;
+    const data = snap.data();
+    if (data.active === true) return true;
+    const whitelist = data.whitelistChatIds;
+    if (Array.isArray(whitelist) && whitelist.includes(Number(chatId))) return true;
+    if (Array.isArray(whitelist) && whitelist.includes(String(chatId))) return true;
+    return false;
+  } catch (e) {
+    console.warn('[isPredictionEnabled] error:', e.message);
+    return false; // fail-safe: OFF
+  }
+}
+
+async function savePredictionState(uid, state) {
+  await withRetry(() => db().doc(paths.user(uid)).set({ predictionState: state || {} }, { merge: true }), 'savePredictionState');
+}
+
+async function savePredictionOutcome(uid, entry) {
+  const ref = db().doc(paths.user(uid));
+  const snap = await ref.get();
+  const prev = (snap.exists && Array.isArray(snap.data().predictionLog)) ? snap.data().predictionLog : [];
+  await withRetry(() => ref.set({ predictionLog: [entry, ...prev].slice(0, 20) }, { merge: true }), 'savePredictionOutcome');
+}
+
+// ─────────────────────────────────────────────
+// 제안 3 — 포커스 루틴 / 제안 4 — 시간축 언멧니즈 (둘 다 flag 격리)
+// ─────────────────────────────────────────────
+async function _flagEnabled(docPath, chatId) {
+  try {
+    const snap = await db().doc(docPath).get();
+    if (!snap.exists) return false;
+    const data = snap.data();
+    if (data.active === true) return true;
+    const wl = data.whitelistChatIds;
+    if (Array.isArray(wl) && (wl.includes(Number(chatId)) || wl.includes(String(chatId)))) return true;
+    return false;
+  } catch (e) {
+    console.warn(`[flag ${docPath}] error:`, e.message);
+    return false; // fail-safe OFF
+  }
+}
+function isFocusEnabled(chatId) { return _flagEnabled('features/focus', chatId); }
+function isUnmetEnabled(chatId) { return _flagEnabled('features/unmet', chatId); }
+
+async function saveFocusRoutines(uid, record) {
+  await withRetry(() => db().doc(paths.user(uid)).set({ focusRoutines: record || null }, { merge: true }), 'saveFocusRoutines');
+}
+
+async function saveUnmetSent(uid, key) {
+  const ref = db().doc(paths.user(uid));
+  const snap = await ref.get();
+  const prev = (snap.exists && Array.isArray(snap.data().unmetSent)) ? snap.data().unmetSent : [];
+  if (prev.includes(key)) return;
+  await withRetry(() => ref.set({ unmetSent: [...prev, key].slice(-12) }, { merge: true }), 'saveUnmetSent');
+}
+
 /**
  * 오늘의 느낌을 Firestore에 기록한다.
  * @param {string} uid
  * @param {'good'|'normal'|'bad'} feelingType
  * @param {number|string} chatId - 출처 식별용
  */
-async function saveFeeling(uid, feelingType, chatId) {
+async function saveFeeling(uid, feelingType, chatId, tz = 'Asia/Seoul') {
   const now = new Date();
-  const date = toLogicalDate(now, 'Asia/Seoul');
+  const date = toLogicalDate(now, tz);
   const batch = db().batch();
 
   // 날짜별 느낌 문서 (feelings/{date}) — merge로 당일 최신 값 갱신
@@ -847,6 +1029,8 @@ module.exports = {
   toLogicalDate,
   updateUserLocation,
   getProfile,
+  saveTeaserShown,
+  saveContentIntent,
   getDailyRoutine,
   getRecentDailyRoutines,
   setRoutineChecks,
@@ -866,15 +1050,31 @@ module.exports = {
   saveScore,
   saveBodyComp,
   getLatestBodyComp,
+  getBodyCompHistory,
   // 프리로드 기록
   savePreloadLog,
   getRecentPreloadLogs,
   // Phase 1 — 회복 코칭
   isFeelingsEnabled,
+  isCheckinEnabled,
+  saveCheckinState,
+  isPredictionEnabled,
+  savePredictionState,
+  savePredictionOutcome,
+  isFocusEnabled,
+  isUnmetEnabled,
+  saveFocusRoutines,
+  saveUnmetSent,
   saveFeeling,
   getLatestFeeling,
   // Track D — 테스트↔봇 통합
   saveTestResultPending,
   importTestResult,
   getTestProfile,
+  // 크루 시스템 (Phase 1)
+  CREW_ID,
+  getCrew,
+  saveCrewConfig,
+  setCrewMembers,
+  setNickname,
 };
