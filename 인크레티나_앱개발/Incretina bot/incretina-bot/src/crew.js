@@ -43,4 +43,42 @@ function validateNickname(s) {
   return { ok: true, nickname: n };
 }
 
-module.exports = { resolveNickname, isCrewActive, isMember, parseSetupArgs, validateNickname };
+// CCS 순위 계산 (순수) — ranking.js와 동일 공식.
+//   participants: [{ uid, nickname, weightChangePct, imemAvg, completionDays }]
+//   → 각자 ccs + 지표별 순위 부여, ccs 내림차순 정렬 반환 (입력 배열 변형하지 않음)
+function rankByCCS(participants) {
+  const n = Array.isArray(participants) ? participants.length : 0;
+  if (!n) return [];
+  const ps = participants.map((p) => ({ ...p }));
+  const rankBy = (key) => {
+    const sorted = [...ps].sort((a, b) => (b[key] || 0) - (a[key] || 0));
+    sorted.forEach((p, i) => { p[`${key}Rank`] = n - i; });
+  };
+  rankBy('weightChangePct');
+  rankBy('imemAvg');
+  rankBy('completionDays');
+  ps.forEach((p) => {
+    p.ccs = p.weightChangePctRank * 0.40
+          + p.imemAvgRank * 0.35
+          + p.completionDaysRank * 0.25;
+  });
+  return [...ps].sort((a, b) => b.ccs - a.ccs);
+}
+
+// 크루 평균 지표 (순수)
+function crewAverages(participants) {
+  const n = Array.isArray(participants) ? participants.length : 0;
+  if (!n) return { avgImem: 0, avgWeightPct: 0, avgCompletion: 0, count: 0 };
+  const sum = (k) => participants.reduce((s, p) => s + (p[k] || 0), 0);
+  return {
+    avgImem: sum('imemAvg') / n,
+    avgWeightPct: sum('weightChangePct') / n,
+    avgCompletion: sum('completionDays') / n,
+    count: n,
+  };
+}
+
+module.exports = {
+  resolveNickname, isCrewActive, isMember, parseSetupArgs, validateNickname,
+  rankByCCS, crewAverages,
+};

@@ -10,7 +10,11 @@ const {
   sendLateNightRecovery, sendNoMealNudge,
   sendPreLunchCoaching, sendPreDinnerCoaching,
   sendChallengeEncouragement,
+  sendAfternoonComfortCheck,
+  sendUnmetContent,
+  sendBodyCompReminder,
 } = require('./notifiers');
+const { sendCrewLeaderboard } = require('./crewNotifier');
 
 const TZ = 'Asia/Seoul';
 
@@ -55,6 +59,11 @@ function startScheduler(bot) {
     sendMissedSequence(bot).catch((e) => console.error('[cron] missed-sequence failed:', e));
   }, { timezone: TZ });
 
+  // 16:00 KST — 오후 검증 (예측→검증 루프, flag 격리)
+  cron.schedule('0 16 * * *', () => {
+    sendAfternoonComfortCheck(bot).catch((e) => console.error('[cron] afternoon-check failed:', e));
+  }, { timezone: TZ });
+
   // 16:30 KST — 저녁 프리코칭
   cron.schedule('30 16 * * *', () => {
     sendPreDinnerCoaching(bot).catch((e) => console.error('[cron] pre-dinner failed:', e));
@@ -90,12 +99,27 @@ function startScheduler(bot) {
     sendDailyRecap(bot).catch((e) => console.error('[cron] recap failed:', e));
   }, { timezone: TZ });
 
+  // 22:30 KST — 크루 일일 리더보드 (그룹챗 발송, crew 미설정/비활성 시 자동 skip)
+  cron.schedule('30 22 * * *', () => {
+    sendCrewLeaderboard(bot).catch((e) => console.error('[cron] crew-leaderboard failed:', e));
+  }, { timezone: TZ });
+
   // 09:00 KST 매주 월요일 — 챌린지 주간 독려 메시지
   cron.schedule('0 9 * * 1', () => {
     sendChallengeEncouragement(bot, false).catch((e) => console.error('[cron] challenge-encouragement failed:', e));
   }, { timezone: TZ });
 
-  console.log('⏰ Scheduler armed — 06:30 / 06:35 / 07:00 / 10:30 / 11:00 / 11:30 / 11:35 / 13:30 / 16:30 / 17:00 / 17:30 / 18:00 / 18:30 / 19:30 / 22:00 KST | 월 09:00 챌린지 독려');
+  // 09:30 KST 매주 월요일 — 시간축 언멧니즈(탈모) 예고/동행/회복신호 (flag 격리)
+  cron.schedule('30 9 * * 1', () => {
+    sendUnmetContent(bot).catch((e) => console.error('[cron] unmet failed:', e));
+  }, { timezone: TZ });
+
+  // 10:00 KST 매일 — 체성분 재측정 리마인더 (14일 이상 미측정 사용자)
+  cron.schedule('0 10 * * *', () => {
+    sendBodyCompReminder(bot).catch((e) => console.error('[cron] bodycomp-reminder failed:', e));
+  }, { timezone: TZ });
+
+  console.log('⏰ Scheduler armed — 06:30 / 06:35 / 07:00 / 10:00 체성분리마인더 / 10:30 / 11:00 / 11:30 / 11:35 / 13:30 / 16:00 / 16:30 / 17:00 / 17:30 / 18:00 / 18:30 / 19:30 / 22:00 / 22:30 크루리더보드 KST | 월 09:00 챌린지 독려 · 월 09:30 언멧니즈');
 }
 
 /**
@@ -124,7 +148,11 @@ async function runManualTrigger(bot) {
     nomealnudge:        () => sendNoMealNudge(bot),
     prelunch:           () => sendPreLunchCoaching(bot),
     predinner:          () => sendPreDinnerCoaching(bot),
+    afternooncheck:     () => sendAfternoonComfortCheck(bot),
+    unmet:              () => sendUnmetContent(bot),
     challenge:          () => sendChallengeEncouragement(bot, true),
+    bodycompreminder:   () => sendBodyCompReminder(bot),
+    crewleaderboard:    () => sendCrewLeaderboard(bot, { manual: true }),
   }[nowKind];
   if (!fn) {
     console.warn(`[notify] unknown NOTIFY_NOW value: ${nowKind}`);

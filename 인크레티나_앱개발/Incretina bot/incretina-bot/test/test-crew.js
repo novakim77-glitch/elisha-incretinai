@@ -1,5 +1,5 @@
 // test-crew.js — 크루 순수 로직 단위 테스트
-const { resolveNickname, isCrewActive, isMember, parseSetupArgs, validateNickname } = require('../src/crew');
+const { resolveNickname, isCrewActive, isMember, parseSetupArgs, validateNickname, rankByCCS, crewAverages } = require('../src/crew');
 
 let pass = 0, fail = 0;
 const ok = (cond, msg) => { if (cond) pass++; else { fail++; console.log('  ❌', msg); } };
@@ -38,6 +38,26 @@ ok(validateNickname('').ok === false, '빈 닉네임 거부');
 ok(validateNickname('a'.repeat(21)).ok === false, '21자 거부');
 ok(validateNickname('<b>해킹').ok === false, 'HTML 문자 거부');
 ok(validateNickname('  공백트림  ').nickname === '공백트림', '공백 트림');
+
+// rankByCCS: 모든 지표 1위인 사람이 종합 1위 + 입력 불변
+const parts = [
+  { uid: 'a', nickname: 'A', weightChangePct: 3.0, imemAvg: 80, completionDays: 20 }, // 전부 최고
+  { uid: 'b', nickname: 'B', weightChangePct: 1.0, imemAvg: 60, completionDays: 10 },
+  { uid: 'c', nickname: 'C', weightChangePct: -1.0, imemAvg: 40, completionDays: 5 },
+];
+const ranked = rankByCCS(parts);
+ok(ranked.length === 3, 'rankByCCS 3명 반환');
+ok(ranked[0].uid === 'a', '전 지표 1위가 종합 1위');
+ok(ranked[2].uid === 'c', '전 지표 꼴찌가 종합 꼴찌');
+ok(typeof ranked[0].ccs === 'number', 'ccs 숫자');
+ok(parts[0].ccs === undefined, '입력 배열 불변(원본에 ccs 안 붙음)');
+ok(rankByCCS([]).length === 0, '빈 배열 방어');
+
+// crewAverages
+const avg = crewAverages(parts);
+ok(avg.count === 3, '평균 count 3');
+ok(Math.abs(avg.avgImem - 60) < 0.01, '평균 IMEM 60');
+ok(crewAverages([]).count === 0, '빈 평균 방어');
 
 console.log(`\ncrew 로직: ${pass} pass, ${fail} fail`, fail === 0 ? '✅' : '❌');
 process.exit(fail ? 1 : 0);
