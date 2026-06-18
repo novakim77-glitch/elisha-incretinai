@@ -1,6 +1,6 @@
 // ─────────────────────────────────────────────
 // 라이브러리 티저 — "오늘의 한 장"
-// 라이브러리 콘텐츠(과학 16 + 본식 순서 10)의 메타데이터 인덱스.
+// 라이브러리 콘텐츠(과학 19 + 본식 순서 10)의 메타데이터 인덱스.
 // 후킹 1~2문장만 봇이 보여주고, [자세히 보기] 버튼으로
 // 라이브러리 해당 콘텐츠 상세 딥링크(?item=science-7)에 연결.
 // Claude 호출 없음 — 사전 작성 문구만 사용 (API 비용 0).
@@ -12,7 +12,7 @@ const LIBRARY_URL = 'https://novakim77-glitch.github.io/elisha-incretinai/Incret
 // coeff: 추천 매칭용 IMEM 계수 태그 (alpha/beta/gamma/general)
 // tags: 맥락 매칭 (latenight = 야식·수면·일주기 관련)
 const TEASERS = [
-  // ── 인크레틴 과학 (SCIENCE 16) ──
+  // ── 인크레틴 과학 (SCIENCE 19) ──
   { key: 'science-12', coeff: 'general', emoji: '🧪', title: '인크레틴이란 무엇인가?',
     hook: '위고비·마운자로의 정체가 사실 우리 몸이 매일 만들고 있는 호르몬이라는 것, 아셨나요? 5분이면 전체 그림이 보여요.' },
   { key: 'science-1', coeff: 'beta', emoji: '🧬', title: 'GLP-1은 어떻게 분비되는가',
@@ -45,6 +45,13 @@ const TEASERS = [
     hook: '아침엔 유산소, 저녁엔 근력 — 같은 운동도 시간대에 따라 효과가 달라요.' },
   { key: 'science-16', coeff: 'general', emoji: '🩺', title: '인크레틴의 놀라운 효과 — 비만·당뇨·치매까지',
     hook: '체중 감량을 넘어 전신 건강까지 — GLP-1이 몸 곳곳에 미치는 증명된 효과들.' },
+
+  { key: 'science-17', coeff: 'general', tags: ['latenight'], emoji: '⚖️', title: '과식 다음날 1.5kg, 지방일까?',
+    hook: '회식 다음날 체중계가 무서우셨죠? 그 1.5kg, 사실 지방이 아니에요. 정체를 알면 안심돼요.' },
+  { key: 'science-18', coeff: 'beta', emoji: '🍜', title: '라면만 vs 라면+계란+김치, 뭐가 더 살찔까?',
+    hook: '칼로리는 후자가 높은데 더 살찔까요? 답은 "아니요". 같은 칼로리가 다르게 처리되는 비밀.' },
+  { key: 'science-19', coeff: 'alpha', tags: ['latenight'], emoji: '🍻', title: '술자리, 피할 수 없다면',
+    hook: '회식·술자리는 다이어터 최악의 상황. 그래도 피할 수 없다면, 슬기롭게 임하는 3막 가이드.' },
 
   // ── 본식 순서 가이드 (BSEQ 10) ──
   { key: 'bseq-1', coeff: 'beta', emoji: '🥗', title: '인크레틴 비빔밥',
@@ -109,6 +116,9 @@ const ACTIONS = {
   'science-14': { cat: 'sleep',   propose: '수면이 포만 호르몬을 지킨다는 것, 오늘 밤부터 해볼까요 😴 리캡 때 수면 준비를 같이 점검해드릴까요?' },
   'science-15': { cat: 'move',    propose: '시간대별 운동법을 보셨다면, 오늘 내 시간대에 맞는 한 가지 — 제가 골라드릴까요?' },
   'science-16': { cat: 'insight', propose: '인크레틴이 몸 전체에 하는 일을 보셨네요. 오늘의 작은 실천이 그 전부와 연결돼요 — 같이 시작해볼까요?' },
+  'science-17': { cat: 'insight', propose: '과식 다음날 체중의 진실, 이제 아셨죠? 오늘 하루 기록에 이 관점을 얹어 코칭해드릴까요?' },
+  'science-18': { cat: 'mealseq', propose: '라면도 재구성하면 다른 음식이 돼요 🍜 다음 식사에 단백질·채소 곁들이기 — 식사 전에 제가 상기시켜 드릴까요?' },
+  'science-19': { cat: 'insight', propose: '술자리 가이드까지 보셨네요 🍻 오늘 회식·약속이 있다면 핵심 한 가지를 미리 짚어드릴까요?' },
   'bseq-1':  { cat: 'mealseq', propose: '비빔밥 공략법까지 보셨네요 🥗 다음에 비빔밥 드실 때 나물 먼저 — 식사 시간에 제가 상기시켜 드릴까요?' },
   'bseq-2':  { cat: 'mealseq', propose: '된장찌개 정식 순서, 오늘 저녁에 바로 써먹을 수 있어요 🥣 식사 전에 제가 핵심 순서를 상기시켜 드릴까요?' },
   'bseq-3':  { cat: 'mealseq', propose: '제육볶음+쌈 전략까지 보셨다면 실전 준비 끝 🥩 다음 식사 전에 쌈채소 먼저 — 제가 상기시켜 드릴까요?' },
