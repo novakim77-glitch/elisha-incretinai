@@ -445,7 +445,7 @@ async function handleBodyCompSave(ctx, parsed) {
 
 /**
  * bca: 인라인 버튼 콜백 핸들러
- * callback_data: 'bca:today' | 'bca:trend'
+ * callback_data: 'bca:today' | 'bca:trend' | 'bca:detail'
  */
 async function handleBodyCompCallback(ctx) {
   const action = (ctx.callbackQuery && ctx.callbackQuery.data || '').replace('bca:', '');
@@ -456,7 +456,7 @@ async function handleBodyCompCallback(ctx) {
   try { await ctx.answerCallbackQuery(); } catch (_) {}
 
   if (action === 'today') {
-    // 오늘 어떻게 해야 해 → 최신 체성분 기반 상세 지침
+    // 오늘 어떻게 해야 해 → 상태 + 바로 실행 가능한 한 줄 행동요령 + [자세한 코칭] 버튼
     var bc = null;
     try { bc = await (require('./store').getLatestBodyComp)(uid); } catch (_) {}
     if (!bc) {
@@ -466,25 +466,57 @@ async function handleBodyCompCallback(ctx) {
     try { history2 = await getBodyCompHistory(uid, 3); } catch (_) {}
     var prev2 = history2.find(function(h) { return h.date !== bc.date; }) || null;
     var guardLevel2 = muscleGuardLevel(bc, prev2, gender);
-    var tips2 = personalizedGuidance(bc, guardLevel2, gender);
 
     var lines2 = ['🎯 *오늘의 체성분 코칭*', ''];
     if (guardLevel2 === 'alert') {
-      lines2.push('근육 보호가 가장 우선순위예요.');
+      lines2.push('🔴 근육 보호가 가장 급해요.');
+      lines2.push('👉 오늘 바로: *단백질 한 끼 더 + 저녁 근력운동 10분*');
     } else if (guardLevel2 === 'caution') {
-      lines2.push('근육 감소를 막는 게 지금 중요해요.');
+      lines2.push('🟡 근육 감소를 막는 게 지금 중요해요.');
+      lines2.push('👉 오늘 바로: *단백질 챙기기 + 가벼운 근력 10분*');
     } else {
-      lines2.push('지금 방향이 좋아요. 이걸 유지해봐요.');
+      lines2.push('🟢 지금 방향이 좋아요. 이걸 유지해봐요.');
+      lines2.push('👉 오늘도: *식사 순서 지키기 + 식후 산책 10분*');
     }
-    lines2.push('');
-    tips2.forEach(function(t) { lines2.push('• ' + t); });
-    lines2.push('');
-    lines2.push('코칭 더 자세히 원하시면 자유롭게 말씀해 주세요 💬');
 
+    var todayKb = { inline_keyboard: [[ { text: '📋 자세한 코칭 보기', callback_data: 'bca:detail' } ]] };
     try {
-      await ctx.reply(lines2.join('\n'), { parse_mode: 'Markdown' });
+      await ctx.reply(lines2.join('\n'), { parse_mode: 'Markdown', reply_markup: todayKb });
     } catch (_) {
-      await ctx.reply(lines2.join('\n').replace(/\*/g, ''));
+      await ctx.reply(lines2.join('\n').replace(/\*/g, ''), { reply_markup: todayKb });
+    }
+    return;
+  }
+
+  if (action === 'detail') {
+    // 자세한 코칭 보기 → 근손실 방어 풀가이드 (골격근량 있으면 단백질 목표 개인화)
+    var bcD = null;
+    try { bcD = await (require('./store').getLatestBodyComp)(uid); } catch (_) {}
+    var pLine = '• 목표: 골격근량 1kg당 2~2.5g';
+    if (bcD && bcD.smm) {
+      pLine += ' → 당신은 약 *' + Math.round(bcD.smm * 2) + '~' + Math.round(bcD.smm * 2.5) + 'g*';
+    }
+    var dlines = [
+      '📋 *체성분 상세 코칭 — 근육 지키며 빼기*',
+      '',
+      '🥩 *단백질 (근육의 재료)*',
+      pLine,
+      '• 매 끼니 단백질 먼저, 식전 한 입도 단백질로',
+      '',
+      '💪 *근력운동 (주 2~3회)*',
+      '• 스쿼트·푸시업·밴드 — 집에서 10분이면 충분',
+      '• "쓰는 근육"은 몸이 지켜냅니다',
+      '',
+      '🐢 *천천히 빼기*',
+      '• 급격한 감량이 근손실·탈모의 주범이에요',
+      '• 충분한 수면 — 근육 회복은 잘 때 일어나요',
+      '',
+      '더 궁금한 점은 자유롭게 질문해주세요 💬',
+    ];
+    try {
+      await ctx.reply(dlines.join('\n'), { parse_mode: 'Markdown' });
+    } catch (_) {
+      await ctx.reply(dlines.join('\n').replace(/\*/g, ''));
     }
     return;
   }
