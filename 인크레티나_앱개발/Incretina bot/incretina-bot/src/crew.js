@@ -146,9 +146,27 @@ function returnNudgeMessage(nickname) {
   return `${nick}요즘 좀 뜸하셨죠? 🌿\n무너진 날이 있어도 괜찮아요 — 오늘 딱 하나, 가볍게 다시 시작해봐요. 크루가 기다리고 있어요.`;
 }
 
+// ── 주간 어워드 (그룹) ── 종합 TOP3 + 부문상 (다양하게 인정)
+//   참가자 중 각 지표 1위를 부문상으로 (종합과 겹쳐도 무방 — 다재다능 인정)
+function computeWeeklyAwards(participants) {
+  const ranked = rankByCCS(participants);
+  if (!ranked.length) return null;
+  const topBy = (key) => {
+    const sorted = participants.slice().sort((a, b) => (b[key] || 0) - (a[key] || 0));
+    return sorted[0] || null;
+  };
+  return {
+    top3: ranked.slice(0, 3),
+    mostImproved: topBy('weightChangePct'), // 🌱 발전상
+    consistent: topBy('completionDays'),    // 🎯 꾸준상
+    challenger: topBy('imemAvg'),           // 💪 도전상
+  };
+}
+
 module.exports = {
   resolveNickname, isCrewActive, isMember, parseSetupArgs, validateNickname,
   rankByCCS, crewAverages,
   addDays, daysBetween, computeStreak, daysSinceLastRecord,
   detectMilestones, milestoneMessage, shouldNudgeReturn, returnNudgeMessage,
+  computeWeeklyAwards,
 };

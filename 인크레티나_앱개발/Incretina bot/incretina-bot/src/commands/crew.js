@@ -123,4 +123,34 @@ async function crewCommand(ctx) {
   }
 }
 
-module.exports = { crewSetupCommand, nicknameCommand, crewCommand };
+// ── /crew_on — 크루 활성화 (관리자) ──
+async function crewOnCommand(ctx) {
+  if (!isAdmin(ctx)) return ctx.reply('⛔ 관리자 전용 명령어입니다.');
+  const crew = await getCrew();
+  if (!crew) return ctx.reply('먼저 /crew_setup 으로 크루를 만들어 주세요.');
+  if (!crew.groupChatId) {
+    return ctx.reply('⚠️ 그룹챗이 등록되지 않았어요.\n크루 그룹챗 안에서 /crew_setup 을 먼저 실행해 주세요.');
+  }
+  try {
+    await saveCrewConfig(CREW_ID, { active: true });
+  } catch (e) {
+    return ctx.reply('⚠️ 활성화에 실패했어요. 잠시 후 다시 시도해 주세요.');
+  }
+  await ctx.reply(
+    '✅ <b>크루 활성화!</b>\n매일 22:30 리더보드 · 22:35 마일스톤 · 월요일 어워드가 그룹에 발송돼요.\n(중지: /crew_off)',
+    { parse_mode: 'HTML' },
+  );
+}
+
+// ── /crew_off — 크루 발송 중지 (관리자) ──
+async function crewOffCommand(ctx) {
+  if (!isAdmin(ctx)) return ctx.reply('⛔ 관리자 전용 명령어입니다.');
+  try {
+    await saveCrewConfig(CREW_ID, { active: false });
+  } catch (e) {
+    return ctx.reply('⚠️ 중지에 실패했어요. 잠시 후 다시 시도해 주세요.');
+  }
+  await ctx.reply('⏸️ 크루 자동 발송을 중지했어요. (재개: /crew_on)');
+}
+
+module.exports = { crewSetupCommand, nicknameCommand, crewCommand, crewOnCommand, crewOffCommand };

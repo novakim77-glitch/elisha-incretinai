@@ -14,7 +14,7 @@ const {
   sendUnmetContent,
   sendBodyCompReminder,
 } = require('./notifiers');
-const { sendCrewLeaderboard, sendCrewMilestones, sendCrewReturnNudge } = require('./crewNotifier');
+const { sendCrewLeaderboard, sendCrewMilestones, sendCrewReturnNudge, sendCrewWeeklyAward } = require('./crewNotifier');
 
 const TZ = 'Asia/Seoul';
 
@@ -129,7 +129,12 @@ function startScheduler(bot) {
     sendBodyCompReminder(bot).catch((e) => console.error('[cron] bodycomp-reminder failed:', e));
   }, { timezone: TZ });
 
-  console.log('⏰ Scheduler armed — 06:30 / 06:35 / 07:00 / 10:00 체성분리마인더 / 10:30 / 11:00 / 11:30 / 11:35 / 13:30 / 16:00 / 16:30 / 17:00 / 17:30 / 18:00 / 18:30 / 14:00 크루복귀 / 19:30 / 22:00 / 22:30 크루리더보드 / 22:35 크루마일스톤 KST | 월 09:00 챌린지 독려 · 월 09:30 언멧니즈');
+  // 10:00 KST 매주 월요일 — 크루 주간 어워드 (그룹챗, 종합+부문상)
+  cron.schedule('0 10 * * 1', () => {
+    sendCrewWeeklyAward(bot).catch((e) => console.error('[cron] crew-award failed:', e));
+  }, { timezone: TZ });
+
+  console.log('⏰ Scheduler armed — 06:30 / 06:35 / 07:00 / 10:00 체성분리마인더 / 10:30 / 11:00 / 11:30 / 11:35 / 13:30 / 16:00 / 16:30 / 17:00 / 17:30 / 18:00 / 18:30 / 14:00 크루복귀 / 19:30 / 22:00 / 22:30 크루리더보드 / 22:35 크루마일스톤 KST | 월 09:00 챌린지 독려 · 월 09:30 언멧니즈 · 월 10:00 크루어워드');
 }
 
 /**
@@ -165,6 +170,7 @@ async function runManualTrigger(bot) {
     crewleaderboard:    () => sendCrewLeaderboard(bot, { manual: true }),
     crewmilestones:     () => sendCrewMilestones(bot, { manual: true }),
     crewreturn:         () => sendCrewReturnNudge(bot, { manual: true }),
+    crewaward:          () => sendCrewWeeklyAward(bot, { manual: true }),
   }[nowKind];
   if (!fn) {
     console.warn(`[notify] unknown NOTIFY_NOW value: ${nowKind}`);

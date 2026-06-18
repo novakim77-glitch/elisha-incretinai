@@ -10,7 +10,7 @@ const {
 const {
   resolveNickname, isCrewActive, rankByCCS, crewAverages,
   computeStreak, daysSinceLastRecord, detectMilestones, milestoneMessage,
-  shouldNudgeReturn, returnNudgeMessage,
+  shouldNudgeReturn, returnNudgeMessage, computeWeeklyAwards,
 } = require('./crew');
 
 function escapeHtml(s) {
@@ -183,4 +183,60 @@ async function sendCrewReturnNudge(bot, opts = {}) {
   console.log(`[crew] 부드러운 복귀 ${nudged}명`);
 }
 
-module.exports = { sendCrewLeaderboard, collectMemberStats, sendCrewMilestones, sendCrewReturnNudge };
+/**
+ * 주간 어워드 — 종합 TOP3 + 부문상(발전·꾸준·도전)을 그룹챗에 발송.
+ * 가드는 리더보드와 동일. 월요일 발송(scheduler).
+ */
+async function sendCrewWeeklyAward(bot, opts = {}) {
+  const crew = await getCrew();
+  if (!crew || !crew.groupChatId) return;
+  const today = toLogicalDate(new Date(), 'Asia/Seoul');
+  if (!opts.manual && !isCrewActive(crew, today)) return;
+
+  const members = Array.isArray(crew.memberUids) ? crew.memberUids : [];
+  const participants = [];
+  for (const uid of members) {
+    try {
+      const s = await collectMemberStats(uid, crew.startDate, today);
+      if (s) participants.push(s);
+    } catch (e) {
+      console.warn(`[crew-award] ${uid} 집계 실패:`, e.message);
+    }
+  }
+  if (participants.length < 2) { console.log('[crew] 어워드 멤버<2 — skip'); return; }
+
+  const a = computeWeeklyAwards(participants);
+  if (!a) return;
+  const medal = ['🥇', '🥈', '🥉'];
+  const lines = [
+    `🏆 <b>${escapeHtml(crew.name || '미라클 크루')} — 주간 어워드</b>`,
+    `📅 ${today} 기준`,
+    ``,
+    `<b>종합 순위</b>`,
+  ];
+  a.top3.forEach((p, i) => {
+    lines.push(`${medal[i]} <b>${escapeHtml(p.nickname)}</b> · CCS ${p.ccs.toFixed(1)}`);
+  });
+  const im = a.mostImproved, co = a.consistent, ch = a.challenger;
+  const sign = (v) => (v >= 0 ? '↓' : '↑');
+  lines.push(
+    ``,
+    `<b>이번 주 부문상</b>`,
+    `🌱 발전상 — <b>${escapeHtml(im.nickname)}</b> (체중 ${sign(im.weightChangePct)}${Math.abs(im.weightChangePct).toFixed(1)}%)`,
+    `🎯 꾸준상 — <b>${escapeHtml(co.nickname)}</b> (완수 ${co.completionDays}일)`,
+    `💪 도전상 — <b>${escapeHtml(ch.nickname)}</b> (IMEM ${ch.imemAvg.toFixed(0)}점)`,
+    ``,
+    `이번 주도 함께 빛났어요. 다음 주도 같이 가요 ✨`,
+  );
+
+  try {
+    await bot.api.sendMessage(crew.groupChatId, lines.join('\n'), { parse_mode: 'HTML' });
+    console.log('[crew] 주간 어워드 발송 완료');
+  } catch (e) {
+    console.error('[crew-award] 발송 실패:', e.description || e.message);
+  }
+}
+
+module.exports = {
+  sendCrewLeaderboard, collectMemberStats, sendCrewMilestones, sendCrewReturnNudge, sendCrewWeeklyAward,
+};

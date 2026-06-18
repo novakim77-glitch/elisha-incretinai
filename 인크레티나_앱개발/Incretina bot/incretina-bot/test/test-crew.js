@@ -2,6 +2,7 @@
 const {
   resolveNickname, isCrewActive, isMember, parseSetupArgs, validateNickname, rankByCCS, crewAverages,
   computeStreak, daysSinceLastRecord, detectMilestones, milestoneMessage, shouldNudgeReturn, returnNudgeMessage,
+  computeWeeklyAwards,
 } = require('../src/crew');
 
 let pass = 0, fail = 0;
@@ -88,6 +89,19 @@ ok(shouldNudgeReturn({}, Infinity, '2026-07-15') === false, '기록 0은 제외'
 ok(shouldNudgeReturn({ lastNudge: '2026-07-13' }, 5, '2026-07-15') === false, '5일 backoff 내 재발송 안 함');
 ok(shouldNudgeReturn({ lastNudge: '2026-07-08' }, 5, '2026-07-15') === true, 'backoff 지나면 재발송');
 ok(returnNudgeMessage('철이').includes('철이'), '복귀 메시지에 닉네임');
+
+// computeWeeklyAwards: 종합 TOP3 + 각 부문 1위
+const awParts = [
+  { uid: 'a', nickname: 'A', weightChangePct: 1.0, imemAvg: 90, completionDays: 8 },  // 도전상(IMEM 최고)
+  { uid: 'b', nickname: 'B', weightChangePct: 5.0, imemAvg: 50, completionDays: 5 },  // 발전상(체중 최고)
+  { uid: 'c', nickname: 'C', weightChangePct: 0.5, imemAvg: 60, completionDays: 20 }, // 꾸준상(완수 최고)
+];
+const aw = computeWeeklyAwards(awParts);
+ok(aw && aw.top3.length === 3, '어워드 TOP3');
+ok(aw.mostImproved.uid === 'b', '발전상 = 체중변화 최고(B)');
+ok(aw.consistent.uid === 'c', '꾸준상 = 완수일 최고(C)');
+ok(aw.challenger.uid === 'a', '도전상 = IMEM 최고(A)');
+ok(computeWeeklyAwards([]) === null, '빈 어워드 null');
 
 console.log(`\ncrew 로직: ${pass} pass, ${fail} fail`, fail === 0 ? '✅' : '❌');
 process.exit(fail ? 1 : 0);

@@ -28,7 +28,7 @@ const { handleCheckinCallback } = require('./commands/checkin');
 const { handlePredictionCallback } = require('./commands/prediction');
 const { broadcastCommand } = require('./commands/broadcast');
 const { handleBodyCompCallback } = require('./localRouter');
-const { crewSetupCommand, nicknameCommand, crewCommand } = require('./commands/crew');
+const { crewSetupCommand, nicknameCommand, crewCommand, crewOnCommand, crewOffCommand } = require('./commands/crew');
 
 const TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 if (!TOKEN) {
@@ -100,8 +100,10 @@ bot.command('ranking',      rankingCommand);      // 관리자: CCS 순위
 bot.command('participants', participantsCommand); // 관리자: 참가자 현황
 bot.command('broadcast',    broadcastCommand);    // 관리자: 전체 공지 (ADMIN_CHAT_ID 게이팅)
 bot.command('preload',      preloadCommand);      // 프리로드 레시피 추천
-// ── 크루 시스템 Phase 1A ──
+// ── 크루 시스템 (Phase 1) ──
 bot.command('crew_setup',   crewSetupCommand);    // 관리자: 크루 생성·설정 (그룹챗에서)
+bot.command('crew_on',      crewOnCommand);       // 관리자: 크루 활성화
+bot.command('crew_off',     crewOffCommand);      // 관리자: 크루 발송 중지
 bot.command('nickname',     nicknameCommand);     // 멤버: 표시 이름 변경
 bot.command('crew',         crewCommand);         // 멤버: 내 크루 정보
 
