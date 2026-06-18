@@ -554,6 +554,30 @@ async function setCrewMembers(crewId, memberUids) {
   );
 }
 
+/** 멤버 개별 가입 (opt-in, arrayUnion). */
+async function addCrewMember(crewId, uid) {
+  await withRetry(
+    () => db().doc(`crews/${crewId}`).set({ memberUids: FieldValue.arrayUnion(uid) }, { merge: true }),
+    'addCrewMember',
+  );
+}
+
+/** 멤버 개별 탈퇴 (arrayRemove). */
+async function removeCrewMember(crewId, uid) {
+  await withRetry(
+    () => db().doc(`crews/${crewId}`).set({ memberUids: FieldValue.arrayRemove(uid) }, { merge: true }),
+    'removeCrewMember',
+  );
+}
+
+/** 사용자 프로필에 소속 크루 미러 (다중 크루 대비). */
+async function setUserCrew(uid, crewId) {
+  await withRetry(
+    () => db().doc(paths.user(uid)).set({ crewId: crewId || null }, { merge: true }),
+    'setUserCrew',
+  );
+}
+
 /** 사용자 닉네임(그룹 공개용) 설정. */
 async function setNickname(uid, nickname) {
   await withRetry(
@@ -1092,6 +1116,9 @@ module.exports = {
   getCrew,
   saveCrewConfig,
   setCrewMembers,
+  addCrewMember,
+  removeCrewMember,
+  setUserCrew,
   setNickname,
   addMilestone,
   saveCrewReturnState,

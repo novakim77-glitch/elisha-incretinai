@@ -6,7 +6,7 @@
 
 const {
   CREW_ID, getCrew, saveCrewConfig, setNickname,
-  getProfile, listActiveTelegramUsers,
+  addCrewMember, removeCrewMember, setUserCrew,
 } = require('../store');
 const { resolveUser } = require('./_shared');
 const { resolveNickname, parseSetupArgs, validateNickname, isMember } = require('../crew');
@@ -39,23 +39,15 @@ async function crewSetupCommand(ctx) {
   const isGroup = chatType === 'group' || chatType === 'supergroup';
   const groupChatId = isGroup ? ctx.chat.id : null;
 
-  // 테스트 단계(단일 크루): 현재 텔레그램 연결된 전체 사용자를 멤버로 등록
-  let memberUids = [];
-  try {
-    const users = await listActiveTelegramUsers();
-    memberUids = users.map((u) => u.uid);
-  } catch (e) {
-    console.warn('[crew_setup] member fetch failed:', e.message);
-  }
-
+  // opt-in 방식: 멤버는 0으로 초기화. 참여자는 /crew_join 으로 직접 가입.
   try {
     await saveCrewConfig(CREW_ID, {
       name: parsed.name,
       groupChatId,
       startDate: parsed.startDate,
       endDate: parsed.endDate,
-      active: false, // 검증 후 활성화 (Firestore에서 active:true 또는 향후 /crew_on)
-      memberUids,
+      active: false, // 검증 후 /crew_on 으로 활성화
+      memberUids: [],
       createdBy: String(ctx.from?.id || ''),
     });
   } catch (e) {
@@ -69,10 +61,10 @@ async function crewSetupCommand(ctx) {
       ``,
       `이름: ${escapeHtml(parsed.name)}`,
       `기간: ${parsed.startDate} ~ ${parsed.endDate}`,
-      `멤버: ${memberUids.length}명 (현재 연결된 전체)`,
       `그룹: ${isGroup ? `등록됨 (${groupChatId})` : '⚠️ 그룹 아님 — 그룹챗에서 다시 실행하면 자동 등록'}`,
       ``,
-      `상태: <b>비활성</b> (active:false) — 검증 후 활성화하세요.`,
+      `멤버: <b>0명</b> — 참여 원하는 분이 <b>/crew_join</b> 으로 직접 가입해요.`,
+      `상태: <b>비활성</b> (active:false) — 멤버 모인 뒤 /crew_on 으로 시작.`,
     ].join('\n'),
     { parse_mode: 'HTML' },
   );
@@ -97,6 +89,45 @@ async function nicknameCommand(ctx) {
   }
 }
 
+// ── /crew_join — 참여 원하는 멤버 자가 가입 (opt-in) ──
+async function crewJoinCommand(ctx) {
+  try {
+    const crew = await getCrew();
+    if (!crew) return ctx.reply('아직 크루가 없어요. 관리자가 /crew_setup 으로 만들 수 있어요.');
+    const { uid, profile } = await resolveUser(ctx);
+    if (isMember(crew, uid)) {
+      return ctx.reply('이미 크루 멤버예요! /crew 로 확인해보세요 🏃');
+    }
+    await addCrewMember(CREW_ID, uid);
+    await setUserCrew(uid, CREW_ID).catch(() => {});
+    await ctx.reply(
+      `🎉 <b>${escapeHtml(crew.name || '미라클 크루')}</b>에 합류했어요!\n` +
+      `표시 이름: <b>${escapeHtml(resolveNickname(profile))}</b> (/nickname 으로 변경)\n` +
+      `함께 끝까지 가요 💪`,
+      { parse_mode: 'HTML' },
+    );
+  } catch (e) {
+    console.error('[crew_join] failed:', e.message);
+    await ctx.reply('⚠️ 가입에 실패했어요. 잠시 후 다시 시도해 주세요.');
+  }
+}
+
+// ── /crew_leave — 탈퇴 ──
+async function crewLeaveCommand(ctx) {
+  try {
+    const crew = await getCrew();
+    if (!crew) return ctx.reply('크루가 없어요.');
+    const { uid } = await resolveUser(ctx);
+    if (!isMember(crew, uid)) return ctx.reply('크루 멤버가 아니에요.');
+    await removeCrewMember(CREW_ID, uid);
+    await setUserCrew(uid, null).catch(() => {});
+    await ctx.reply('크루에서 나왔어요. 언제든 /crew_join 으로 다시 와요 🤍');
+  } catch (e) {
+    console.error('[crew_leave] failed:', e.message);
+    await ctx.reply('⚠️ 탈퇴 처리에 실패했어요. 잠시 후 다시 시도해 주세요.');
+  }
+}
+
 // ── /crew — 본인 크루 정보 조회 ──
 async function crewCommand(ctx) {
   try {
@@ -113,8 +144,8 @@ async function crewCommand(ctx) {
       `상태: ${crew.active ? '진행 중 🟢' : '준비 중 ⚪'}`,
       ``,
       member
-        ? `내 표시 이름: <b>${escapeHtml(resolveNickname(profile))}</b>  (/nickname 으로 변경)`
-        : `아직 이 크루의 멤버가 아니에요.`,
+        ? `내 표시 이름: <b>${escapeHtml(resolveNickname(profile))}</b>  (/nickname 으로 변경)\n나가려면 /crew_leave`
+        : `아직 멤버가 아니에요. <b>/crew_join</b> 으로 참여할 수 있어요!`,
     ];
     await ctx.reply(lines.join('\n'), { parse_mode: 'HTML' });
   } catch (e) {
@@ -153,4 +184,7 @@ async function crewOffCommand(ctx) {
   await ctx.reply('⏸️ 크루 자동 발송을 중지했어요. (재개: /crew_on)');
 }
 
-module.exports = { crewSetupCommand, nicknameCommand, crewCommand, crewOnCommand, crewOffCommand };
+module.exports = {
+  crewSetupCommand, nicknameCommand, crewCommand,
+  crewJoinCommand, crewLeaveCommand, crewOnCommand, crewOffCommand,
+};
