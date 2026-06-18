@@ -443,17 +443,37 @@ async function handleBodyCompSave(ctx, parsed) {
   return text;
 }
 
+// 체성분 콜백 중복 탭 방지 — 같은 chatId+action을 3초 내 재처리하지 않음
+// (네트워크 지연으로 사용자가 버튼을 두 번 탭하면 같은 코칭이 중복 발송되던 문제)
+const _bcaDebounce = new Map();
+function _isDupBca(chatId, action) {
+  if (chatId == null) return false;
+  const key = chatId + ':' + action;
+  const now = Date.now();
+  const last = _bcaDebounce.get(key);
+  if (last && now - last < 3000) return true;
+  _bcaDebounce.set(key, now);
+  // 메모리 누수 방지: 가끔 오래된 항목 정리
+  if (_bcaDebounce.size > 500) {
+    for (const [k, t] of _bcaDebounce) if (now - t > 10000) _bcaDebounce.delete(k);
+  }
+  return false;
+}
+
 /**
  * bca: 인라인 버튼 콜백 핸들러
  * callback_data: 'bca:today' | 'bca:trend' | 'bca:detail'
  */
 async function handleBodyCompCallback(ctx) {
   const action = (ctx.callbackQuery && ctx.callbackQuery.data || '').replace('bca:', '');
+
+  // 버튼 눌림 표시 (중복이어도 로딩 스피너는 해제)
+  try { await ctx.answerCallbackQuery(); } catch (_) {}
+  // 중복 탭 방지 — resolveUser(Firestore read) 전에 차단
+  if (_isDupBca(ctx.chat && ctx.chat.id, action)) return;
+
   var { uid, profile } = await resolveUser(ctx);
   var gender = profile.gender || 'M';
-
-  // 버튼 눌림 표시
-  try { await ctx.answerCallbackQuery(); } catch (_) {}
 
   if (action === 'today') {
     // 오늘 어떻게 해야 해 → 상태 + 바로 실행 가능한 한 줄 행동요령 + [자세한 코칭] 버튼
