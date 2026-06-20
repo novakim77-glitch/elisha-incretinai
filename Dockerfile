@@ -6,7 +6,7 @@ WORKDIR /app
 COPY packages/imem-core ./packages/imem-core
 
 # Copy bot manifest, install
-COPY apps/incretina-bot/package.json apps/incretina-bot/package-lock.json ./apps/incretina-bot/
+COPY apps/incretina-bot/package.json ./apps/incretina-bot/
 WORKDIR /app/apps/incretina-bot
 RUN npm install --omit=dev
 

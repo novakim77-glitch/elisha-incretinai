@@ -1,12 +1,14 @@
-// commands/crew.js — 크루 시스템 Phase 1A (관리자 셋업 + 닉네임 + 본인 조회)
+// commands/crew.js — 크루 시스템 Phase 1A~1F (관리자 셋업 + 닉네임 + 본인 조회 + 관리자 초대)
 // 발송 없음(리더보드/어워드는 1B+). flag(active)는 셋업 시 false로 시작.
 //   /crew_setup YYYY-MM-DD YYYY-MM-DD [크루명]  — 관리자, 크루 그룹챗 안에서 실행
+//   /crew_invite <chatId>                        — 관리자, 특정 사용자 초대 DM 발송
 //   /nickname <표시이름>                         — 멤버 본인
 //   /crew                                        — 본인 크루 정보 조회
 
 const {
   CREW_ID, getCrew, saveCrewConfig, setNickname,
   addCrewMember, removeCrewMember, setUserCrew,
+  findUidByChatId, getProfile,
 } = require('../store');
 const { resolveUser } = require('./_shared');
 const { resolveNickname, parseSetupArgs, validateNickname, isMember } = require('../crew');
@@ -184,7 +186,160 @@ async function crewOffCommand(ctx) {
   await ctx.reply('⏸️ 크루 자동 발송을 중지했어요. (재개: /crew_on)');
 }
 
+// ── /crew_invite <chatId> — 관리자가 특정 사용자에게 초대 DM 발송 ──
+async function crewInviteCommand(ctx) {
+  if (!isAdmin(ctx)) return ctx.reply('⛔ 관리자 전용 명령어입니다.');
+
+  const arg = (ctx.match || '').trim();
+  const targetChatId = Number(arg);
+  if (!arg || isNaN(targetChatId) || targetChatId <= 0) {
+    return ctx.reply(
+      '사용법: <code>/crew_invite 123456789</code>\n' +
+      '숫자 Telegram Chat ID를 입력해 주세요.\n' +
+      '(상대방이 /myid 를 입력하면 본인 ID를 확인할 수 있어요)',
+      { parse_mode: 'HTML' },
+    );
+  }
+
+  let crew, uid, profile;
+  try {
+    crew = await getCrew();
+  } catch (e) {
+    return ctx.reply('⚠️ 크루 정보를 불러오지 못했어요.');
+  }
+  if (!crew) return ctx.reply('아직 크루가 없어요. 먼저 /crew_setup 으로 만들어 주세요.');
+
+  try {
+    uid = await findUidByChatId(targetChatId);
+  } catch (e) {
+    return ctx.reply('⚠️ 사용자 조회에 실패했어요. 잠시 후 다시 시도해 주세요.');
+  }
+  if (!uid) {
+    return ctx.reply(
+      `⚠️ Chat ID <code>${targetChatId}</code> 에 해당하는 사용자를 찾을 수 없어요.\n` +
+      '봇을 먼저 시작한 사용자만 초대할 수 있어요.',
+      { parse_mode: 'HTML' },
+    );
+  }
+
+  if (isMember(crew, uid)) {
+    try {
+      profile = await getProfile(uid);
+    } catch (_) {}
+    const name = escapeHtml(resolveNickname(profile));
+    return ctx.reply(`ℹ️ <b>${name}</b>님은 이미 크루 멤버예요!`, { parse_mode: 'HTML' });
+  }
+
+  try {
+    profile = await getProfile(uid);
+  } catch (e) {
+    return ctx.reply('⚠️ 사용자 프로필을 불러오지 못했어요.');
+  }
+
+  const crewName = escapeHtml(crew.name || '미라클 크루');
+  const targetName = escapeHtml(resolveNickname(profile));
+  const inviteText = [
+    `🎉 <b>${crewName}</b>에 초대됐어요!`,
+    ``,
+    `관리자가 <b>${targetName}</b>님을 크루에 초대했어요.`,
+    `크루에 참여하면 매일 리더보드와 주간 어워드를 함께해요.`,
+    ``,
+    `참여하시겠어요?`,
+  ].join('\n');
+
+  const keyboard = {
+    inline_keyboard: [[
+      { text: '✅ 참여하기', callback_data: `crewinvite:accept:${uid}` },
+      { text: '🙅 다음에', callback_data: `crewinvite:decline:${uid}` },
+    ]],
+  };
+
+  try {
+    await ctx.api.sendMessage(targetChatId, inviteText, { parse_mode: 'HTML', reply_markup: keyboard });
+  } catch (e) {
+    console.error('[crew_invite] DM 발송 실패:', e.description || e.message);
+    return ctx.reply(
+      `⚠️ <b>${targetName}</b>님에게 DM 발송에 실패했어요.\n` +
+      '상대방이 봇을 차단했거나 아직 시작하지 않은 경우 발생할 수 있어요.',
+      { parse_mode: 'HTML' },
+    );
+  }
+
+  await ctx.reply(
+    `✅ <b>${targetName}</b>님 (ID: <code>${targetChatId}</code>) 에게 초대 메시지를 보냈어요!`,
+    { parse_mode: 'HTML' },
+  );
+}
+
+// ── crewinvite 콜백 핸들러 — [참여하기] / [다음에] 버튼 처리 ──
+async function crewInviteCallbackHandler(ctx) {
+  const data = ctx.callbackQuery?.data || '';
+  const parts = data.split(':'); // ['crewinvite', 'accept'|'decline', uid]
+  if (parts.length !== 3) return ctx.answerCallbackQuery();
+
+  const action = parts[1];
+  const uid = parts[2];
+
+  // 버튼 누른 사람이 초대받은 본인인지 확인 (chatId로 uid 조회)
+  const senderChatId = ctx.from?.id;
+  let senderUid;
+  try {
+    senderUid = await findUidByChatId(senderChatId);
+  } catch (_) {}
+
+  if (!senderUid || senderUid !== uid) {
+    return ctx.answerCallbackQuery({ text: '본인에게 온 초대장만 응답할 수 있어요.' });
+  }
+
+  // 메시지 버튼 제거 (중복 응답 방지)
+  try {
+    await ctx.editMessageReplyMarkup({ inline_keyboard: [] });
+  } catch (_) {}
+
+  if (action === 'decline') {
+    await ctx.answerCallbackQuery();
+    return ctx.reply('알겠어요! 언제든 /crew_join 으로 참여할 수 있어요 🤍');
+  }
+
+  // accept
+  let crew, profile;
+  try {
+    crew = await getCrew();
+    profile = await getProfile(uid);
+  } catch (e) {
+    await ctx.answerCallbackQuery({ text: '오류가 발생했어요. 잠시 후 다시 시도해 주세요.' });
+    return;
+  }
+
+  if (!crew) {
+    await ctx.answerCallbackQuery({ text: '크루 정보를 찾을 수 없어요.' });
+    return;
+  }
+  if (isMember(crew, uid)) {
+    await ctx.answerCallbackQuery({ text: '이미 크루 멤버예요!' });
+    return ctx.reply('이미 크루 멤버예요! /crew 로 확인해보세요 🏃');
+  }
+
+  try {
+    await addCrewMember(CREW_ID, uid);
+    await setUserCrew(uid, CREW_ID).catch(() => {});
+  } catch (e) {
+    console.error('[crewinvite:accept] 저장 실패:', e.message);
+    await ctx.answerCallbackQuery({ text: '저장에 실패했어요. 잠시 후 /crew_join 으로 참여해 주세요.' });
+    return;
+  }
+
+  await ctx.answerCallbackQuery({ text: '크루에 합류했어요! 🎉' });
+  await ctx.reply(
+    `🎉 <b>${escapeHtml(crew.name || '미라클 크루')}</b>에 합류했어요!\n` +
+    `표시 이름: <b>${escapeHtml(resolveNickname(profile))}</b> (/nickname 으로 변경)\n` +
+    `함께 끝까지 가요 💪`,
+    { parse_mode: 'HTML' },
+  );
+}
+
 module.exports = {
   crewSetupCommand, nicknameCommand, crewCommand,
   crewJoinCommand, crewLeaveCommand, crewOnCommand, crewOffCommand,
+  crewInviteCommand, crewInviteCallbackHandler,
 };
