@@ -429,6 +429,9 @@ async function runTool(name, input, sess) {
 // ─────────────────────────────────────────────
 
 async function chatHandler(ctx) {
+  // 그룹/채널에서는 AI 대화에 끼어들지 않는다 — 크루 그룹챗 등에서 봇은
+  // 명령어(bot.command)와 자동 발송만 한다. (Privacy Mode 설정 실수 대비 이중 안전)
+  if (ctx.chat?.type !== 'private') return;
   const text = ctx.message?.text;
   if (!text || text.startsWith('/')) return;
 
@@ -775,6 +778,8 @@ async function applyAutoMapping(uid, date, meal, sess) {
 }
 
 async function photoHandler(ctx) {
+  // 그룹에서는 사진 식사 분석에 반응하지 않음 (개인 DM 전용)
+  if (ctx.chat?.type !== 'private') return;
   const photos = ctx.message?.photo;
   if (!photos || photos.length === 0) return;
 
