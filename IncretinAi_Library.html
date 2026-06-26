@@ -1688,12 +1688,22 @@ renderWhy();
     if (!pool.some(function(x){ return x.id === id; })) return false;
     try { goTab(type); showDetail(type, id); return true; } catch(e){ return false; }
   }
-  var qItem = null;
-  try { qItem = new URLSearchParams(location.search).get('item'); } catch(e){}
+  // 프리로드 필터 직행 — ?filter=guard / start_param(filter_guard) → 목적별 묶음 열기
+  function openFilter(param){
+    if (!param) return false;
+    var f = String(param).replace(/^filter[-_]/, '');
+    var validCat = ['egg','dairy','nut','tofu','shake','quick','korean','guard'];
+    var ok = validCat.indexOf(f) >= 0 || (typeof BENEFIT_KEYS !== 'undefined' && BENEFIT_KEYS.indexOf(f) >= 0);
+    if (!ok) return false;
+    try { goTab('preload'); setPreloadFilter(f); return true; } catch(e){ return false; }
+  }
+  var qItem = null, qFilter = null;
+  try { var sp = new URLSearchParams(location.search); qItem = sp.get('item'); qFilter = sp.get('filter'); } catch(e){}
   var hItem = (location.hash || '').indexOf('#item=') === 0 ? location.hash.slice(6) : null;
   var tg = window.Telegram && window.Telegram.WebApp;
   var sParam = (tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param) || null;
-  openFrom(qItem) || openFrom(hItem) || openFrom(sParam);
+  openFilter(qFilter) || openFrom(qItem) || openFrom(hItem) ||
+    (sParam && /^filter[-_]/.test(sParam) ? openFilter(sParam) : openFrom(sParam));
 })();
 
 // 봇 CTA — 텔레그램 미니앱 안에서는 openTelegramLink로 봇 채팅 전환 (외부 브라우저는 일반 링크)
