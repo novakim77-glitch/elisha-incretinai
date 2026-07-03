@@ -2054,7 +2054,8 @@ const LEVEL_TABLE = [
 ];
 
 let _gamification = { xp: 0, level: 1, streak: 0, bestStreak: 0, lastStreakDate: '', todayXpAwarded: false,
-    streakMilestonesAwarded: [], streakFreezeUsed: false, streakFreezeDate: '', lastWeeklyBonusStreak: 0, earnedBadges: [] };
+    streakMilestonesAwarded: [], streakFreezeUsed: false, streakFreezeDate: '', lastWeeklyBonusStreak: 0, earnedBadges: [],
+    seasonNumber: 1, careerBadges: [], seasons: [] };
 let _prevLevel = 1;
 
 function getLevelInfo(xp) {
@@ -2377,7 +2378,10 @@ async function saveGamificationToCloud() {
             streakFreezeUsed: _gamification.streakFreezeUsed,
             streakFreezeDate: _gamification.streakFreezeDate,
             lastWeeklyBonusStreak: _gamification.lastWeeklyBonusStreak,
-            earnedBadges: _gamification.earnedBadges
+            earnedBadges: _gamification.earnedBadges,
+            seasonNumber: _gamification.seasonNumber,
+            careerBadges: _gamification.careerBadges,
+            seasons: _gamification.seasons
         }, { merge: true });
     } catch (e) { console.warn('Gamification save:', e); }
 }
@@ -2393,6 +2397,18 @@ function loadGamificationFromProfile(data) {
     if (data.streakFreezeDate !== undefined) _gamification.streakFreezeDate = data.streakFreezeDate;
     if (data.lastWeeklyBonusStreak !== undefined) _gamification.lastWeeklyBonusStreak = data.lastWeeklyBonusStreak;
     if (Array.isArray(data.earnedBadges)) _gamification.earnedBadges = data.earnedBadges;
+    if (data.seasonNumber !== undefined) _gamification.seasonNumber = data.seasonNumber;
+    if (Array.isArray(data.seasons)) _gamification.seasons = data.seasons;
+    if (Array.isArray(data.careerBadges)) {
+        _gamification.careerBadges = data.careerBadges;
+    } else {
+        // 최초 마이그레이션: careerBadges 필드가 없던 기존 유저 → earnedBadges에서 평생 티어를 승격.
+        // (매 스냅샷마다 data.earnedBadges 원본으로 재계산되므로 멱등. 저장은 다음 게임 액션 때 자연히 반영)
+        const careerIds = BADGE_CATALOG.filter(b => b.tier === 'career').map(b => b.id);
+        const earned = Array.isArray(_gamification.earnedBadges) ? _gamification.earnedBadges : [];
+        _gamification.careerBadges = earned.filter(id => careerIds.includes(id));
+        _gamification.earnedBadges = earned.filter(id => !careerIds.includes(id));
+    }
     updateLevelDisplay();
     updateStreakDisplay();
     renderBadgeInventory();
@@ -2757,77 +2773,102 @@ function getTinaEventMessage(eventType, extra) {
 // ============================================================
 // v7.0 BADGE CATALOG & INVENTORY
 // ============================================================
+// tier: 'season' = 새 시즌 시작 시 초기화(다시 획득) / 'career' = 평생 보존(명예의 전당)
 const BADGE_CATALOG = [
     // Streak
-    {id:'s3', cat:'streak', icon:'🔥', name:'첫 스트릭', desc:'3일 연속 달성'},
-    {id:'s7', cat:'streak', icon:'⚡', name:'1주 전사', desc:'7일 연속 달성'},
-    {id:'s14', cat:'streak', icon:'🌟', name:'2주 마스터', desc:'14일 연속 달성'},
-    {id:'s30', cat:'streak', icon:'💎', name:'한 달 챔피언', desc:'30일 연속 달성'},
-    {id:'s100', cat:'streak', icon:'👑', name:'100일 레전드', desc:'100일 연속 달성'},
+    {id:'s3', cat:'streak', tier:'season', icon:'🔥', name:'첫 스트릭', desc:'3일 연속 달성'},
+    {id:'s7', cat:'streak', tier:'season', icon:'⚡', name:'1주 전사', desc:'7일 연속 달성'},
+    {id:'s14', cat:'streak', tier:'season', icon:'🌟', name:'2주 마스터', desc:'14일 연속 달성'},
+    {id:'s30', cat:'streak', tier:'career', icon:'💎', name:'한 달 챔피언', desc:'30일 연속 달성'},
+    {id:'s100', cat:'streak', tier:'career', icon:'👑', name:'100일 레전드', desc:'100일 연속 달성'},
     // Score
-    {id:'sc85', cat:'score', icon:'🏆', name:'최적 달성', desc:'일일 85점 이상'},
-    {id:'sc100', cat:'score', icon:'💯', name:'퍼펙트 데이', desc:'일일 100점 달성'},
-    {id:'sc85x7', cat:'score', icon:'🔱', name:'최적의 주간', desc:'7일 연속 85점+'},
-    // Consistency
-    {id:'c7', cat:'consistency', icon:'📅', name:'1주 기록', desc:'7일 이상 기록'},
-    {id:'c30', cat:'consistency', icon:'📆', name:'한 달 기록', desc:'30일 이상 기록'},
-    {id:'c100', cat:'consistency', icon:'🗓️', name:'100일 기록', desc:'100일 이상 기록'},
+    {id:'sc85', cat:'score', tier:'season', icon:'🏆', name:'최적 달성', desc:'일일 85점 이상'},
+    {id:'sc100', cat:'score', tier:'season', icon:'💯', name:'퍼펙트 데이', desc:'일일 100점 달성'},
+    {id:'sc85x7', cat:'score', tier:'season', icon:'🔱', name:'최적의 주간', desc:'7일 연속 85점+'},
+    // Consistency (누적 기록 — 평생)
+    {id:'c7', cat:'consistency', tier:'career', icon:'📅', name:'1주 기록', desc:'누적 7일 이상 기록'},
+    {id:'c30', cat:'consistency', tier:'career', icon:'📆', name:'한 달 기록', desc:'누적 30일 이상 기록'},
+    {id:'c100', cat:'consistency', tier:'career', icon:'🗓️', name:'100일 기록', desc:'누적 100일 이상 기록'},
     // Level
-    {id:'l5', cat:'level', icon:'🌿', name:'리듬 탐험가', desc:'레벨 5 달성'},
-    {id:'l10', cat:'level', icon:'🌳', name:'대사 수호자', desc:'레벨 10 달성'},
-    {id:'l20', cat:'level', icon:'🔥', name:'골든타임 마스터', desc:'레벨 20 달성'},
-    {id:'l30', cat:'level', icon:'👑', name:'인크레틴 레전드', desc:'레벨 30 달성'},
+    {id:'l5', cat:'level', tier:'season', icon:'🌿', name:'리듬 탐험가', desc:'레벨 5 달성'},
+    {id:'l10', cat:'level', tier:'season', icon:'🌳', name:'대사 수호자', desc:'레벨 10 달성'},
+    {id:'l20', cat:'level', tier:'season', icon:'🔥', name:'골든타임 마스터', desc:'레벨 20 달성'},
+    {id:'l30', cat:'level', tier:'season', icon:'👑', name:'인크레틴 레전드', desc:'레벨 30 달성'},
     // Special
-    {id:'fc1', cat:'special', icon:'🎉', name:'첫 올클리어', desc:'10/10 루틴 첫 완료'},
-    {id:'fc10', cat:'special', icon:'🎊', name:'올클리어 10회', desc:'올클리어 10회 달성'},
-    {id:'rec5', cat:'special', icon:'🛡️', name:'회복의 달인', desc:'회복 미션 5회 수행'},
-    {id:'wl3', cat:'special', icon:'⚖️', name:'3kg 감량', desc:'시작 대비 3kg 감량'},
-    {id:'wl5', cat:'special', icon:'🎯', name:'5kg 감량', desc:'시작 대비 5kg 감량'}
+    {id:'fc1', cat:'special', tier:'season', icon:'🎉', name:'첫 올클리어', desc:'이번 시즌 10/10 첫 완료'},
+    {id:'fc10', cat:'special', tier:'career', icon:'🎊', name:'올클리어 10회', desc:'누적 올클리어 10회'},
+    {id:'rec5', cat:'special', tier:'career', icon:'🛡️', name:'회복의 달인', desc:'누적 회복 미션 5회'},
+    {id:'wl3', cat:'special', tier:'career', icon:'⚖️', name:'3kg 감량', desc:'시작 대비 3kg 감량'},
+    {id:'wl5', cat:'special', tier:'career', icon:'🎯', name:'5kg 감량', desc:'시작 대비 5kg 감량'}
 ];
 
 let _badgeFilter = 'all';
 
+// 주어진 날짜 키 집합에 대한 배지 통계 (올클리어·회복·최장 85+ 연속·기록일수)
+function _badgeStats(keys, hist) {
+    let fullClear = 0, recoveries = 0, consec = 0, maxConsec = 0;
+    for (let i = 0; i < keys.length; i++) {
+        const d = hist[keys[i]] || {};
+        const checksArr = d.checks ? (Array.isArray(d.checks) ? d.checks : Object.values(d.checks)) : [];
+        const recArr = d.recoveries ? (Array.isArray(d.recoveries) ? d.recoveries : Object.values(d.recoveries)) : [];
+        if (checksArr.filter(Boolean).length === 10) fullClear++;
+        recoveries += recArr.filter(Boolean).length;
+        if ((d.score || 0) >= 85) { consec++; if (consec > maxConsec) maxConsec = consec; }
+        else { consec = 0; }
+    }
+    return { fullClear, recoveries, maxConsec, days: keys.length };
+}
+
 function checkBadges() {
+    if (!Array.isArray(_gamification.earnedBadges)) _gamification.earnedBadges = [];
+    if (!Array.isArray(_gamification.careerBadges)) _gamification.careerBadges = [];
+
     const hist = window._cloudHistory || {};
-    const sorted = Object.keys(hist).sort();
-    const totalDays = sorted.length;
-    const streak = _gamification.streak || 0;
-    const level = _gamification.level || 1;
-    const score = calculateTotalScore();
+    const allKeys = Object.keys(hist).sort();
+    // 시즌 창 = 현재 챌린지 시작일 이후. 시작일 없으면 전체를 시즌으로.
+    const seasonStart = _userStartDate || '0000-00-00';
+    const seasonKeys = allKeys.filter(k => k >= seasonStart);
+
+    const streak = _gamification.streak || 0;   // 현재 시즌 스트릭 (리셋 대상)
+    const level = _gamification.level || 1;      // 현재 시즌 레벨 (XP 리셋과 함께)
+    const score = calculateTotalScore();         // 오늘 점수
     const sw = parseFloat(document.getElementById('p-sw').value) || 0;
     const latestWeight = parseFloat(document.getElementById('daily-weight').value) || sw;
     const weightLoss = sw - latestWeight;
 
-    // Count full clears and recoveries across history
-    let fullClearCount = 0, totalRecoveries = 0, consecutiveAbove85 = 0, maxConsec85 = 0;
-    for (let i = sorted.length - 1; i >= 0; i--) {
-        const d = hist[sorted[i]];
-        const checksArr = d.checks ? (Array.isArray(d.checks) ? d.checks : Object.values(d.checks)) : [];
-        const recArr = d.recoveries ? (Array.isArray(d.recoveries) ? d.recoveries : Object.values(d.recoveries)) : [];
-        if (checksArr.filter(Boolean).length === 10) fullClearCount++;
-        totalRecoveries += recArr.filter(Boolean).length;
-        if (d.score >= 85) { consecutiveAbove85++; maxConsec85 = Math.max(maxConsec85, consecutiveAbove85); }
-        else { consecutiveAbove85 = 0; }
-    }
+    const all = _badgeStats(allKeys, hist);       // 평생 배지 기준 (전체 기록)
+    const seas = _badgeStats(seasonKeys, hist);   // 시즌 배지 기준 (시작일 이후)
 
-    const conditions = {
-        s3: streak >= 3, s7: streak >= 7, s14: streak >= 14, s30: streak >= 30, s100: streak >= 100,
-        sc85: score >= 85, sc100: score >= 100, sc85x7: maxConsec85 >= 7,
-        c7: totalDays >= 7, c30: totalDays >= 30, c100: totalDays >= 100,
+    // 시즌 배지 — 시즌 창 기준 (새 시즌마다 다시 획득)
+    const seasonCond = {
+        s3: streak >= 3, s7: streak >= 7, s14: streak >= 14,
+        sc85: score >= 85, sc100: score >= 100, sc85x7: seas.maxConsec >= 7,
         l5: level >= 5, l10: level >= 10, l20: level >= 20, l30: level >= 30,
-        fc1: fullClearCount >= 1, fc10: fullClearCount >= 10, rec5: totalRecoveries >= 5,
+        fc1: seas.fullClear >= 1
+    };
+    // 평생 배지 — 전체 기록 기준 (한 번 얻으면 영구 보존)
+    const careerCond = {
+        s30: streak >= 30, s100: streak >= 100,
+        c7: all.days >= 7, c30: all.days >= 30, c100: all.days >= 100,
+        fc10: all.fullClear >= 10, rec5: all.recoveries >= 5,
         wl3: weightLoss >= 3, wl5: weightLoss >= 5
     };
 
-    let newBadge = false;
+    let changed = false;
     for (const badge of BADGE_CATALOG) {
-        if (conditions[badge.id] && !_gamification.earnedBadges.includes(badge.id)) {
-            _gamification.earnedBadges.push(badge.id);
-            newBadge = true;
-            setTimeout(() => showTinaToast(badge.icon + ' ' + badge.name + ' 배지 획득!'), 800);
+        if (badge.tier === 'career') {
+            if (careerCond[badge.id] && !_gamification.careerBadges.includes(badge.id)) {
+                _gamification.careerBadges.push(badge.id); changed = true;
+                setTimeout(() => showTinaToast('🏛️ ' + badge.icon + ' ' + badge.name + ' — 명예의 전당!'), 800);
+            }
+        } else {
+            if (seasonCond[badge.id] && !_gamification.earnedBadges.includes(badge.id)) {
+                _gamification.earnedBadges.push(badge.id); changed = true;
+                setTimeout(() => showTinaToast(badge.icon + ' ' + badge.name + ' 배지 획득!'), 800);
+            }
         }
     }
-    if (newBadge) {
+    if (changed) {
         saveGamificationToCloud();
         renderBadgeInventory();
     }
@@ -2839,8 +2880,10 @@ function renderBadgeInventory() {
     const countEl = document.getElementById('badge-count');
     if (!grid) return;
 
-    const earned = _gamification.earnedBadges || [];
-    countEl.textContent = earned.length + '/' + BADGE_CATALOG.length;
+    const season = _gamification.earnedBadges || [];
+    const career = _gamification.careerBadges || [];
+    const earnedSet = new Set([...season, ...career]);
+    countEl.textContent = earnedSet.size + '/' + BADGE_CATALOG.length;
 
     // Category tabs
     const cats = [{id:'all',label:'전체'},{id:'streak',label:'스트릭'},{id:'score',label:'점수'},{id:'consistency',label:'일관성'},{id:'level',label:'레벨'},{id:'special',label:'특별'}];
@@ -2848,14 +2891,139 @@ function renderBadgeInventory() {
 
     const filtered = _badgeFilter === 'all' ? BADGE_CATALOG : BADGE_CATALOG.filter(b => b.cat === _badgeFilter);
     grid.innerHTML = filtered.map(b => {
-        const isEarned = earned.includes(b.id);
-        return `<div class="badge-cell ${isEarned ? 'earned' : 'locked'}">
-            <span class="badge-icon">${b.icon}</span>
+        const isEarned = earnedSet.has(b.id);
+        // 평생 배지엔 🏛️ 표시 (새 시즌 시작해도 유지됨)
+        const careerMark = b.tier === 'career' ? `<span class="badge-career" title="명예의 전당 — 새 시즌에도 유지">🏛️</span>` : '';
+        return `<div class="badge-cell ${isEarned ? 'earned' : 'locked'}${b.tier==='career'?' is-career':''}">
+            <span class="badge-icon">${b.icon}${careerMark}</span>
             <span class="badge-name">${b.name}</span>
             <span class="badge-desc">${b.desc}</span>
         </div>`;
     }).join('');
+    if (typeof _renderSeasonCard === 'function') _renderSeasonCard();
 }
+
+// ============================================================
+// v7.0 새 시즌 시작 (게임 레이어 리셋 — 시즌/평생 배지 분리)
+// ============================================================
+function _newSeasonConfirmText() {
+    const g = _gamification;
+    const careerN = (g.careerBadges || []).length;
+    return '새 시즌을 시작하면:\n\n'
+        + '• 레벨·XP·스트릭·시즌 배지가 초기화돼요\n'
+        + '• 챌린지 시작일이 오늘로 바뀌고 루틴이 1주차부터 다시 잠금해제돼요\n'
+        + '• 🏛️ 명예의 전당(평생 배지 ' + careerN + '개)과 지난 기록·체중은 그대로 보존돼요\n'
+        + '• 지난 시즌은 기록에 보관돼요';
+}
+function _openSeasonModal() {
+    const m = document.getElementById('season-modal');
+    if (!m) return;
+    const body = document.getElementById('season-modal-body');
+    if (body) body.textContent = _newSeasonConfirmText();
+    m.style.display = 'flex';
+}
+function _closeSeasonModal() {
+    const m = document.getElementById('season-modal');
+    if (m) m.style.display = 'none';
+}
+function startNewSeason() {
+    const g = _gamification;
+    const today = toLocalDateStr();
+    const startEl = document.getElementById('p-start');
+    const prevStart = (startEl && startEl.value) || '';
+    // 1) 현재 시즌 아카이브 (파괴 금지 — 기록으로 보관)
+    g.seasons = Array.isArray(g.seasons) ? g.seasons : [];
+    g.seasons.push({
+        n: g.seasonNumber || 1,
+        startDate: prevStart || null,
+        endDate: today,
+        finalLevel: g.level || 1,
+        finalXp: g.xp || 0,
+        bestStreak: g.bestStreak || 0,
+        badges: (g.earnedBadges || []).slice()
+    });
+    // 2) 평생 배지 승격: 이번 시즌 earnedBadges 중 career 티어 → careerBadges
+    const careerIds = BADGE_CATALOG.filter(b => b.tier === 'career').map(b => b.id);
+    g.careerBadges = Array.isArray(g.careerBadges) ? g.careerBadges : [];
+    (g.earnedBadges || []).forEach(id => {
+        if (careerIds.includes(id) && !g.careerBadges.includes(id)) g.careerBadges.push(id);
+    });
+    // 3) 게임 레이어 리셋
+    g.xp = 0; g.level = 1;
+    g.streak = 0; g.bestStreak = 0; g.lastStreakDate = ''; g.todayXpAwarded = false;
+    g.streakMilestonesAwarded = []; g.streakFreezeUsed = false; g.streakFreezeDate = ''; g.lastWeeklyBonusStreak = 0;
+    g.earnedBadges = [];
+    g.seasonNumber = (g.seasonNumber || 1) + 1;
+    _prevLevel = 1;
+    _lastDailyXP = 0;
+    // 4) 챌린지 시작일 = 오늘 → Progressive Unlocking week1로 (앱·봇 공통)
+    if (startEl) startEl.value = today;
+    _userStartDate = today;
+    localStorage.removeItem('_lastUnlockWeek');
+    // 5) 저장
+    saveProfileToCloud();       // start/userStartDate = today
+    saveGamificationToCloud();  // xp/level/streak/badges/season
+    // 6) UI 새로고침
+    updateLevelDisplay(); updateStreakDisplay(); renderBadgeInventory();
+    if (typeof renderList === 'function') { try { renderList(); } catch (e) {} }
+    if (typeof renderRiskList === 'function') { try { renderRiskList(); } catch (e) {} }
+    _closeSeasonModal();
+    _renderSeasonCard();
+    showTinaToast('🎉 시즌 ' + g.seasonNumber + ' 시작! 새 마음으로 가봐요');
+}
+function _renderSeasonCard() {
+    const card = document.getElementById('season-card');
+    if (!card) return;
+    const g = _gamification;
+    const nEl = document.getElementById('season-num');
+    const hofEl = document.getElementById('season-hof');
+    if (nEl) nEl.textContent = '시즌 ' + (g.seasonNumber || 1);
+    if (hofEl) hofEl.textContent = '🏛️ ' + ((g.careerBadges || []).length) + '개';
+}
+function _injectSeasonUI() {
+    if (document.getElementById('season-card')) { _renderSeasonCard(); return; }
+    const st = document.createElement('style');
+    st.textContent = ''
+        + '.season-card{margin-top:12px;padding:14px 16px;border-radius:14px;background:linear-gradient(135deg,rgba(26,107,104,.08),rgba(196,154,60,.06));border:1px solid rgba(26,107,104,.18);display:flex;align-items:center;gap:12px;flex-wrap:wrap}'
+        + '.season-card .sc-info{flex:1;min-width:150px}'
+        + '.season-card .sc-title{font-weight:700;color:#0C2340;font-size:14px}'
+        + '.season-card .sc-sub{font-size:12px;color:#6B7280;margin-top:2px}'
+        + '.season-card .sc-btn{background:linear-gradient(135deg,#1A6B68,#0F4D4A);color:#fff;border:none;border-radius:10px;padding:10px 16px;font-size:13.5px;font-weight:700;cursor:pointer}'
+        + '.season-card .sc-btn:active{transform:scale(.97)}'
+        + '.badge-career{font-size:.7em;margin-left:2px;opacity:.85}'
+        + '.season-modal-overlay{position:fixed;inset:0;background:rgba(12,35,64,.5);display:none;align-items:center;justify-content:center;z-index:99999;padding:22px}'
+        + '.season-modal-box{background:#fff;border-radius:18px;max-width:400px;width:100%;padding:22px;box-shadow:0 20px 50px rgba(0,0,0,.3)}'
+        + '.season-modal-box h3{font-size:18px;font-weight:800;color:#0C2340;margin:0 0 12px}'
+        + '.season-modal-box pre{white-space:pre-wrap;font-family:inherit;font-size:13.5px;line-height:1.7;color:#3a4658;margin:0 0 18px}'
+        + '.season-modal-box .sm-row{display:flex;gap:10px}'
+        + '.season-modal-box button{flex:1;border-radius:10px;padding:12px;font-size:14px;font-weight:700;cursor:pointer;border:1px solid #E5E3DD}'
+        + '.sm-cancel{background:#F5F4F1;color:#0C2340}'
+        + '.sm-go{background:linear-gradient(135deg,#1A6B68,#0F4D4A);color:#fff;border:none!important}';
+    document.head.appendChild(st);
+
+    const card = document.createElement('div');
+    card.id = 'season-card';
+    card.className = 'season-card no-print';
+    card.innerHTML = '<div class="sc-info"><div class="sc-title">🎮 <span id="season-num">시즌 1</span></div>'
+        + '<div class="sc-sub">명예의 전당 <span id="season-hof">🏛️ 0개</span> · 크루 시작 시 새 시즌으로 리셋 가능</div></div>'
+        + '<button class="sc-btn" onclick="_openSeasonModal()">🔄 새 시즌 시작</button>';
+    const anchor = document.querySelector('.glass-card .btn-primary[onclick*="runComprehensiveAnalysis"]');
+    if (anchor && anchor.parentNode) anchor.parentNode.appendChild(card);
+    else document.body.appendChild(card);
+
+    const modal = document.createElement('div');
+    modal.id = 'season-modal';
+    modal.className = 'season-modal-overlay';
+    modal.innerHTML = '<div class="season-modal-box"><h3>🔄 새 시즌을 시작할까요?</h3>'
+        + '<pre id="season-modal-body"></pre>'
+        + '<div class="sm-row"><button class="sm-cancel" onclick="_closeSeasonModal()">취소</button>'
+        + '<button class="sm-go" onclick="startNewSeason()">네, 새 시즌 시작</button></div></div>';
+    modal.addEventListener('click', function (e) { if (e.target === modal) _closeSeasonModal(); });
+    document.body.appendChild(modal);
+    _renderSeasonCard();
+}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _injectSeasonUI);
+else _injectSeasonUI();
 
 // ============================================================
 // v7.0 WEEKLY REPORT
