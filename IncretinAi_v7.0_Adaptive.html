@@ -2411,6 +2411,8 @@ async function saveGamificationToCloud() {
 }
 
 function loadGamificationFromProfile(data) {
+    // 시즌 리셋/게임 저장 진행 중이면 스냅샷의 옛 값으로 되돌리지 않음 (레벨 원복 버그 방지)
+    if (window._gamPending) { updateLevelDisplay(); return; }
     if (data.xp !== undefined) _gamification.xp = data.xp;
     if (data.level !== undefined) { _gamification.level = data.level; _prevLevel = data.level; }
     if (data.streak !== undefined) _gamification.streak = data.streak;
@@ -2950,7 +2952,8 @@ function _closeSeasonModal() {
     const m = document.getElementById('season-modal');
     if (m) m.style.display = 'none';
 }
-function startNewSeason() {
+async function startNewSeason() {
+    window._gamPending = true; // 리셋~저장 동안 스냅샷이 옛 게임 데이터로 되돌리지 못하게 가드
     const g = _gamification;
     const today = toLocalDateStr();
     const startEl = document.getElementById('p-start');
@@ -2984,16 +2987,19 @@ function startNewSeason() {
     if (startEl) startEl.value = today;
     _userStartDate = today;
     localStorage.removeItem('_lastUnlockWeek');
-    // 5) 저장
-    saveProfileToCloud();       // start/userStartDate = today
-    saveGamificationToCloud();  // xp/level/streak/badges/season
-    // 6) UI 새로고침
+    // 5) UI 즉시 새로고침 (리셋 상태를 바로 표시)
     updateLevelDisplay(); updateStreakDisplay(); renderBadgeInventory();
     if (typeof renderList === 'function') { try { renderList(); } catch (e) {} }
     if (typeof renderRiskList === 'function') { try { renderRiskList(); } catch (e) {} }
     _closeSeasonModal();
     _renderSeasonCard();
     showTinaToast('🎉 시즌 ' + g.seasonNumber + ' 시작! 새 마음으로 가봐요');
+    // 6) 저장 — 리셋이 서버에 반영될 때까지 가드 유지 후 해제 (스냅샷 원복 방지)
+    try {
+        await saveProfileToCloud();       // start/userStartDate = today
+        await saveGamificationToCloud();  // xp/level/streak/badges/season
+    } catch (e) { console.warn('startNewSeason save:', e); }
+    setTimeout(() => { window._gamPending = false; }, 1500);
 }
 function _renderSeasonCard() {
     const card = document.getElementById('season-card');
