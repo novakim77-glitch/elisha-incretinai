@@ -1652,7 +1652,31 @@ if(document.readyState==='loading'){
     document.addEventListener('DOMContentLoaded',setupPullToRefresh);
 }else{ setupPullToRefresh() }
 // === Phase A 끝 ===
-function listenToProfile(){if(unsubProfile)unsubProfile();unsubProfile=userDoc().onSnapshot(doc=>{if(doc.exists){const p=doc.data();if(p.name)document.getElementById('p-name').value=p.name;if(p.age)document.getElementById('p-age').value=p.age;if(p.gender)document.getElementById('p-gender').value=p.gender;if(p.start)document.getElementById('p-start').value=p.start;if(p.h)document.getElementById('p-h').value=p.h;if(p.sw)document.getElementById('p-sw').value=p.sw;if(p.gw)document.getElementById('p-gw').value=p.gw;if(p.isDiabetic)document.getElementById('p-diabetic').value=p.isDiabetic;if(p.exercise)document.getElementById('p-exercise').value=p.exercise;if(p.wakeup)document.getElementById('p-wakeup').value=p.wakeup;if(p.lat)document.getElementById('p-lat').value=p.lat;loadGamificationFromProfile(p);
+// ── 프로필 입력칸 보호: 타이핑/편집 중인 값을 onSnapshot이 덮어쓰지 않도록 (checks의 _localChecks와 동일 철학)
+const _PROFILE_DIRTY_TTL=60000;
+function _setPF(id,val){
+    const el=document.getElementById(id);if(!el)return;
+    const sval=(val==null?'':String(val));
+    if(document.activeElement===el)return; // 지금 편집 중인 칸은 절대 건드리지 않음
+    const dirty=window._profileDirty||(window._profileDirty={});
+    if(dirty[id]){
+        if(String(el.value)===sval){delete dirty[id];return;} // 서버가 내 입력을 반영 → 보호 해제
+        if(Date.now()-dirty[id].at<_PROFILE_DIRTY_TTL)return;  // 저장 왕복 중 → 로컬 편집 보호
+        delete dirty[id]; // TTL 만료 → 서버 값 허용
+    }
+    if(String(el.value)!==sval)el.value=sval;
+}
+function _bindProfileInputs(){
+    const ids=['p-name','p-age','p-gender','p-start','p-h','p-sw','p-gw','p-diabetic','p-exercise','p-wakeup','p-lat'];
+    const alreadySaved={'p-diabetic':1,'p-exercise':1,'p-wakeup':1,'p-lat':1}; // 이미 자체 change 저장 핸들러 보유
+    ids.forEach(id=>{
+        const el=document.getElementById(id);if(!el)return;
+        el.addEventListener('input',()=>{(window._profileDirty||(window._profileDirty={}))[id]={at:Date.now()};});
+        if(!alreadySaved[id])el.addEventListener('change',()=>{try{onDataChange()}catch(e){}});
+    });
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',_bindProfileInputs);else _bindProfileInputs();
+function listenToProfile(){if(unsubProfile)unsubProfile();unsubProfile=userDoc().onSnapshot(doc=>{if(doc.exists){const p=doc.data();if(p.name)_setPF('p-name',p.name);if(p.age)_setPF('p-age',p.age);if(p.gender)_setPF('p-gender',p.gender);if(p.start)_setPF('p-start',p.start);if(p.h)_setPF('p-h',p.h);if(p.sw)_setPF('p-sw',p.sw);if(p.gw)_setPF('p-gw',p.gw);if(p.isDiabetic)_setPF('p-diabetic',p.isDiabetic);if(p.exercise)_setPF('p-exercise',p.exercise);if(p.wakeup)_setPF('p-wakeup',p.wakeup);if(p.lat)_setPF('p-lat',p.lat);loadGamificationFromProfile(p);
 // v7.0: Progressive Unlocking & Comeback 데이터
 // 사용자가 프로필에 입력한 시작일(p.start)을 진실의 원천으로 사용. 없으면 legacy userStartDate.
 _userStartDate=p.start||p.userStartDate||null;
@@ -3670,7 +3694,14 @@ function updateAIStatus(score){
 }
 
 function refreshStats(score){
-    const h=parseFloat(document.getElementById('p-h').value)/100,cw=parseFloat(document.getElementById('daily-weight').value)||parseFloat(document.getElementById('p-sw').value),sw=parseFloat(document.getElementById('p-sw').value),gw=parseFloat(document.getElementById('p-gw').value);
+    const h=parseFloat(document.getElementById('p-h').value)/100,sw=parseFloat(document.getElementById('p-sw').value),gw=parseFloat(document.getElementById('p-gw').value);
+    // 현재 체중: 오늘(선택 날짜) 입력값 → 없으면 가장 최근 기록된 체중 → 그래도 없으면 시작 체중
+    let cw=parseFloat(document.getElementById('daily-weight').value);
+    if(!Number.isFinite(cw)||cw<=0){
+        const hist=window._cloudHistory||{};const keys=Object.keys(hist).sort();
+        for(let i=keys.length-1;i>=0;i--){const w=parseFloat(hist[keys[i]]&&hist[keys[i]].weight);if(Number.isFinite(w)&&w>0){cw=w;break;}}
+    }
+    if(!Number.isFinite(cw)||cw<=0)cw=sw;
     if(h>0&&cw>0)document.getElementById('bmi-v').textContent=(cw/(h*h)).toFixed(1);
     if(sw&&gw&&cw&&sw!==gw){const ach=Math.max(0,Math.min(100,((sw-cw)/(sw-gw))*100));const el=document.getElementById('ach-v');el.textContent=ach.toFixed(1)+'%';el.style.color=ach>=50?'var(--success)':(ach>=25?'var(--accent)':'var(--danger)')}
 }
