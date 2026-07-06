@@ -2413,6 +2413,11 @@ async function saveGamificationToCloud() {
 function loadGamificationFromProfile(data) {
     // 시즌 리셋/게임 저장 진행 중이면 스냅샷의 옛 값으로 되돌리지 않음 (레벨 원복 버그 방지)
     if (window._gamPending) { updateLevelDisplay(); return; }
+    // ★ 단조 시즌 가드(타이밍 무관): 들어온 스냅샷이 현재보다 이전 시즌이면 리셋 반영 전 옛 데이터 → 무시.
+    //   새 시즌 시작 시 seasonNumber가 먼저 +1 되므로, 저장이 서버에 늦게 반영돼도 옛 xp/level이 절대 되돌아오지 않음.
+    const _inSeason = (typeof data.seasonNumber === 'number') ? data.seasonNumber : 1;
+    const _mySeason = (typeof _gamification.seasonNumber === 'number') ? _gamification.seasonNumber : 1;
+    if (_inSeason < _mySeason) { updateLevelDisplay(); return; }
     if (data.xp !== undefined) _gamification.xp = data.xp;
     if (data.level !== undefined) { _gamification.level = data.level; _prevLevel = data.level; }
     if (data.streak !== undefined) _gamification.streak = data.streak;
