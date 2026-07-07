@@ -4921,7 +4921,16 @@ document.getElementById('p-exercise').addEventListener('change',onDataChange);
 
   /* ---------- 5. INIT + LIVE HOOKS ---------- */
   var _t; function sched(){ clearTimeout(_t); _t=setTimeout(function(){ refresh(); }, 120); }
+  // v7 하단 네비 '대시보드' → '홈' (누르면 v8 홈으로 복귀)
+  function repurposeV7Home(){
+    var nd = document.getElementById('nav-dashboard'); if (!nd || nd.__v8ds) return; nd.__v8ds = true;
+    var sp = nd.querySelector('span'); if (sp) sp.textContent = '홈';
+    var svg = nd.querySelector('svg'); if (svg) svg.innerHTML = '<path d="M3 10.5L12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/>';
+    nd.onclick = null;
+    nd.addEventListener('click', function(e){ e.preventDefault(); e.stopPropagation(); userExited = false; showHome(); });
+  }
   function boot(){
+    repurposeV7Home();
     gate();
     ['vitality-score','alpha-val','beta-val','gamma-val','routine-list','mode-badge'].forEach(function(id){
       var el=document.getElementById(id);
