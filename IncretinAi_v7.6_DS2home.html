@@ -4653,7 +4653,8 @@ document.getElementById('p-exercise').addEventListener('change',onDataChange);
 /* ============================================================
    v8 홈 — Miraculous DS 2.0 (라이트 + 느낌 언어)
    v7 위에 얹는 읽기 전용 표시 레이어. 쓰기 로직 0.
-   활성: body.v8ds-on (localStorage.ui_version==='v8'). 구조 변경 없음.
+   상태: body.v8ds-on(v8 모드·네비 상시) + body.v8ds-home(홈 오버레이)
+   로그인 시 자동 진입. v7 토글 없음. 세부 페이지에서 "홈" 탭 = 홈 복귀.
    ============================================================ */
 (function(){
   if (window.__v8dsInit) return; window.__v8dsInit = true;
@@ -4666,10 +4667,12 @@ document.getElementById('p-exercise').addEventListener('change',onDataChange);
   + "--v8ds-grad:linear-gradient(90deg,#ff385c 0%,#e00b41 50%,#92174d 100%);"
   + "--v8ds-font:'Inter','Apple SD Gothic Neo','Malgun Gothic',system-ui,sans-serif;"
   + "--v8ds-sh1:rgba(0,0,0,.08) 0 4px 12px;--v8ds-navh:calc(66px + env(safe-area-inset-bottom));}"
-  + "body.v8ds-on #app-container{display:none!important;}"
+  /* v8 모드: v7 하단 네비·상태바 숨김 (별도 요소라 따로 숨겨야 함) */
   + "body.v8ds-on #bottom-nav,body.v8ds-on #status-bar{display:none!important;}"
+  /* 홈 오버레이 표시 중에만 v7 본문 숨김 (세부 페이지 볼 땐 v7 노출) */
+  + "body.v8ds-home #app-container{display:none!important;}"
   + "#v8ds-root{display:none;}"
-  + "body.v8ds-on #v8ds-root{display:block;position:fixed;inset:0;z-index:9000;background:var(--v8ds-soft);"
+  + "body.v8ds-home #v8ds-root{display:block;position:fixed;inset:0;z-index:9000;background:var(--v8ds-soft);"
   + "overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;font-family:var(--v8ds-font);"
   + "color:var(--v8ds-ink);-webkit-font-smoothing:antialiased;}"
   + "#v8ds-app{max-width:520px;margin:0 auto;padding:calc(env(safe-area-inset-top) + 18px) 20px calc(var(--v8ds-navh) + 22px);}"
@@ -4720,18 +4723,14 @@ document.getElementById('p-exercise').addEventListener('change',onDataChange);
   + ".v8ds-qv{font-size:21px;font-weight:700;letter-spacing:-.5px;line-height:1;font-variant-numeric:tabular-nums;}"
   + ".v8ds-qv small{font-size:11.5px;font-weight:600;color:var(--v8ds-ash);margin-left:2px;}"
   + ".v8ds-ql{font-size:12px;font-weight:600;color:var(--v8ds-ash);margin-top:5px;}"
-  /* nav */
-  + ".v8ds-nav{position:fixed;left:50%;transform:translateX(-50%);bottom:0;width:min(520px,100%);z-index:9992;"
-  + "background:rgba(255,255,255,.95);backdrop-filter:saturate(1.2) blur(8px);border-top:1px solid var(--v8ds-hairline);"
-  + "display:flex;align-items:flex-start;justify-content:space-around;padding:9px 6px calc(9px + env(safe-area-inset-bottom));}"
-  + "body:not(.v8ds-on) .v8ds-nav{display:none;}"
-  + ".v8ds-nav a{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:10.5px;font-weight:600;color:var(--v8ds-mute);flex:1;cursor:pointer;}"
-  + ".v8ds-nav a svg{width:22px;height:22px;}"
-  + ".v8ds-nav a.on{color:var(--v8ds-rausch);}"
-  /* fab */
-  + "#v8ds-fab{position:fixed;right:16px;bottom:calc(84px + env(safe-area-inset-bottom));z-index:9500;height:38px;padding:0 14px;border-radius:32px;"
-  + "background:var(--v8ds-ink);color:#fff;font-family:var(--v8ds-font);font-size:12.5px;font-weight:700;border:none;cursor:pointer;box-shadow:0 6px 16px rgba(0,0,0,.28);}"
-  + "body.v8ds-on #v8ds-fab{background:var(--v8ds-canvas);color:var(--v8ds-ink);border:1px solid var(--v8ds-hairline);}"
+  /* nav (별도 요소, v8 모드 내내 상시 표시) */
+  + "#v8ds-nav{position:fixed;left:50%;transform:translateX(-50%);bottom:0;width:min(520px,100%);z-index:9992;"
+  + "background:rgba(255,255,255,.96);backdrop-filter:saturate(1.2) blur(8px);border-top:1px solid var(--v8ds-hairline);"
+  + "display:none;align-items:flex-start;justify-content:space-around;padding:9px 6px calc(9px + env(safe-area-inset-bottom));}"
+  + "body.v8ds-on #v8ds-nav{display:flex;}"
+  + "#v8ds-nav a{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:10.5px;font-weight:600;color:var(--v8ds-mute);flex:1;cursor:pointer;}"
+  + "#v8ds-nav a svg{width:22px;height:22px;}"
+  + "#v8ds-nav a.on{color:var(--v8ds-rausch);}"
   + ".v8ds-sk{color:transparent!important;background:linear-gradient(90deg,#ececec,#f5f5f5,#ececec);background-size:200% 100%;border-radius:6px;animation:v8dssk 1.3s infinite;}"
   + "@keyframes v8dssk{0%{background-position:200% 0}100%{background-position:-200% 0}}";
 
@@ -4780,19 +4779,17 @@ document.getElementById('p-exercise').addEventListener('change',onDataChange);
   + "    <div class='v8ds-qc' data-v8ds='meals'><div class='v8ds-qi'>" + IC.meal + "</div><div class='v8ds-qv'><span id='v8ds-meal'>—</span><small>끼</small></div><div class='v8ds-ql'>식사</div></div>"
   + "    <div class='v8ds-qc' data-v8ds='weight'><div class='v8ds-qi'>" + IC.weight + "</div><div class='v8ds-qv'><span id='v8ds-weight'>—</span><small>kg</small></div><div class='v8ds-ql'>체중</div></div>"
   + "  </div>"
-  + "</div>"
-  + "<nav class='v8ds-nav'>"
-  + "  <a class='on' data-v8ds='home'>" + IC.nhome + "홈</a>"
-  + "  <a data-v8ds='record'>" + IC.nrec + "기록</a>"
-  + "  <a data-v8ds='library'>" + IC.nlib + "라이브러리</a>"
-  + "  <a data-v8ds='settings'>" + IC.nset + "설정</a>"
-  + "</nav>";
-
+  + "</div>";
   var root = document.createElement('div'); root.id = 'v8ds-root'; root.innerHTML = html; document.body.appendChild(root);
-  var fab = document.createElement('button'); fab.id = 'v8ds-fab'; fab.type = 'button'; fab.textContent = '✨ v8'; document.body.appendChild(fab);
 
-  /* ---------- 3. FLAG / ROUTING ---------- */
-  function isOn(){ try { return localStorage.getItem('ui_version') === 'v8'; } catch(e){ return false; } }
+  var navHtml = ""
+  + "<a data-v8ds='home' data-key='home'>" + IC.nhome + "홈</a>"
+  + "<a data-v8ds='record' data-key='record'>" + IC.nrec + "기록</a>"
+  + "<a data-v8ds='library' data-key='library'>" + IC.nlib + "라이브러리</a>"
+  + "<a data-v8ds='settings' data-key='settings'>" + IC.nset + "설정</a>";
+  var nav = document.createElement('nav'); nav.id = 'v8ds-nav'; nav.innerHTML = navHtml; document.body.appendChild(nav);
+
+  /* ---------- 3. STATE / ROUTING ---------- */
   function loggedOut(){
     try {
       if (window.currentUser) return false;
@@ -4800,42 +4797,54 @@ document.getElementById('p-exercise').addEventListener('change',onDataChange);
       return !!(as && getComputedStyle(as).display!=='none' && as.getBoundingClientRect().height>2);
     } catch(e){ return false; }
   }
-  // 로그인 전에는 v8 오버레이를 숨겨 로그인 화면이 보이게 함
-  function gate(){
-    if (!document.body.classList.contains('v8ds-on')) return;
-    root.style.display = loggedOut() ? 'none' : 'block';
+  function setActive(key){
+    nav.querySelectorAll('a').forEach(function(a){ a.classList.toggle('on', a.getAttribute('data-key')===key); });
   }
-  function setOn(on){
-    try { if (on) localStorage.setItem('ui_version','v8'); else localStorage.removeItem('ui_version'); } catch(e){}
-    document.body.classList.toggle('v8ds-on', !!on);
-    fab.textContent = on ? '↩ v7' : '✨ v8';
-    if (on) { gate(); refresh(); try { root.scrollTop = 0; } catch(e){} }
-    else { root.style.display=''; }
+  function showHome(){
+    document.body.classList.add('v8ds-on','v8ds-home');
+    setActive('home');
+    try { root.scrollTop = 0; } catch(e){}
+    refresh();
   }
-  fab.addEventListener('click', function(){ setOn(!document.body.classList.contains('v8ds-on')); });
-
-  function goTab(tab, elId){
-    setOn(false);
-    if (typeof switchMainTab === 'function') { try { switchMainTab(tab); } catch(e){} }
+  function leaveHome(tab, key, elId, cb){
+    document.body.classList.add('v8ds-on');
+    document.body.classList.remove('v8ds-home');
+    setActive(key || null);
+    if (tab && typeof switchMainTab === 'function') { try { switchMainTab(tab); } catch(e){} }
     setTimeout(function(){
       var el = elId && document.getElementById(elId);
       if (el && el.scrollIntoView) el.scrollIntoView({behavior:'smooth', block:'start'});
       else window.scrollTo(0,0);
-    }, 140);
+      if (typeof cb === 'function') { try { cb(); } catch(e){} }
+    }, 150);
   }
+  // 로그인 시 자동 진입 / 로그아웃 시 해제
+  function gate(){
+    if (loggedOut()) { document.body.classList.remove('v8ds-on','v8ds-home'); return; }
+    if (!document.body.classList.contains('v8ds-on')) { showHome(); }
+  }
+  window.v8dsHome = showHome;
+
+  /* 홈 오버레이 내부 탭 (헤더 아이콘·히어로·카드) */
   root.addEventListener('click', function(e){
     var t = e.target.closest('[data-v8ds]'); if (!t) return;
     var act = t.getAttribute('data-v8ds');
-    if (act === 'home'){ root.querySelectorAll('.v8ds-nav a').forEach(function(n){ n.classList.remove('on'); }); t.classList.add('on'); try{root.scrollTop=0;}catch(_){}; refresh(); return; }
-    if (act === 'bell'){ return; }
-    if (act === 'library'){ try { location.href = 'IncretinAi_Library.html'; } catch(_){} return; }
-    if (act === 'record'){ goTab('routine'); return; }
-    if (act === 'settings'){ goTab('profile'); return; }
-    if (act === 'routine'){ goTab('routine'); return; }
-    if (act === 'meals'){ goTab('dashboard','meals-card'); return; }
-    if (act === 'weight'){ goTab('dashboard'); setTimeout(function(){ if (typeof openCompareModal === 'function') openCompareModal(); }, 200); return; }
-    if (act === 'all'){ goTab('dashboard'); return; }
-    if (act === 'task'){ goTab('routine'); return; }
+    if (act === 'bell') { return; }
+    if (act === 'settings') { leaveHome('profile','settings'); return; }
+    if (act === 'task') { leaveHome('routine','record'); return; }
+    if (act === 'routine') { leaveHome('routine','record'); return; }
+    if (act === 'meals') { leaveHome('dashboard', null, 'meals-card'); return; }
+    if (act === 'weight') { leaveHome('dashboard', null, null, function(){ if (typeof openCompareModal==='function') openCompareModal(); }); return; }
+    if (act === 'all') { leaveHome('dashboard', null); return; }
+  });
+  /* 하단 네비 (상시) */
+  nav.addEventListener('click', function(e){
+    var a = e.target.closest('a'); if (!a) return;
+    var act = a.getAttribute('data-v8ds');
+    if (act === 'home') { showHome(); return; }
+    if (act === 'library') { try { location.href = 'IncretinAi_Library.html'; } catch(_){} return; }
+    if (act === 'record') { leaveHome('routine','record'); return; }
+    if (act === 'settings') { leaveHome('profile','settings'); return; }
   });
 
   /* ---------- 4. 느낌 언어 매핑 + 데이터 바인딩 (읽기 전용) ---------- */
@@ -4870,7 +4879,7 @@ document.getElementById('p-exercise').addEventListener('change',onDataChange);
   }
 
   function refresh(){
-    if (!document.body.classList.contains('v8ds-on')) return;
+    if (!document.body.classList.contains('v8ds-home')) return;
     try {
       var email=(window.currentUser&&currentUser.email)?currentUser.email:'', dn=(window.currentUser&&currentUser.displayName)?currentUser.displayName:'';
       var pn=(document.getElementById('p-name')||{}).value||'';
@@ -4902,17 +4911,16 @@ document.getElementById('p-exercise').addEventListener('change',onDataChange);
   window.v8dsRefresh = refresh;
 
   /* ---------- 5. INIT + LIVE HOOKS ---------- */
-  var _t; function sched(){ clearTimeout(_t); _t=setTimeout(function(){ if (document.body.classList.contains('v8ds-on')) refresh(); }, 120); }
+  var _t; function sched(){ clearTimeout(_t); _t=setTimeout(function(){ refresh(); }, 120); }
   function boot(){
-    setOn(isOn());
+    gate();
     ['vitality-score','alpha-val','beta-val','gamma-val','routine-list','mode-badge'].forEach(function(id){
       var el=document.getElementById(id);
       if (el && window.MutationObserver){ try { new MutationObserver(sched).observe(el, {childList:true, characterData:true, subtree:true}); } catch(e){} }
     });
-    // 로그인 상태 변화 감시 → 게이트 갱신
     var as=document.getElementById('auth-screen');
     if (as && window.MutationObserver){ try { new MutationObserver(function(){ gate(); }).observe(as, {attributes:true, attributeFilter:['style','class']}); } catch(e){} }
-    setInterval(function(){ if (document.body.classList.contains('v8ds-on')){ gate(); refresh(); } }, 5000);
+    setInterval(function(){ gate(); refresh(); }, 5000);
     setTimeout(function(){ gate(); refresh(); }, 1200);
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
