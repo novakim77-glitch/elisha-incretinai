@@ -4755,7 +4755,7 @@ document.getElementById('p-exercise').addEventListener('change',onDataChange);
   + "    <div class='v8ds-hl'><div class='v8ds-av' id='v8ds-avatar'>·</div>"
   + "      <div><div class='v8ds-nm' id='v8ds-greet'>안녕하세요</div><div class='v8ds-sb' id='v8ds-week'>오늘의 대사 리듬</div></div></div>"
   + "    <div class='v8ds-hr'>"
-  + "      <div class='v8ds-ic' data-v8ds='bell'><span class='v8ds-bdot'></span>" + IC.bell + "</div>"
+  + "      <div class='v8ds-ic' data-v8ds='bell'>" + IC.bell + "</div>"
   + "      <div class='v8ds-ic' data-v8ds='settings'>" + IC.gear + "</div></div>"
   + "  </div>"
   + "  <div class='v8ds-title'>IncretinA i</div>"
@@ -4838,7 +4838,7 @@ document.getElementById('p-exercise').addEventListener('change',onDataChange);
   root.addEventListener('click', function(e){
     var t = e.target.closest('[data-v8ds]'); if (!t) return;
     var act = t.getAttribute('data-v8ds');
-    if (act === 'bell') { return; }
+    if (act === 'bell') { leaveHome('profile','settings','notif-section'); return; }
     if (act === 'settings') { leaveHome('profile','settings'); return; }
     if (act === 'task') { leaveHome('routine','record'); return; }
     if (act === 'routine') { leaveHome('routine','record'); return; }
