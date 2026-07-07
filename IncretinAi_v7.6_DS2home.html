@@ -4818,12 +4818,21 @@ document.getElementById('p-exercise').addEventListener('change',onDataChange);
       if (typeof cb === 'function') { try { cb(); } catch(e){} }
     }, 150);
   }
+  // 전체 보기 → 정통 v7으로 완전히 나가기 (v7 자체 네비 노출)
+  var userExited = false;
+  function exitToV7(){
+    userExited = true;
+    document.body.classList.remove('v8ds-on','v8ds-home');
+    if (typeof switchMainTab === 'function') { try { switchMainTab('dashboard'); } catch(e){} }
+    window.scrollTo(0,0);
+  }
   // 로그인 시 자동 진입 / 로그아웃 시 해제
   function gate(){
-    if (loggedOut()) { document.body.classList.remove('v8ds-on','v8ds-home'); return; }
-    if (!document.body.classList.contains('v8ds-on')) { showHome(); }
+    if (loggedOut()) { document.body.classList.remove('v8ds-on','v8ds-home'); userExited = false; return; }
+    if (!userExited && !document.body.classList.contains('v8ds-on')) { showHome(); }
   }
   window.v8dsHome = showHome;
+  window.v8dsExit = exitToV7;
 
   /* 홈 오버레이 내부 탭 (헤더 아이콘·히어로·카드) */
   root.addEventListener('click', function(e){
@@ -4835,7 +4844,7 @@ document.getElementById('p-exercise').addEventListener('change',onDataChange);
     if (act === 'routine') { leaveHome('routine','record'); return; }
     if (act === 'meals') { leaveHome('dashboard', null, 'meals-card'); return; }
     if (act === 'weight') { leaveHome('dashboard', null, null, function(){ if (typeof openCompareModal==='function') openCompareModal(); }); return; }
-    if (act === 'all') { leaveHome('dashboard', null); return; }
+    if (act === 'all') { exitToV7(); return; }
   });
   /* 하단 네비 (상시) */
   nav.addEventListener('click', function(e){
