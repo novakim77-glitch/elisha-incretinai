@@ -31,9 +31,11 @@
   .header{position:sticky;top:0;z-index:10;background:var(--bg);padding:16px 20px 12px;border-bottom:1px solid transparent;transition:border-color .2s}
   .header.scrolled{border-color:var(--line);box-shadow:0 1px 0 rgba(12,35,64,.04)}
   .header-top{display:flex;align-items:center;gap:12px;margin-bottom:14px}
-  .back-btn{width:40px;height:40px;border-radius:50%;background:var(--surface);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;cursor:pointer;text-decoration:none;color:var(--text);flex-shrink:0;transition:transform .15s}
-  .back-btn:active{transform:scale(.92)}
-  .back-btn svg{width:18px;height:18px;stroke:var(--text);stroke-width:2;fill:none}
+  .back-btn{height:40px;border-radius:20px;background:var(--surface);border:1px solid var(--line);display:inline-flex;align-items:center;justify-content:center;gap:5px;padding:0 14px 0 11px;cursor:pointer;text-decoration:none;color:var(--text);flex-shrink:0;transition:transform .15s,background .15s}
+  .back-btn:active{transform:scale(.94)}
+  .back-btn svg{width:18px;height:18px;stroke:currentColor;stroke-width:2;fill:none}
+  .back-label{font-family:'Outfit','Apple SD Gothic Neo',sans-serif;font-size:13px;font-weight:700;white-space:nowrap;letter-spacing:-.01em}
+  .back-btn.to-app{background:var(--teal);border-color:var(--teal);color:#fff;box-shadow:var(--shadow-sm)}
   .header-title{flex:1;min-width:0}
   .header-title h1{font-family:'Outfit';font-size:22px;font-weight:800;letter-spacing:-.02em;line-height:1}
   .header-title p{font-size:11px;color:var(--muted);margin-top:4px;font-weight:500}
@@ -175,7 +177,7 @@
 
 <header class="header" id="header">
   <div class="header-top">
-    <a class="back-btn" href="javascript:history.length>1?history.back():window.close()" aria-label="뒤로"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+    <a class="back-btn" href="#" onclick="libBackToApp();return false;" aria-label="앱으로 돌아가기"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="back-label">뒤로</span></a>
     <div class="header-title">
       <h1>📚 라이브러리</h1>
       <p id="header-sub">레시피 · 가이드 · 인크레틴 과학</p>
@@ -1721,6 +1723,37 @@ document.addEventListener('click', function(e){
   var tg = window.Telegram && window.Telegram.WebApp;
   if (tg && tg.openTelegramLink) { e.preventDefault(); tg.openTelegramLink(a.href); }
 });
+
+// ── 라이브러리 → 앱 복귀 (iPhone 홈화면 PWA 대응) ──
+function libAppContext(){
+  try{
+    var standalone = window.navigator.standalone === true ||
+      (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+    return standalone || /Adaptive\.html|CardLauncher/i.test(document.referrer || '');
+  }catch(e){ return false; }
+}
+function libBackToApp(){
+  var app = 'IncretinAi_v7.0_Adaptive.html';
+  try{
+    if (libAppContext()) { location.href = app; return; }   // 앱에서 진입 → 앱으로 확실히 복귀
+    if (history.length > 1) { history.back(); return; }      // 일반 웹 방문 → 브라우저 뒤로
+  }catch(e){ location.href = app; return; }
+  // 히스토리 없음 & 앱 아님 → 그대로 둠(오동작 방지)
+}
+(function initBackLabel(){
+  try{
+    var b = document.querySelector('.back-btn'); if(!b) return;
+    var lbl = b.querySelector('.back-label');
+    if (libAppContext()) {
+      b.classList.add('to-app');
+      if (lbl) lbl.textContent = '앱으로';
+      b.setAttribute('aria-label','앱으로 돌아가기');
+    } else {
+      if (lbl) lbl.textContent = '뒤로';
+      b.setAttribute('aria-label','뒤로');
+    }
+  }catch(e){}
+})();
 </script>
 </body>
 </html>
