@@ -4951,15 +4951,19 @@ document.getElementById('p-exercise').addEventListener('change',onDataChange);
     } catch(e){}
     return false;
   }
-  // 봇으로 이동 — 텔레그램 웹뷰 안이면 openTelegramLink로 봇 채팅에 정확히 진입(웹뷰 안에서
-  // location.href='t.me'는 갇혀서 앱에 머무름). 일반 브라우저/PWA면 유니버설 링크로 텔레그램 앱 열기.
+  // 봇으로 이동 — 텔레그램 웹뷰(미니앱 또는 '인앱 브라우저'로 열린 일반 페이지) 안에서는
+  // location.href='t.me'가 채팅으로 탈출하지 못하고 갇힌다 → SDK openTelegramLink로 봇 채팅 진입.
+  // 판별을 넓게: TelegramWebviewProxy(웹뷰 주입 객체)·UA의 Telegram·initData·platform 중 하나라도.
   function goToBot(){
     var URL='https://t.me/incretiA_Bot';
     try {
       var tg=window.Telegram&&window.Telegram.WebApp;
-      var inTg=tg&&(((tg.initData&&tg.initData.length)>0)||(tg.platform&&tg.platform!=='unknown'));
-      if(inTg&&typeof tg.openTelegramLink==='function'){ tg.openTelegramLink(URL); return; }
+      var ua=navigator.userAgent||'';
+      var inTgWebview = !!window.TelegramWebviewProxy || /Telegram/i.test(ua)
+        || !!(tg && (((tg.initData&&tg.initData.length)>0) || (tg.platform&&tg.platform!=='unknown')));
+      if(tg && inTgWebview && typeof tg.openTelegramLink==='function'){ tg.openTelegramLink(URL); return; }
     } catch(e){}
+    // 일반 브라우저 / 홈화면 PWA → 유니버설 링크로 텔레그램 앱 열기
     try { window.location.href=URL; } catch(e){}
   }
   function refresh(){
