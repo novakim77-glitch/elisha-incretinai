@@ -16,6 +16,8 @@
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js"></script>
     <script src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.2/kakao.min.js"></script>
+    <!-- 텔레그램 미니앱 SDK — 앱이 텔레그램 웹뷰 안에서 열렸을 때 봇 버튼이 openTelegramLink로 채팅에 정확히 진입하기 위함(밖에선 무해) -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@500;700&family=Noto+Sans+KR:wght@300;400;500;600&display=swap');
         :root {
@@ -4896,7 +4898,7 @@ document.getElementById('p-exercise').addEventListener('change',onDataChange);
     if (act === 'routine') { leaveHome('routine','record'); return; }
     if (act === 'meals') { leaveHome('dashboard', null, 'meals-card'); return; }
     if (act === 'weight') { leaveHome('dashboard', null, null, function(){ if (typeof openCompareModal==='function') openCompareModal(); }); return; }
-    if (act === 'bot') { try { location.href = 'https://t.me/incretiA_Bot'; } catch(_){} return; }
+    if (act === 'bot') { goToBot(); return; }
     if (act === 'all') { exitToV7(); return; }
   });
   /* 하단 네비 (상시) */
@@ -4948,6 +4950,17 @@ document.getElementById('p-exercise').addEventListener('change',onDataChange);
       var b=document.getElementById('tg-link-btn'); if (b && /연결됨/.test(b.textContent)) return true;
     } catch(e){}
     return false;
+  }
+  // 봇으로 이동 — 텔레그램 웹뷰 안이면 openTelegramLink로 봇 채팅에 정확히 진입(웹뷰 안에서
+  // location.href='t.me'는 갇혀서 앱에 머무름). 일반 브라우저/PWA면 유니버설 링크로 텔레그램 앱 열기.
+  function goToBot(){
+    var URL='https://t.me/incretiA_Bot';
+    try {
+      var tg=window.Telegram&&window.Telegram.WebApp;
+      var inTg=tg&&(((tg.initData&&tg.initData.length)>0)||(tg.platform&&tg.platform!=='unknown'));
+      if(inTg&&typeof tg.openTelegramLink==='function'){ tg.openTelegramLink(URL); return; }
+    } catch(e){}
+    try { window.location.href=URL; } catch(e){}
   }
   function refresh(){
     if (!document.body.classList.contains('v8ds-home')) return;
