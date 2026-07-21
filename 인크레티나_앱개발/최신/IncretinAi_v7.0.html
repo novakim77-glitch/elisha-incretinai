@@ -1479,6 +1479,26 @@ function kakaoLogin(){
     .catch(er=>{console.error('Kakao→Firebase 로그인 실패:',er);showAuthError('카카오 로그인 처리 중 오류가 발생했어요.');})
     .finally(()=>setLoading(false));
 })();
+// 텔레그램 미니앱 자동 로그인 — initData(서명) → 서버 검증(/api/telegram-firebase-auth) → Firebase 커스텀 토큰 → signIn.
+// 미니앱이 아니면 아무것도 안 함(일반 로그인). 실패해도 일반 로그인 화면으로 폴백(격리).
+(function tgAutoLogin(){
+    try{
+        var tg=window.Telegram&&window.Telegram.WebApp;
+        if(!tg||!tg.initData||!tg.initData.length)return; // 미니앱 아님
+        try{tg.ready();if(tg.expand)tg.expand();}catch(e){}
+        // 로그인 폼 깜빡임을 가리는 로딩 오버레이
+        var ov=document.createElement('div');ov.id='tg-login-overlay';
+        ov.style.cssText='position:fixed;inset:0;z-index:4000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:linear-gradient(135deg,#0f172a,#1e293b);color:#fff;font-family:inherit;';
+        ov.innerHTML='<div style="font-size:40px">🌱</div><div style="font-size:16px;font-weight:700">텔레그램 계정으로 로그인 중…</div><div style="font-size:12px;opacity:.65">잠시만요</div>';
+        document.body.appendChild(ov);
+        var done=function(){try{ov.remove();}catch(e){}};
+        fetch('https://elisha.miraculus.co.kr/api/telegram-firebase-auth',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({initData:tg.initData})})
+            .then(function(r){return r.json();})
+            .then(function(d){if(d&&d.customToken)return auth.signInWithCustomToken(d.customToken);throw new Error((d&&d.error)||'no_token');})
+            .then(function(){done();}) // onAuthStateChanged가 앱을 표시
+            .catch(function(e){console.warn('[tg-auto-login] 실패 → 수동 로그인:',e&&e.message);done();}); // 실패 시 일반 로그인 화면 노출
+    }catch(e){/* 안전: 실패해도 일반 로그인 흐름 유지 */}
+})();
 async function emailLogin(){const e=document.getElementById('auth-email').value.trim(),p=document.getElementById('auth-pw').value;if(!e||!p)return showAuthError('이메일과 비밀번호를 입력해 주세요.');setLoading(true);try{await auth.signInWithEmailAndPassword(e,p)}catch(er){const m={'auth/user-not-found':'등록되지 않은 이메일입니다.','auth/wrong-password':'비밀번호가 올바르지 않습니다.','auth/invalid-email':'이메일 형식이 올바르지 않습니다.','auth/too-many-requests':'잠시 후 다시 시도해 주세요.'};showAuthError(m[er.code]||er.message)}setLoading(false)}
 async function emailRegister(){const e=document.getElementById('reg-email').value.trim(),p=document.getElementById('reg-pw').value,p2=document.getElementById('reg-pw2').value;if(!e||!p)return showAuthError('이메일과 비밀번호를 입력해 주세요.');if(p.length<6)return showAuthError('비밀번호는 6자 이상이어야 합니다.');if(p!==p2)return showAuthError('비밀번호가 일치하지 않습니다.');setLoading(true);try{await auth.createUserWithEmailAndPassword(e,p)}catch(er){const m={'auth/email-already-in-use':'이미 사용 중인 이메일입니다.','auth/invalid-email':'이메일 형식이 올바르지 않습니다.','auth/weak-password':'비밀번호가 너무 약합니다.'};showAuthError(m[er.code]||er.message)}setLoading(false)}
 async function guestLogin(){setLoading(true);try{await auth.signInAnonymously()}catch(e){showAuthError('게스트 로그인 실패: '+e.message)}setLoading(false)}
