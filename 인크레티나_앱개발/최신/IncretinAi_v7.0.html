@@ -15,6 +15,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js"></script>
+    <script src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.2/kakao.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@500;700&family=Noto+Sans+KR:wght@300;400;500;600&display=swap');
         :root {
@@ -45,6 +46,7 @@
         .auth-btn{width:100%;padding:14px;border-radius:12px;border:none;font-family:'Inter',sans-serif;font-weight:700;font-size:.9rem;cursor:pointer;transition:transform .2s,opacity .2s;margin-bottom:10px;display:flex;align-items:center;justify-content:center;gap:8px}
         .auth-btn:hover{transform:translateY(-1px)}.auth-btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
         .auth-btn-primary{background:var(--primary);color:#fff}.auth-btn-secondary{background:rgba(255,255,255,.06);color:#94a3b8;border:1px solid rgba(255,255,255,.1)}
+        .auth-btn-kakao{background:#FEE500;color:#191919}.auth-btn-kakao:hover{background:#FFD700}
         .auth-divider{display:flex;align-items:center;gap:12px;margin:20px 0;color:#475569;font-size:.75rem;font-weight:600}
         .auth-divider::before,.auth-divider::after{content:'';flex:1;height:1px;background:rgba(255,255,255,.08)}
         .auth-toggle{color:#60a5fa;font-size:.8rem;font-weight:600;cursor:pointer;margin-top:16px}.auth-toggle:hover{text-decoration:underline}
@@ -597,6 +599,7 @@
             <input class="auth-input" type="email" id="auth-email" placeholder="이메일 주소" autocomplete="email">
             <input class="auth-input" type="password" id="auth-pw" placeholder="비밀번호 (6자 이상)" autocomplete="current-password">
             <button class="auth-btn auth-btn-primary" onclick="emailLogin()">🔐 로그인</button>
+            <button class="auth-btn auth-btn-kakao" onclick="kakaoLogin()">💬 카카오로 시작하기</button>
             <div class="auth-divider">또는</div>
             <button class="auth-btn auth-btn-secondary" onclick="guestLogin()">👤 게스트로 시작하기</button>
             <div class="auth-toggle" onclick="toggleAuthMode()">계정이 없으신가요? <b>회원가입</b></div>
@@ -1431,11 +1434,54 @@ function checkRoutineReminders(){
 function setLoading(on){document.getElementById('status-bar').className=on?'auth-status-bar loading':'auth-status-bar';document.querySelectorAll('.auth-btn').forEach(b=>b.disabled=on)}
 function showAuthError(m){document.getElementById('auth-error').textContent=m;setTimeout(()=>document.getElementById('auth-error').textContent='',5000)}
 function toggleAuthMode(){const l=document.getElementById('auth-login'),r=document.getElementById('auth-register');l.style.display=l.style.display==='none'?'block':'none';r.style.display=r.style.display==='none'?'block':'none';document.getElementById('auth-error').textContent=''}
+
+// ── 카카오 로그인 (인크레틴 광장과 동일 브릿지) ──────────────
+// 앱은 GitHub Pages 정적 호스팅이라 자체 서버리스 함수가 없음 — 페이지(Vercel)의
+// /api/kakao-firebase-auth를 절대경로로 호출해 재사용(이 함수가 카카오 토큰을 직접
+// 재검증하므로 앱에서 호출해도 동일하게 안전). uid=kakao_<id>로 페이지·봇과 계정 공유.
+const KAKAO_JS_KEY='d4023f16d58567357dd2cffa094adf90';
+const KAKAO_BRIDGE_URL='https://elisha.miraculus.co.kr/api/kakao-firebase-auth';
+try{if(window.Kakao&&!window.Kakao.isInitialized())window.Kakao.init(KAKAO_JS_KEY);}catch(e){console.warn('Kakao init:',e);}
+
+function kakaoLogin(){
+    try{
+        if(!window.Kakao||!window.Kakao.isInitialized())return showAuthError('카카오 로그인을 사용할 수 없습니다.');
+        window.Kakao.Auth.authorize({redirectUri:window.location.origin+window.location.pathname,scope:'profile_nickname'});
+    }catch(e){showAuthError('카카오 로그인 오류: '+e.message);}
+}
+
+// 카카오 인가코드 리다이렉트 처리 — 페이지 로드 시 1회만
+(function handleKakaoRedirect(){
+    const params=new URLSearchParams(window.location.search);
+    const code=params.get('code');
+    if(!code)return;
+    try{window.history.replaceState(null,'',window.location.pathname);}catch(e){}
+    setLoading(true);
+    fetch('https://kauth.kakao.com/oauth/token',{
+        method:'POST',
+        headers:{'Content-Type':'application/x-www-form-urlencoded;charset=utf-8'},
+        body:'grant_type=authorization_code&client_id='+KAKAO_JS_KEY
+            +'&redirect_uri='+encodeURIComponent(window.location.origin+window.location.pathname)
+            +'&code='+encodeURIComponent(code)
+    })
+    .then(r=>r.json())
+    .then(data=>{
+        if(!data.access_token)throw new Error(data.error_description||'카카오 토큰 발급 실패');
+        return fetch(KAKAO_BRIDGE_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({kakaoAccessToken:data.access_token})});
+    })
+    .then(r=>r.json())
+    .then(data=>{
+        if(!data||!data.customToken)throw new Error((data&&data.error)||'Firebase 토큰 발급 실패');
+        return auth.signInWithCustomToken(data.customToken);
+    })
+    .catch(er=>{console.error('Kakao→Firebase 로그인 실패:',er);showAuthError('카카오 로그인 처리 중 오류가 발생했어요.');})
+    .finally(()=>setLoading(false));
+})();
 async function emailLogin(){const e=document.getElementById('auth-email').value.trim(),p=document.getElementById('auth-pw').value;if(!e||!p)return showAuthError('이메일과 비밀번호를 입력해 주세요.');setLoading(true);try{await auth.signInWithEmailAndPassword(e,p)}catch(er){const m={'auth/user-not-found':'등록되지 않은 이메일입니다.','auth/wrong-password':'비밀번호가 올바르지 않습니다.','auth/invalid-email':'이메일 형식이 올바르지 않습니다.','auth/too-many-requests':'잠시 후 다시 시도해 주세요.'};showAuthError(m[er.code]||er.message)}setLoading(false)}
 async function emailRegister(){const e=document.getElementById('reg-email').value.trim(),p=document.getElementById('reg-pw').value,p2=document.getElementById('reg-pw2').value;if(!e||!p)return showAuthError('이메일과 비밀번호를 입력해 주세요.');if(p.length<6)return showAuthError('비밀번호는 6자 이상이어야 합니다.');if(p!==p2)return showAuthError('비밀번호가 일치하지 않습니다.');setLoading(true);try{await auth.createUserWithEmailAndPassword(e,p)}catch(er){const m={'auth/email-already-in-use':'이미 사용 중인 이메일입니다.','auth/invalid-email':'이메일 형식이 올바르지 않습니다.','auth/weak-password':'비밀번호가 너무 약합니다.'};showAuthError(m[er.code]||er.message)}setLoading(false)}
 async function guestLogin(){setLoading(true);try{await auth.signInAnonymously()}catch(e){showAuthError('게스트 로그인 실패: '+e.message)}setLoading(false)}
 async function doLogout(){if(unsubProfile)unsubProfile();if(unsubHistory)unsubHistory();await auth.signOut()}
-auth.onAuthStateChanged(user=>{currentUser=user;if(user){document.getElementById('auth-screen').style.display='none';document.getElementById('app-container').style.display='block';const email=user.email||'게스트 사용자';document.getElementById('user-email').textContent=email;document.getElementById('user-avatar').textContent=user.email?user.email[0].toUpperCase():'G';const adminBtn=document.getElementById('admin-btn');if(adminBtn)adminBtn.style.display=isAdmin()?'inline-flex':'none';initApp()}else{document.getElementById('auth-screen').style.display='flex';document.getElementById('app-container').style.display='none';currentUser=null}});
+auth.onAuthStateChanged(user=>{currentUser=user;if(user){document.getElementById('auth-screen').style.display='none';document.getElementById('app-container').style.display='block';const email=user.email||user.displayName||'게스트 사용자';document.getElementById('user-email').textContent=email;const _av=user.email||user.displayName;document.getElementById('user-avatar').textContent=_av?_av[0].toUpperCase():'G';const adminBtn=document.getElementById('admin-btn');if(adminBtn)adminBtn.style.display=isAdmin()?'inline-flex':'none';initApp()}else{document.getElementById('auth-screen').style.display='flex';document.getElementById('app-container').style.display='none';currentUser=null}});
 
 // ============================================================
 // FIRESTORE
@@ -4712,6 +4758,11 @@ document.getElementById('p-exercise').addEventListener('change',onDataChange);
   + ".v8ds-cta .m{font-size:14.5px;font-weight:700;color:var(--v8ds-ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}"
   + ".v8ds-cbtn{width:43px;height:43px;border-radius:50%;background:var(--v8ds-rausch);color:#fff;display:flex;align-items:center;justify-content:center;flex:0 0 auto;box-shadow:0 4px 12px rgba(255,56,92,.35);}"
   + ".v8ds-cbtn svg{width:20px;height:20px;}"
+  /* bot entry (히어로 → 나의 인크레티나 봇 딥링크) */
+  + ".v8ds-bot{display:flex;align-items:center;justify-content:center;gap:9px;width:100%;margin-top:11px;padding:14px 16px;border-radius:14px;background:var(--v8ds-rausch);color:#fff;font-size:14.5px;font-weight:700;letter-spacing:-.2px;cursor:pointer;border:none;box-shadow:0 4px 14px rgba(255,56,92,.30);transition:transform .12s,box-shadow .12s;}"
+  + ".v8ds-bot:active{transform:translateY(1px);box-shadow:0 2px 8px rgba(255,56,92,.28);}"
+  + ".v8ds-bot .v8ds-bot-ic{font-size:17px;line-height:1;}"
+  + ".v8ds-bot .v8ds-bot-ar{font-weight:800;opacity:.92;}"
   /* quick */
   + ".v8ds-sh{display:flex;align-items:center;justify-content:space-between;margin-bottom:11px;}"
   + ".v8ds-sh h3{font-size:17.5px;font-weight:700;letter-spacing:-.2px;margin:0;}"
@@ -4772,6 +4823,7 @@ document.getElementById('p-exercise').addEventListener('change',onDataChange);
   + "    </div>"
   + "    <div class='v8ds-cta' data-v8ds='task'><div><div class='k'>지금 할 일</div><div class='m' id='v8ds-task'>루틴 확인하기</div></div>"
   + "      <div class='v8ds-cbtn'>" + IC.arrow + "</div></div>"
+  + "    <div class='v8ds-bot' data-v8ds='bot'><span class='v8ds-bot-ic'>💬</span><span id='v8ds-bot-label'>나의 인크레티나 봇 열기</span><span class='v8ds-bot-ar'>→</span></div>"
   + "  </div>"
   + "  <div class='v8ds-sh'><h3>빠른 진입</h3><a data-v8ds='all'>전체 보기 →</a></div>"
   + "  <div class='v8ds-qg'>"
@@ -4844,6 +4896,7 @@ document.getElementById('p-exercise').addEventListener('change',onDataChange);
     if (act === 'routine') { leaveHome('routine','record'); return; }
     if (act === 'meals') { leaveHome('dashboard', null, 'meals-card'); return; }
     if (act === 'weight') { leaveHome('dashboard', null, null, function(){ if (typeof openCompareModal==='function') openCompareModal(); }); return; }
+    if (act === 'bot') { try { location.href = 'https://t.me/incretiA_Bot'; } catch(_){} return; }
     if (act === 'all') { exitToV7(); return; }
   });
   /* 하단 네비 (상시) */
@@ -4887,6 +4940,15 @@ document.getElementById('p-exercise').addEventListener('change',onDataChange);
     } catch(e){ return '루틴 확인하기'; }
   }
 
+  // 봇 연동 여부 — v7의 updateTelegramLinkWarning이 '연동됨'일 때만 명시적으로 세팅하는
+  // DOM 텍스트를 읽기만 함(미연동/프로필 로드 전엔 false = '연결하기'가 안전한 기본값)
+  function botLinked(){
+    try {
+      var s=document.getElementById('tg-link-status'); if (s && /연결되었/.test(s.textContent)) return true;
+      var b=document.getElementById('tg-link-btn'); if (b && /연결됨/.test(b.textContent)) return true;
+    } catch(e){}
+    return false;
+  }
   function refresh(){
     if (!document.body.classList.contains('v8ds-home')) return;
     try {
@@ -4915,6 +4977,7 @@ document.getElementById('p-exercise').addEventListener('change',onDataChange);
       txt('v8ds-routine', routineN());
       var mc=mealN(); txt('v8ds-meal', mc==null?'—':mc);
       var wt=latestW(); txt('v8ds-weight', wt==null?'—':Number(wt).toFixed(1));
+      var bl=document.getElementById('v8ds-bot-label'); if (bl) bl.textContent = botLinked() ? '나의 인크레티나 봇 열기' : '인크레티나 봇 연결하기';
     } catch(e){ /* non-fatal */ }
   }
   window.v8dsRefresh = refresh;
