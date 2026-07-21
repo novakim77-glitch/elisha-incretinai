@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>인크레티나 아이 · 앱 열기</title>
+<!-- 텔레그램 미니앱 SDK — WebApp.openLink 로 '외부 브라우저' 열기 위해 필요 -->
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  :root{ --rausch:#ff385c; --rausch-deep:#e00b41; --ink:#222; --ash:#717171; --soft:#f7f7f7; --hair:#ebebeb; }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  body{
+    font-family:'Inter',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Segoe UI',Roboto,sans-serif;
+    background:var(--soft); color:var(--ink);
+    display:flex; align-items:center; justify-content:center;
+    padding:24px calc(20px + env(safe-area-inset-right)) calc(24px + env(safe-area-inset-bottom)) calc(20px + env(safe-area-inset-left));
+    min-height:100%;
+  }
+  .card{
+    background:#fff; border:1px solid var(--hair); border-radius:22px;
+    box-shadow:0 12px 40px rgba(0,0,0,.08);
+    width:100%; max-width:360px; padding:36px 26px 28px; text-align:center;
+  }
+  .logo{font-size:40px; line-height:1; margin-bottom:14px;}
+  h1{font-size:21px; font-weight:800; letter-spacing:-.4px; margin-bottom:6px;}
+  .sub{font-size:13px; color:var(--ash); margin-bottom:2px;}
+  .desc{font-size:13.5px; color:var(--ash); line-height:1.65; margin:16px 0 22px;}
+  .btn{
+    display:flex; align-items:center; justify-content:center; gap:8px;
+    width:100%; padding:15px 18px; border:none; border-radius:14px; cursor:pointer;
+    background:var(--rausch); color:#fff; font-size:15.5px; font-weight:800; letter-spacing:-.2px;
+    box-shadow:0 6px 18px rgba(255,56,92,.32); transition:transform .12s, box-shadow .12s;
+    font-family:inherit;
+  }
+  .btn:active{transform:translateY(1px); box-shadow:0 3px 10px rgba(255,56,92,.28);}
+  .hint{display:block; margin-top:16px; font-size:12px; color:#b0b0b0; text-decoration:none;}
+  .hint u{color:var(--rausch); text-decoration:none; font-weight:700;}
+  @media (prefers-color-scheme: dark){
+    :root{ --ink:#f2f2f2; --ash:#9a9a9a; --soft:#0e0e12; --hair:#242430; }
+    body{background:var(--soft);} .card{background:#17171d;}
+  }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">🌱</div>
+    <h1>인크레티나 아이</h1>
+    <div class="sub">잘 먹으면서 몸을 깨우는 · 잇! 다이어트</div>
+    <p class="desc">앱을 브라우저에서 열어요.<br>저장된 로그인이 그대로 이어집니다.</p>
+    <button class="btn" id="open">📱 앱 열기</button>
+    <a class="hint" id="fallback" href="https://novakim77-glitch.github.io/elisha-incretinai/IncretinAi_v7.0_Adaptive.html" target="_blank" rel="noopener">안 열리면 <u>여기를 눌러 주세요</u></a>
+  </div>
+<script>
+  var APP_URL = 'https://novakim77-glitch.github.io/elisha-incretinai/IncretinAi_v7.0_Adaptive.html';
+  var tg = (window.Telegram && window.Telegram.WebApp) ? window.Telegram.WebApp : null;
+  // ⚠️ telegram-web-app.js 는 텔레그램 밖에서도 WebApp 객체를 만든다.
+  //    실제 '텔레그램 안'은 initData 존재 또는 platform!=='unknown' 으로만 판별.
+  var inTelegram = !!(tg && (((tg.initData && tg.initData.length) > 0) || (tg.platform && tg.platform !== 'unknown')));
+
+  function openApp(){
+    // 텔레그램 안: openLink 로 '외부 브라우저'에서 열기(자동완성·기존 세션 유지)
+    try { if (inTelegram && typeof tg.openLink === 'function') { tg.openLink(APP_URL); return; } } catch(e){}
+    // 폴백: 텔레그램 밖이거나 openLink 미지원
+    try { window.open(APP_URL, '_blank'); return; } catch(e){}
+    location.href = APP_URL;
+  }
+
+  document.getElementById('open').addEventListener('click', openApp);
+
+  if (inTelegram) {
+    try { tg.ready(); if (tg.expand) tg.expand(); } catch(e){}
+    // 로드 시 1회 자동 시도(제스처 없이 막히는 클라이언트는 위 버튼으로 진행)
+    setTimeout(function(){ try { tg.openLink(APP_URL); } catch(e){} }, 300);
+  } else {
+    // 일반 브라우저에서 직접 열린 경우 → 곧장 앱으로
+    location.replace(APP_URL);
+  }
+</script>
+</body>
+</html>
