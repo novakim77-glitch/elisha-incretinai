@@ -1215,7 +1215,7 @@
 var _appReady = false;
 // ★ 2026-07-24 진단 계측 — 저장이 '조용히' 실패하면 원인을 알 길이 없어 화면에 드러낸다.
 //   (원격 재현이 안 되는 계정별 실패를 사용자가 그대로 읽어서 알려줄 수 있게)
-const APP_BUILD = '7.6.16';
+const APP_BUILD = '7.6.17';
 window._saveDiag = { clicks:0, changes:0, skips:0, tries:0, oks:0, gate:null, touchedAt:0, lastErr:null, lastErrAt:null, lastOkAt:null };
 function renderSaveDiag(){
     try{
@@ -1233,7 +1233,7 @@ function renderSaveDiag(){
         const _lc=Object.keys(window._localChecks||{}).length;
         el.textContent='🔧 동기화 진단   빌드 '+APP_BUILD
             +'\n계정 '+(u?(u.slice(0,10)+'…'):'(로그인 안 됨)')+'   저장준비 '+((typeof _appReady!=='undefined')?_appReady:'?')
-            +'\n① 루틴클릭 '+(d.clicks||0)+'   ② 변경감지 '+(d.changes||0)+'   ③ touched '+_tn+' (local '+_lc+')'
+            +'\n① 루틴클릭 '+(d.clicks||0)+(d.path?(' ['+d.path+']'):'')+'   ② 변경감지 '+(d.changes||0)+'   ③ touched '+_tn+' (local '+_lc+')'
             +'\n④ 저장호출 '+(d.tries||0)+'   성공 '+(d.oks||0)+'   건너뜀 '+(d.skips||0)+'   최근성공 '+f(d.lastOkAt)
             +(d.gate?('\n⛔ 차단 사유: '+d.gate):'')
             +(d.lastErr?('\n⚠️ 실패 '+f(d.lastErrAt)+' — '+d.lastErr):'');
@@ -4003,7 +4003,7 @@ function openRoutinePopup(i){
 }
 
 function routineDone(i){
-    try{window._saveDiag.clicks++}catch(_){}
+    try{window._saveDiag.clicks++;window._saveDiag.path='routineDone(팝업 ✅Done)'}catch(_){}
     const el=document.getElementById('item-'+i);
     const wasNew=!el.classList.contains('checked');
     window._lastUserToggleAt=Date.now();
@@ -4059,6 +4059,7 @@ function getWeightPrediction(){
 }
 
 function routineNotDone(i){
+    try{window._saveDiag.clicks++;window._saveDiag.path='routineNotDone(팝업 ❌)'}catch(_){}
     document.getElementById('guide-popup').classList.remove('show');
     renderFocusSummary(); // v7.0
     switchTab('minus');
@@ -4143,6 +4144,7 @@ function closeFootnote(){
 function toggleModal(id){const m=document.getElementById(id);m.style.display=m.style.display==='flex'?'none':'flex'}
 
 function toggleTask(i){
+    try{window._saveDiag.clicks++;window._saveDiag.path='toggleTask(직접 토글)'}catch(_){}
     const el=document.getElementById(`item-${i}`);
     const wasChecked=el.classList.contains('checked');
     window._lastUserToggleAt=Date.now();
