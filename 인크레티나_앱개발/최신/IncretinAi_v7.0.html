@@ -4974,22 +4974,46 @@ document.getElementById('p-exercise').addEventListener('change',onDataChange);
   // 봇으로 이동 — 텔레그램 웹뷰(미니앱 또는 '인앱 브라우저'로 열린 일반 페이지) 안에서는
   // location.href='t.me'가 채팅으로 탈출하지 못하고 갇힌다 → SDK openTelegramLink로 봇 채팅 진입.
   // 판별을 넓게: TelegramWebviewProxy(웹뷰 주입 객체)·UA의 Telegram·initData·platform 중 하나라도.
+  // 앱 → 봇 이동. 실행 컨텍스트마다 '실제로 먹히는' 전이 방식이 다르다(실사용 검증 반영).
+  //  A) 텔레그램 미니앱(메뉴버튼 web_app으로 열림 = initData 있음)
+  //     → close(). 미니앱은 봇 채팅 '위에' 떠 있으므로 닫으면 곧바로 봇 채팅으로 복귀한다.
+  //     ⚠️ 같은 봇의 t.me를 openTelegramLink 해도 미니앱이 위에 남아 '아무 일 없음'으로 보임(실측).
+  //  B) 텔레그램 인앱 브라우저(미니앱 아닌 일반 페이지 = initData 없음)
+  //     → openTelegramLink. 이 컨텍스트에선 location.href='t.me'가 웹뷰에 갇힌다(실측).
+  //  C) 일반 브라우저 / 홈화면 PWA → 유니버설 링크로 텔레그램 앱 열기.
+  function isTgMiniApp(){
+    try { var t=window.Telegram&&window.Telegram.WebApp; return !!(t && t.initData && t.initData.length>0); }
+    catch(e){ return false; }
+  }
   function goToBot(){
     var URL='https://t.me/incretiA_Bot';
     try {
       var tg=window.Telegram&&window.Telegram.WebApp;
-      var ua=navigator.userAgent||'';
-      var inTgWebview = !!window.TelegramWebviewProxy || /Telegram/i.test(ua)
-        || !!(tg && (((tg.initData&&tg.initData.length)>0) || (tg.platform&&tg.platform!=='unknown')));
-      if(tg && inTgWebview && typeof tg.openTelegramLink==='function'){ tg.openTelegramLink(URL); return; }
+      if (tg) {
+        // ── A) 미니앱: 닫아서 봇 채팅으로 복귀 ──
+        if (isTgMiniApp()) {
+          try { if (typeof tg.ready==='function') tg.ready(); } catch(e){}
+          if (typeof tg.close==='function') { tg.close(); return; }
+          // 구버전 클라이언트 폴백
+          if (typeof tg.openTelegramLink==='function') { tg.openTelegramLink(URL); return; }
+        }
+        // ── B) 텔레그램 인앱 브라우저 ──
+        var inTgBrowser = !!window.TelegramWebviewProxy || /Telegram/i.test(navigator.userAgent||'')
+          || !!(tg.platform && tg.platform!=='unknown');
+        if (inTgBrowser && typeof tg.openTelegramLink==='function') { tg.openTelegramLink(URL); return; }
+      }
     } catch(e){}
-    // 일반 브라우저 / 홈화면 PWA → 유니버설 링크로 텔레그램 앱 열기
+    // ── C) 일반 브라우저 / 홈화면 PWA ──
     try { window.location.href=URL; } catch(e){}
   }
   function refresh(){
     if (!document.body.classList.contains('v8ds-home')) return;
     try {
-      var email=(window.currentUser&&currentUser.email)?currentUser.email:'', dn=(window.currentUser&&currentUser.displayName)?currentUser.displayName:'';
+      // 로그인 사용자 참조 — 메인 스크립트의 currentUser는 let 전역이라 window에 없다.
+      // 기존 코드는 window.currentUser로 가드해 ① 프로덕션에서 email/dn이 항상 ''로 죽고
+      // ② window만 채워지는 경우 currentUser.email에서 TypeError → refresh 전체 중단됐다.
+      var _u = (typeof currentUser!=='undefined' && currentUser) ? currentUser : (window.currentUser||null);
+      var email=(_u&&_u.email)||'', dn=(_u&&_u.displayName)||'';
       var pn=(document.getElementById('p-name')||{}).value||'';
       var name=pn||dn||(email?email.split('@')[0]:'')||'사용자';
       txt('v8ds-greet', name+'님, 안녕하세요');
@@ -5014,7 +5038,9 @@ document.getElementById('p-exercise').addEventListener('change',onDataChange);
       txt('v8ds-routine', routineN());
       var mc=mealN(); txt('v8ds-meal', mc==null?'—':mc);
       var wt=latestW(); txt('v8ds-weight', wt==null?'—':Number(wt).toFixed(1));
-      var bl=document.getElementById('v8ds-bot-label'); if (bl) bl.textContent = botLinked() ? '나의 인크레티나 봇 열기' : '인크레티나 봇 연결하기';
+      var bl=document.getElementById('v8ds-bot-label');
+      if (bl) bl.textContent = isTgMiniApp() ? '인크레티나 봇으로 돌아가기'
+        : (botLinked() ? '나의 인크레티나 봇 열기' : '인크레티나 봇 연결하기');
     } catch(e){ /* non-fatal */ }
   }
   window.v8dsRefresh = refresh;
