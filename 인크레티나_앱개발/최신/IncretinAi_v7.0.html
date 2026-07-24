@@ -1215,7 +1215,7 @@
 var _appReady = false;
 // ★ 2026-07-24 진단 계측 — 저장이 '조용히' 실패하면 원인을 알 길이 없어 화면에 드러낸다.
 //   (원격 재현이 안 되는 계정별 실패를 사용자가 그대로 읽어서 알려줄 수 있게)
-const APP_BUILD = '7.6.19';
+const APP_BUILD = '7.6.20';
 window._saveDiag = { clicks:0, changes:0, skips:0, tries:0, oks:0, gate:null, touchedAt:0, lastErr:null, lastErrAt:null, lastOkAt:null };
 function renderSaveDiag(){
     try{
@@ -1225,6 +1225,11 @@ function renderSaveDiag(){
             el=document.createElement('div'); el.id='save-diag';
             el.style.cssText='margin-top:10px;padding:10px;border:1px dashed var(--border,#3a3f4b);border-radius:8px;font-size:.68rem;line-height:1.7;color:var(--text-sub,#8b93a7);white-space:pre-wrap;word-break:break-all';
             host.appendChild(el);
+            const btn=document.createElement('button');
+            btn.id='save-diag-fix'; btn.textContent='🧹 저장 대기열 초기화(전송 안 되는 문제 복구)';
+            btn.style.cssText='margin-top:6px;width:100%;padding:10px;border:none;border-radius:8px;background:var(--danger,#e5484d);color:#fff;font-size:.72rem;font-weight:700;cursor:pointer;font-family:inherit';
+            btn.onclick=function(){resetSyncQueue()};
+            host.appendChild(btn);
         }
         const d=window._saveDiag||{};
         const u=(typeof currentUser!=='undefined'&&currentUser)?currentUser.uid:null;
@@ -1241,6 +1246,24 @@ function renderSaveDiag(){
     }catch(e){}
 }
 window.renderSaveDiag=renderSaveDiag;
+// ★ 2026-07-24 복구 도구: Firestore 오프라인 큐가 막히면(맨 앞 쓰기가 안 나가면) 이후 모든
+//   쓰기가 영원히 대기(write-timeout)한다. 큐는 이 기기의 IndexedDB에 있으므로 계정이 아니라
+//   '기기' 문제이고, 큐를 비워야 풀린다. 서버에 이미 저장된 데이터는 영향 없다.
+async function resetSyncQueue(){
+    const msg='서버로 전송되지 못하고 기기에 갇혀 있는 대기 기록을 비웁니다.\n\n· 서버에 이미 저장된 기록은 그대로입니다\n· 아직 전송 안 된 최근 체크는 사라질 수 있어요(어차피 서버엔 없던 것)\n· 정리 후 앱이 자동으로 다시 열립니다\n\n계속할까요?';
+    if(!confirm(msg))return;
+    try{if(typeof unsubProfile==='function')unsubProfile()}catch(_){}
+    try{if(typeof unsubHistory==='function')unsubHistory()}catch(_){}
+    try{await db.terminate()}catch(e){console.warn('terminate:',e&&e.message)}
+    try{
+        await db.clearPersistence();
+        alert('✅ 대기열을 정리했어요. 앱을 다시 불러옵니다.');
+    }catch(e){
+        alert('정리 실패: '+((e&&(e.code||e.message))||e)+'\n\n앱(및 텔레그램 미니앱)을 완전히 종료한 뒤 다시 시도해 주세요.');
+    }
+    try{location.reload()}catch(_){}
+}
+window.resetSyncQueue=resetSyncQueue;
 
 // ============================================================
 // FIREBASE CONFIG
