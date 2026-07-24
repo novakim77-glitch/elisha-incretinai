@@ -1213,6 +1213,29 @@
 <script>
 // ★ v7.1: 앱 준비 플래그 — Firebase 데이터 로드 완료 전까지 모든 저장 차단
 var _appReady = false;
+// ★ 2026-07-24 진단 계측 — 저장이 '조용히' 실패하면 원인을 알 길이 없어 화면에 드러낸다.
+//   (원격 재현이 안 되는 계정별 실패를 사용자가 그대로 읽어서 알려줄 수 있게)
+const APP_BUILD = '7.6.15';
+window._saveDiag = { tries:0, oks:0, lastErr:null, lastErrAt:null, lastOkAt:null };
+function renderSaveDiag(){
+    try{
+        const host=document.getElementById('notif-section'); if(!host)return;
+        let el=document.getElementById('save-diag');
+        if(!el){
+            el=document.createElement('div'); el.id='save-diag';
+            el.style.cssText='margin-top:10px;padding:10px;border:1px dashed var(--border,#3a3f4b);border-radius:8px;font-size:.68rem;line-height:1.7;color:var(--text-sub,#8b93a7);white-space:pre-wrap;word-break:break-all';
+            host.appendChild(el);
+        }
+        const d=window._saveDiag||{};
+        const u=(typeof currentUser!=='undefined'&&currentUser)?currentUser.uid:null;
+        const f=t=>t?new Date(t).toLocaleTimeString('ko-KR'):'-';
+        el.textContent='🔧 동기화 진단   빌드 '+APP_BUILD
+            +'\n계정 '+(u?(u.slice(0,10)+'…'):'(로그인 안 됨)')+'   저장준비 '+((typeof _appReady!=='undefined')?_appReady:'?')
+            +'\n저장 시도 '+(d.tries||0)+'회 / 성공 '+(d.oks||0)+'회   최근 성공 '+f(d.lastOkAt)
+            +(d.lastErr?('\n⚠️ 최근 실패 '+f(d.lastErrAt)+' — '+d.lastErr):'');
+    }catch(e){}
+}
+window.renderSaveDiag=renderSaveDiag;
 
 // ============================================================
 // FIREBASE CONFIG
@@ -1575,13 +1598,22 @@ async function saveDailyToCloud(){
     if(touchedRisks.size>0){data.riskChecks=mergedRisks;data.recoveries=mergedRec}
     if(wRaw&&wRaw.trim()!==''){const wNum=parseFloat(wRaw);if(Number.isFinite(wNum))data.weight=wNum}
     window._savePending=true;
+    try{window._saveDiag.tries++}catch(_){}
     try{
         await historyCollection().doc(dateKey).set(data,{merge:true});
         window._lastSaveOkAt=Date.now(); // ★ TTL 보호 해제 판단 기준(저장 성공 시각)
+        try{window._saveDiag.oks++;window._saveDiag.lastOkAt=Date.now();window._saveDiag.lastErr=null;renderSaveDiag()}catch(_){}
         showSyncStatus('synced');
         // ★ touched-set/localChecks를 여기서 클리어하지 않음!
         // → loadDateData()가 클라우드 값과 일치 확인 후 개별 클리어
-    }catch(e){console.error('Daily save:',e);showSyncStatus('offline')}
+    }catch(e){
+        // ★ 조용한 실패 금지 — 사유를 진단 패널과 토스트로 즉시 드러낸다.
+        const _c=(e&&(e.code||e.message))||String(e);
+        try{window._saveDiag.lastErr=_c;window._saveDiag.lastErrAt=Date.now();renderSaveDiag()}catch(_){}
+        console.error('Daily save:',e);
+        showSyncStatus('offline');
+        try{showTinaToast('⚠️ 저장 실패: '+_c)}catch(_){}
+    }
     finally{window._savePending=false}
 }
 // === Phase A: 동기화 신뢰성 개선 (2026-05-15) ===
@@ -4626,6 +4658,8 @@ function initApp(){
     //   가드가 없으면 online/visibilitychange/focus… 핸들러가 매번 중복 누적된다(기존 결함).
     if(!window._syncTriggersWired){
         window._syncTriggersWired=true;
+        // 진단 패널(프로필 화면) — 저장 상태를 사용자가 직접 확인/전달할 수 있게
+        try{renderSaveDiag();setInterval(renderSaveDiag,3000)}catch(_){}
         // 네트워크 복귀 시 Firestore 재연결 + 캐시 무효화 → onSnapshot이 최신 서버 데이터 반영
         window.addEventListener('online',()=>{
             showSyncStatus('synced');
