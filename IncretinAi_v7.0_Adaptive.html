@@ -1777,9 +1777,15 @@ loadDateData();showSyncStatus('synced')},e=>{console.warn('History listen:',e);s
 // ★ Sync패치: 오늘 문서를 서버에서 직접 1회 조회 — 오프라인 캐시(stale) 우회. 읽기 전용, 쓰기 없음.
 async function forceServerSync(){
     try{
-        const dateKey=toLocalDateStr();
-        const snap=await historyCollection().doc(dateKey).get({source:'server'});
-        (window._cloudHistory=window._cloudHistory||{})[dateKey]=snap.exists?snap.data():{};
+        // ★ 2026-07-24: '오늘' 하드코딩 → 보고 있는 날짜 + 오늘 둘 다 서버 강제 조회.
+        //   (선택 날짜가 오늘과 다르면 화면은 그 날짜인데 오늘만 갱신돼 stale로 남던 결함)
+        const _sel=(document.getElementById('target-date')||{}).value;
+        const _today=toLocalDateStr();
+        const keys=[...new Set([_sel||_today,_today].filter(Boolean))];
+        for(const dateKey of keys){
+            const snap=await historyCollection().doc(dateKey).get({source:'server'});
+            (window._cloudHistory=window._cloudHistory||{})[dateKey]=snap.exists?snap.data():{};
+        }
         window._lastSnapshotAt=Date.now();
         if(!window._savePending)loadDateData();
         showSyncStatus('synced');
@@ -4568,30 +4574,58 @@ function initApp(){
     updateLevelDisplay();
     renderBadgeInventory();
     listenToProfile();listenToHistory();
-    // 네트워크 복귀 시 Firestore 재연결 + 동기화 상태 표시
-    window.addEventListener('online',()=>{
-        showSyncStatus('synced');
-        try{db.enableNetwork()}catch(_){}
-        // Phase D: 네트워크 복귀 시 캐시 무효화 → onSnapshot이 최신 서버 데이터 반영
-        window._cloudHistory={};
-        try{listenToHistory()}catch(_){}
-    });
-    window.addEventListener('offline',()=>{showSyncStatus('offline')});
-    // ★ 자정 넘기거나 백그라운드 복귀 시 날짜 자동 갱신 (봇과 날짜 일치 보장)
-    document.addEventListener('visibilitychange',()=>{
-        if(document.visibilityState!=='visible')return;
-        const _correct=toLocalDateStr();
-        const _cur=document.getElementById('target-date')?.value;
-        if(_correct&&_cur&&_correct!==_cur&&_cur===window._lastAutoDate){
-            document.getElementById('target-date').value=_correct;
-            window._lastAutoDate=_correct;
-            window._localChecks={};window._localRisks={};window._localChecksAt={};window._localRisksAt={};
-            loadDateData();
-        }
-        // ★ Sync패치: 백그라운드 복귀 시 항상 — ① 리스너가 5분+ 무응답이면 재시작 ② 오늘 문서 서버 강제 조회
-        if(Date.now()-(window._lastSnapshotAt||0)>300000){try{listenToHistory()}catch(_){}}
-        try{forceServerSync()}catch(_){}
-    });
+    // ★ 동기화 트리거 통합 (2026-07-24) — "봇에 기록했는데 앱에 안 뜬다" 대응.
+    //   포렌식 결과 봇 쓰기는 무결(dailyRoutines ↔ events 100% 일치)이었고, 범인은 '앱이 다시
+    //   안 물어보는 것'. 기존엔 visibilitychange 단일 트리거였는데 앱이 텔레그램 미니앱
+    //   웹뷰에서도 돌게 되면서 그 이벤트를 못 받는 경우가 생겨 화면이 stale로 고착됐다.
+    //   → 복귀 신호를 넓게 수신(visibility/focus/pageshow/Telegram) + 3초 디바운스로 중복 억제.
+    function syncNow(reason){
+        try{
+            if(document.visibilityState==='hidden')return;
+            const t=Date.now();
+            if(t-(window._lastSyncTrigger||0)<3000)return;   // 여러 트리거 동시 발화 억제
+            window._lastSyncTrigger=t;
+            // 자정 넘김 등 날짜 자동 교정 (봇과 날짜 일치 보장)
+            const _correct=toLocalDateStr();
+            const _cur=document.getElementById('target-date')?.value;
+            if(_correct&&_cur&&_correct!==_cur&&_cur===window._lastAutoDate){
+                document.getElementById('target-date').value=_correct;
+                window._lastAutoDate=_correct;
+                window._localChecks={};window._localRisks={};window._localChecksAt={};window._localRisksAt={};
+                loadDateData();
+            }
+            // 리스너가 5분+ 무응답이면 재시작 → 그 뒤 서버 강제 조회
+            if(t-(window._lastSnapshotAt||0)>300000){try{listenToHistory()}catch(_){}}
+            try{forceServerSync()}catch(_){}
+        }catch(e){console.warn('syncNow('+reason+'):',e&&e.message||e)}
+    }
+    window.syncNow=syncNow;
+    // ★ 리스너는 딱 1회만 등록.
+    //   initApp()은 onAuthStateChanged마다 실행되므로(로그아웃→재로그인, 미니앱 자동로그인 등)
+    //   가드가 없으면 online/visibilitychange/focus… 핸들러가 매번 중복 누적된다(기존 결함).
+    if(!window._syncTriggersWired){
+        window._syncTriggersWired=true;
+        // 네트워크 복귀 시 Firestore 재연결 + 캐시 무효화 → onSnapshot이 최신 서버 데이터 반영
+        window.addEventListener('online',()=>{
+            showSyncStatus('synced');
+            try{db.enableNetwork()}catch(_){}
+            window._cloudHistory={};
+            try{listenToHistory()}catch(_){}
+        });
+        window.addEventListener('offline',()=>{showSyncStatus('offline')});
+        // 복귀 신호를 넓게 수신 — 어느 하나만 살아있어도 갱신된다
+        document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')syncNow('visibility')});
+        window.addEventListener('focus',()=>syncNow('focus'));
+        window.addEventListener('pageshow',()=>syncNow('pageshow'));
+        // 텔레그램 미니앱: visibilitychange가 안 뜨는 클라이언트 대비한 보조 복귀 신호
+        try{
+            const _tg=window.Telegram&&window.Telegram.WebApp;
+            if(_tg&&typeof _tg.onEvent==='function'){
+                _tg.onEvent('viewportChanged',()=>syncNow('tg:viewport'));
+                _tg.onEvent('themeChanged',()=>syncNow('tg:theme'));
+            }
+        }catch(_){}
+    }
     updateBioSyncTimer();setInterval(()=>{updateBioSyncTimer();checkRoutineReminders();updateUpcomingRoutines()},30000);
     // fullRefresh(), generateWeeklyReport(), 차트 → 모두 listenToHistory → loadDateData에서 데이터 로드 후 자동 호출
     // 인크레티나 미니 넛지 초기화 + 30분 갱신
