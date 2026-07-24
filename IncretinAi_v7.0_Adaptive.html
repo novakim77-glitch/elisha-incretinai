@@ -1525,7 +1525,9 @@ window._localRisks={};
 window._localChecksAt={};window._localRisksAt={}; // ★ Sync패치: TTL 타임스탬프 맵
 async function saveDailyToCloud(){
     if(!currentUser||!_appReady)return;
-    let dateKey=document.getElementById('target-date').value;
+    // ★ 2026-07-24: DOM 접근을 널 안전하게. 요소 하나가 없거나 렌더가 어긋나면 여기서
+    //   TypeError가 나 저장 전체가 조용히 죽었다(사용자에겐 체크된 것처럼 보이고 새로고침 시 리셋).
+    let dateKey=(document.getElementById('target-date')||{}).value||toLocalDateStr();
     if(!dateKey)return;
     // ★ stale 날짜 자동 교정: target-date가 자동 설정값이고 오늘 날짜와 다르면 교정
     const _todayKey=toLocalDateStr();
@@ -1540,7 +1542,7 @@ async function saveDailyToCloud(){
     const touchedRisks=window._userTouchedRisks||new Set();
     const imem=calculateIMEM();
     const score=calculateTotalScore();
-    const wRaw=document.getElementById('daily-weight').value;
+    const wRaw=(document.getElementById('daily-weight')||{}).value;
     // ★ FIX: set({merge:true})는 dot notation을 중첩 경로로 해석하지 않음!
     // → JS에서 클라우드 checks와 병합 후 전체 map을 기록
     const cloudData=(window._cloudHistory||{})[dateKey]||{};
@@ -1563,7 +1565,7 @@ async function saveDailyToCloud(){
         alpha_net:imem.alpha_net,beta_net:imem.beta_net,gamma_net:imem.gamma_net,
         alpha_penalty:imem.alpha_penalty,beta_penalty:imem.beta_penalty,gamma_penalty:imem.gamma_penalty,
         penaltyTotal:getTotalPenalty(),recoveryTotal:getTotalRecovery(),
-        lastActiveDate:document.getElementById('target-date').value,
+        lastActiveDate:dateKey,
         focusRoutines:_focusRoutines||[],
         updatedAt:firebase.firestore.FieldValue.serverTimestamp(),
         _source:'app'
@@ -1575,6 +1577,7 @@ async function saveDailyToCloud(){
     window._savePending=true;
     try{
         await historyCollection().doc(dateKey).set(data,{merge:true});
+        window._lastSaveOkAt=Date.now(); // ★ TTL 보호 해제 판단 기준(저장 성공 시각)
         showSyncStatus('synced');
         // ★ touched-set/localChecks를 여기서 클리어하지 않음!
         // → loadDateData()가 클라우드 값과 일치 확인 후 개별 클리어
@@ -1804,6 +1807,11 @@ function _normalizeMap(raw,len){
     return a;
 }
 function loadDateData(){
+  // ★ 2026-07-24 무결점 패치: 이 함수 안에서 예외가 나면 _appReady가 영영 false로 남아
+  //   onDataChange/saveDailyToCloud/saveProfileToCloud가 전부 조기 return → "화면은 체크되는데
+  //   서버엔 안 올라가고 새로고침하면 리셋"이 조용히 발생했다(사용자에겐 아무 표시도 없음).
+  //   → 렌더 실패와 저장 게이트를 분리한다. 렌더가 깨져도 저장은 절대 막지 않는다.
+  try{
     const hist=window._cloudHistory||{};
     const dateKey=document.getElementById('target-date').value;
     const data=hist[dateKey];
@@ -1818,9 +1826,16 @@ function loadDateData(){
     // ★ Sync패치: 60초 TTL — 온라인 상태에서 60초 지나도 클라우드와 불일치하면 보호 해제 (봇 변경 영구 가림 방지)
     // 오프라인이면 유지 (사용자 의도가 아직 저장 기회를 못 가짐)
     if(navigator.onLine!==false){
-        const _ttl=60000,_now=Date.now();
-        Object.keys(lc).forEach(k=>{if(_now-((window._localChecksAt||{})[k]||0)>_ttl){delete lc[k];delete (window._localChecksAt||{})[k];touchedR.delete(Number(k));}});
-        Object.keys(lr).forEach(k=>{if(_now-((window._localRisksAt||{})[k]||0)>_ttl){delete lr[k];delete (window._localRisksAt||{})[k];touchedK.delete(Number(k));}});
+        const _ttl=60000,_now=Date.now(),_savedAt=window._lastSaveOkAt||0;
+        // ★ 2026-07-24: 기존엔 60초만 지나면 '저장 성공 여부와 무관하게' touched까지 지웠다.
+        //   touched가 비면 saveDailyToCloud가 data.checks를 아예 안 싣기 때문에, 아직 서버에
+        //   못 올라간 사용자 의도가 조용히 버려졌다(= 새로고침하면 리셋).
+        //   → 클릭 이후 '저장이 성공한 적이 있을 때'만 보호 해제(그때의 클라우드 불일치는
+        //     봇 등 외부 변경이 진짜로 다른 것이므로 해제가 맞다).
+        Object.keys(lc).forEach(k=>{const t=(window._localChecksAt||{})[k]||0;
+            if(_now-t>_ttl&&_savedAt>t){delete lc[k];delete (window._localChecksAt||{})[k];touchedR.delete(Number(k));}});
+        Object.keys(lr).forEach(k=>{const t=(window._localRisksAt||{})[k]||0;
+            if(_now-t>_ttl&&_savedAt>t){delete lr[k];delete (window._localRisksAt||{})[k];touchedK.delete(Number(k));}});
     }
     routine.forEach((_,i)=>{
         const el=document.getElementById(`item-${i}`);
@@ -1856,10 +1871,16 @@ function loadDateData(){
     _focusBonusAwarded=false;
     document.getElementById('daily-weight').value=(data&&data.weight)?data.weight:'';
     const _ww=document.getElementById('widget-weight');if(_ww)_ww.value=(data&&data.weight)?data.weight:'';
-    _appReady=true; // Firebase 데이터 로드 완료 → 이후 저장 허용
-    fullRefresh();
-    renderWidgetItems();
-    renderFocusSummary();
+  }catch(e){
+    // 렌더 도중 예외 — 저장 게이트까지 막지 않도록 여기서 흡수하고 크게 남긴다.
+    console.error('[loadDateData] 렌더 예외(저장 게이트는 계속 열림):',e);
+    try{showSyncStatus('offline')}catch(_){}
+  }finally{
+    _appReady=true; // ★ 어떤 경우에도 저장은 허용 (렌더 실패가 저장을 죽이지 않게)
+  }
+    try{fullRefresh()}catch(e){console.error('fullRefresh:',e)}
+    try{renderWidgetItems()}catch(e){console.error('renderWidgetItems:',e)}
+    try{renderFocusSummary()}catch(e){console.error('renderFocusSummary:',e)}
     try{renderMealsCard();}catch(e){console.error('renderMealsCard:',e)}
     // 차트+주간리포트는 debounce로 1회만 갱신 (onSnapshot 캐시+서버 2회 방지)
     clearTimeout(_chartTimer);
