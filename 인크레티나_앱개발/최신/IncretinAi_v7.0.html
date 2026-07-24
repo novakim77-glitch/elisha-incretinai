@@ -1215,7 +1215,7 @@
 var _appReady = false;
 // ★ 2026-07-24 진단 계측 — 저장이 '조용히' 실패하면 원인을 알 길이 없어 화면에 드러낸다.
 //   (원격 재현이 안 되는 계정별 실패를 사용자가 그대로 읽어서 알려줄 수 있게)
-const APP_BUILD = '7.6.17';
+const APP_BUILD = '7.6.18';
 window._saveDiag = { clicks:0, changes:0, skips:0, tries:0, oks:0, gate:null, touchedAt:0, lastErr:null, lastErrAt:null, lastOkAt:null };
 function renderSaveDiag(){
     try{
@@ -1235,6 +1235,7 @@ function renderSaveDiag(){
             +'\n계정 '+(u?(u.slice(0,10)+'…'):'(로그인 안 됨)')+'   저장준비 '+((typeof _appReady!=='undefined')?_appReady:'?')
             +'\n① 루틴클릭 '+(d.clicks||0)+(d.path?(' ['+d.path+']'):'')+'   ② 변경감지 '+(d.changes||0)+'   ③ touched '+_tn+' (local '+_lc+')'
             +'\n④ 저장호출 '+(d.tries||0)+'   성공 '+(d.oks||0)+'   건너뜀 '+(d.skips||0)+'   최근성공 '+f(d.lastOkAt)
+            +'\n⑤ 서버미승인쓰기 '+(window._snapPending?'있음':'없음')+'   캐시응답 '+(window._snapFromCache?'예':'아니오')+'   온라인 '+navigator.onLine
             +(d.gate?('\n⛔ 차단 사유: '+d.gate):'')
             +(d.lastErr?('\n⚠️ 실패 '+f(d.lastErrAt)+' — '+d.lastErr):'');
     }catch(e){}
@@ -1605,7 +1606,12 @@ async function saveDailyToCloud(){
     window._savePending=true;
     try{window._saveDiag.tries++}catch(_){}
     try{
-        await historyCollection().doc(dateKey).set(data,{merge:true});
+        // ★ 2026-07-24: 오프라인 캐시가 켜져 있으면 set()은 서버 승인까지 resolve되지 않아
+        //   네트워크가 막히면 영원히 pending(성공도 실패도 아님)이 된다 → 12초 타임아웃으로 드러낸다.
+        await Promise.race([
+            historyCollection().doc(dateKey).set(data,{merge:true}),
+            new Promise((_,rej)=>setTimeout(()=>rej(Object.assign(new Error('서버 응답 없음(12초)'),{code:'write-timeout'})),12000))
+        ]);
         window._lastSaveOkAt=Date.now(); // ★ TTL 보호 해제 판단 기준(저장 성공 시각)
         try{window._saveDiag.oks++;window._saveDiag.lastOkAt=Date.now();window._saveDiag.lastErr=null;renderSaveDiag()}catch(_){}
         showSyncStatus('synced');
@@ -1618,6 +1624,8 @@ async function saveDailyToCloud(){
         console.error('Daily save:',e);
         showSyncStatus('offline');
         try{showTinaToast('⚠️ 저장 실패: '+_c)}catch(_){}
+        // 매달린 쓰기(오프라인 큐) 복구 시도 — 다음 저장이 서버에 닿도록
+        if(_c==='write-timeout'||_c==='unavailable'){try{db.enableNetwork()}catch(_){}}
     }
     finally{window._savePending=false}
 }
@@ -1810,7 +1818,9 @@ setTimeout(()=>showComebackCard(),800);
 }showSyncStatus('synced')},e=>{console.warn('Profile listen:',e);showSyncStatus('offline')})}
 let _loadDateTimer=null;
 window._lastSnapshotAt=0; // ★ Sync패치: 마지막 onSnapshot 수신 시각 (리스너 생존 판정용)
-function listenToHistory(){if(unsubHistory)unsubHistory();unsubHistory=historyCollection().onSnapshot(snap=>{const hist={};snap.forEach(doc=>{hist[doc.id]=doc.data()});window._cloudHistory=hist;window._lastSnapshotAt=Date.now();
+function listenToHistory(){if(unsubHistory)unsubHistory();unsubHistory=historyCollection().onSnapshot({includeMetadataChanges:true},snap=>{const hist={};snap.forEach(doc=>{hist[doc.id]=doc.data()});window._cloudHistory=hist;window._lastSnapshotAt=Date.now();
+// ★ 2026-07-24: 이 스냅샷이 '아직 서버가 승인 안 한 로컬 쓰기'를 포함하는지. 포함하면 서버 확정이 아니다.
+window._snapPending=!!(snap.metadata&&snap.metadata.hasPendingWrites);window._snapFromCache=!!(snap.metadata&&snap.metadata.fromCache);
 // save 진행 중이면 loadDateData를 지연 — save 완료 후 onSnapshot이 다시 오면 그때 적용
 if(window._savePending){clearTimeout(_loadDateTimer);_loadDateTimer=setTimeout(()=>loadDateData(),1500);return}
 loadDateData();showSyncStatus('synced')},e=>{console.warn('History listen:',e);showSyncStatus('offline')})}
@@ -1880,8 +1890,10 @@ function loadDateData(){
         // localChecks에 있으면: 클라우드 일치 시 보호 해제, 불일치 시 로컬 값 강제 적용
         if(i in lc){
             const localVal=!!lc[i];
-            if(checksArr[i]===localVal){
-                // 클라우드가 로컬과 일치 — 확인 완료, 보호 해제
+            // ★ 2026-07-24: 로컬 대기 쓰기가 섞인 스냅샷은 '서버 확정'이 아니다.
+            //   예전엔 이 로컬 메아리를 확인으로 착각해 touched/localChecks를 지웠고,
+            //   그 결과 서버에 못 간 체크가 조용히 사라져 새로고침 시 리셋됐다.
+            if(checksArr[i]===localVal && !window._snapPending){
                 delete lc[i];touchedR.delete(i);
             }
             // 항상 로컬 의도 값 적용 (클라우드 무시)
@@ -1896,7 +1908,7 @@ function loadDateData(){
         if(!el)return;
         if(i in lr){
             const localVal=!!lr[i];
-            if(riskArr[i]===localVal){delete lr[i];touchedK.delete(i)}
+            if(riskArr[i]===localVal && !window._snapPending){delete lr[i];touchedK.delete(i)}
             if(localVal)el.classList.add('active');else el.classList.remove('active');
             return;
         }
