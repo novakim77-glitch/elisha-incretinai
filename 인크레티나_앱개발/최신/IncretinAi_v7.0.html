@@ -903,7 +903,7 @@
             <div class="input-group"><label>기상 시간</label><input type="time" id="p-wakeup" value="07:00"></div>
             <div class="input-group"><label>위도 (자동)</label><input type="number" id="p-lat" step="0.1" placeholder="37.5"></div>
         </div>
-        <button class="btn btn-primary no-print" onclick="runComprehensiveAnalysis()">🔬 분석 실행 및 데이터 갱신</button>
+        <button class="btn btn-primary no-print" onclick="runComprehensiveAnalysis(true)">🔬 분석 실행 및 데이터 갱신</button>
 
         <!-- 알림 안내 (텔레그램 봇 기반) -->
         <div class="notif-toggle-row no-print" id="notif-section" style="flex-direction:column;align-items:stretch;gap:10px;padding:14px 0">
@@ -1215,7 +1215,7 @@
 var _appReady = false;
 // ★ 2026-07-24 진단 계측 — 저장이 '조용히' 실패하면 원인을 알 길이 없어 화면에 드러낸다.
 //   (원격 재현이 안 되는 계정별 실패를 사용자가 그대로 읽어서 알려줄 수 있게)
-const APP_BUILD = '7.6.20';
+const APP_BUILD = '7.6.21';
 window._saveDiag = { clicks:0, changes:0, skips:0, tries:0, oks:0, gate:null, touchedAt:0, lastErr:null, lastErrAt:null, lastOkAt:null };
 function renderSaveDiag(){
     try{
@@ -1567,7 +1567,7 @@ auth.onAuthStateChanged(user=>{currentUser=user;if(user){document.getElementById
 function userDoc(){return db.collection('users').doc(currentUser.uid)}
 function historyCollection(){return userDoc().collection('dailyRoutines')}
 async function saveProfileToCloud(){if(!currentUser||!_appReady)return;try{const profileData={email:currentUser.email||'guest',name:document.getElementById('p-name').value,age:document.getElementById('p-age').value,gender:document.getElementById('p-gender').value,start:document.getElementById('p-start').value,h:document.getElementById('p-h').value,sw:document.getElementById('p-sw').value,gw:document.getElementById('p-gw').value,isDiabetic:document.getElementById('p-diabetic').value,exercise:document.getElementById('p-exercise').value,wakeup:document.getElementById('p-wakeup').value,lat:document.getElementById('p-lat').value,lastActiveDate:toLocalDateStr(),updatedAt:firebase.firestore.FieldValue.serverTimestamp()};// 챌린지 시작일은 항상 프로필 입력(p-start) 기준으로 동기화. 비어 있으면 오늘.
-profileData.userStartDate=document.getElementById('p-start').value||toLocalDateStr();await userDoc().set(profileData,{merge:true});showSyncStatus('synced')}catch(e){console.error('Profile save:',e);showSyncStatus('offline')}}
+profileData.userStartDate=document.getElementById('p-start').value||toLocalDateStr();await userDoc().set(profileData,{merge:true});window._profileChanged=false;window._lastActiveSavedDate=toLocalDateStr();showSyncStatus('synced')}catch(e){console.error('Profile save:',e);showSyncStatus('offline')}}
 
 let _chartTimer=null; // 차트 갱신 debounce
 window._savePending=false; // saveDailyToCloud 진행 중 플래그 — loadDateData가 덮어쓰기 방지
@@ -1825,7 +1825,7 @@ function _bindProfileInputs(){
     ids.forEach(id=>{
         const el=document.getElementById(id);if(!el)return;
         el.addEventListener('input',()=>{(window._profileDirty||(window._profileDirty={}))[id]={at:Date.now()};});
-        if(!alreadySaved[id])el.addEventListener('change',()=>{try{onDataChange()}catch(e){}});
+        if(!alreadySaved[id])el.addEventListener('change',()=>{window._profileChanged=true;try{onDataChange()}catch(e){}});
     });
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',_bindProfileInputs);else _bindProfileInputs();
@@ -4376,7 +4376,13 @@ function onDataChange(){
             // ★ 진단: 클릭했는데 여기로 오면 touched-set이 저장 전에 비워진 것(= 저장 자체가 안 일어남)
             try{window._saveDiag.skips++;window._saveDiag.gate='디바운스 시점 touched 비어있음(저장 생략)';renderSaveDiag()}catch(_){}
         }
-        try{saveProfileToCloud()}catch(e){console.error('saveProfileToCloud:',e)}
+        // ★ 2026-07-24: 프로필 저장은 '프로필이 실제로 바뀌었을 때'만. (XP/레벨은 별도 경로
+        //   addXP→saveGamificationToCloud 로 저장되므로 여기 조건화해도 게임 데이터 무손실.)
+        //   lastActiveDate 신선도는 하루 1회면 충분.
+        const _today=toLocalDateStr();
+        if(window._profileChanged||window._lastActiveSavedDate!==_today){
+            try{saveProfileToCloud()}catch(e){console.error('saveProfileToCloud:',e)}
+        }
     },600);
 }
 
@@ -4457,7 +4463,7 @@ function updateTrendChart(){
     trendChart=new Chart(ctx,{type:'line',data:{labels:wData.map(d=>d.date),datasets:[{data:wData.map(d=>d.weight),borderColor:'#3b82f6',backgroundColor:'rgba(59,130,246,.08)',fill:true,tension:.35,pointRadius:4,pointBackgroundColor:'#3b82f6',borderWidth:2}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:false,grid:{color:'rgba(0,0,0,.05)'}},x:{grid:{display:false}}}}});
 }
 
-function runComprehensiveAnalysis(){
+function runComprehensiveAnalysis(fromUser){
     let cw=parseFloat(document.getElementById('daily-weight').value);
     if(!Number.isFinite(cw))cw=parseFloat(document.getElementById('p-sw').value);
     let gw=parseFloat(document.getElementById('p-gw').value);
@@ -4477,7 +4483,12 @@ function runComprehensiveAnalysis(){
     const ctx=document.getElementById('simChart').getContext('2d');
     if(simChart)simChart.destroy();
     simChart=new Chart(ctx,{type:'line',data:{labels,datasets:[{data:weights,borderColor:'#10b981',backgroundColor:'rgba(16,185,129,.08)',borderDash:[6,4],tension:.4,fill:true,pointRadius:5,pointBackgroundColor:'#10b981',borderWidth:2}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:false,grid:{color:'rgba(0,0,0,.05)'}},x:{grid:{display:false}}}}});
-    onDataChange();
+    // ★ 2026-07-24 쓰기 증폭 수술: 이 함수는 loadDateData(=모든 onSnapshot)의 차트 타이머가
+    //   자동 호출한다. 여기서 무조건 onDataChange()를 부르면
+    //   스냅샷 수신 → 차트 → onDataChange → saveProfileToCloud(무조건) → 서버 쓰기 → 스냅샷…
+    //   으로 쓰기가 무한 증폭된다(실측: 클릭 1회에 변경감지 195 · 이 증폭이 오프라인 큐를
+    //   막은 유력 원인). 저장 트리거는 사용자가 '분석 실행' 버튼을 눌렀을 때만.
+    if(fromUser===true)onDataChange();
 }
 
 function exportToExcel(){
