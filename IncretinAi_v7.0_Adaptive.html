@@ -1215,7 +1215,7 @@
 var _appReady = false;
 // ★ 2026-07-24 진단 계측 — 저장이 '조용히' 실패하면 원인을 알 길이 없어 화면에 드러낸다.
 //   (원격 재현이 안 되는 계정별 실패를 사용자가 그대로 읽어서 알려줄 수 있게)
-const APP_BUILD = '7.6.18';
+const APP_BUILD = '7.6.19';
 window._saveDiag = { clicks:0, changes:0, skips:0, tries:0, oks:0, gate:null, touchedAt:0, lastErr:null, lastErrAt:null, lastOkAt:null };
 function renderSaveDiag(){
     try{
@@ -1257,7 +1257,12 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
-db.enablePersistence({synchronizeTabs:true}).catch(e=>console.warn('Persistence:',e.code));
+// ★ 2026-07-24: synchronizeTabs 제거. 멀티탭 persistence는 인스턴스 하나가 네트워크를
+//   독점(primary)하고 나머지는 그 탭을 통해 쓰기를 위임하는데, 홈화면 PWA + 텔레그램
+//   미니앱을 함께 쓰면 백그라운드 primary가 lease를 쥔 채 멈춰 secondary의 set()이
+//   영원히 pending(write-timeout)이 된다. 단일탭 모드면 두 번째 인스턴스는 persistence만
+//   포기하고(failed-precondition, 아래 catch) 온라인으로 정상 동작 — 쓰기가 바로 나간다.
+db.enablePersistence().catch(e=>console.warn('Persistence:',e.code));
 let currentUser=null,unsubProfile=null,unsubHistory=null;
 const ADMIN_EMAILS=['novakim77@gmail.com'];
 function isAdmin(){return currentUser&&currentUser.email&&ADMIN_EMAILS.includes(currentUser.email)}
@@ -1604,6 +1609,15 @@ async function saveDailyToCloud(){
     if(touchedRisks.size>0){data.riskChecks=mergedRisks;data.recoveries=mergedRec}
     if(wRaw&&wRaw.trim()!==''){const wNum=parseFloat(wRaw);if(Number.isFinite(wNum))data.weight=wNum}
     window._savePending=true;
+    // ★ 2026-07-24: 직전 저장이 실패/타임아웃이었다면 쓰기 전에 연결과 토큰을 되살린다.
+    //   (링크코드 발급 함수가 쓰던 검증된 처방 — set() 무한 큐잉의 실제 원인 두 가지 대응)
+    try{
+        const _d=window._saveDiag||{};
+        if(_d.lastErr||(_d.tries>0&&_d.oks===0)){
+            try{await db.enableNetwork()}catch(_){}
+            try{if(currentUser&&currentUser.getIdToken)await currentUser.getIdToken(true)}catch(_){}
+        }
+    }catch(_){}
     try{window._saveDiag.tries++}catch(_){}
     try{
         // ★ 2026-07-24: 오프라인 캐시가 켜져 있으면 set()은 서버 승인까지 resolve되지 않아
