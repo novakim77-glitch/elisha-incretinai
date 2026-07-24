@@ -1215,8 +1215,8 @@
 var _appReady = false;
 // ★ 2026-07-24 진단 계측 — 저장이 '조용히' 실패하면 원인을 알 길이 없어 화면에 드러낸다.
 //   (원격 재현이 안 되는 계정별 실패를 사용자가 그대로 읽어서 알려줄 수 있게)
-const APP_BUILD = '7.6.15';
-window._saveDiag = { tries:0, oks:0, lastErr:null, lastErrAt:null, lastOkAt:null };
+const APP_BUILD = '7.6.16';
+window._saveDiag = { clicks:0, changes:0, skips:0, tries:0, oks:0, gate:null, touchedAt:0, lastErr:null, lastErrAt:null, lastOkAt:null };
 function renderSaveDiag(){
     try{
         const host=document.getElementById('notif-section'); if(!host)return;
@@ -1229,10 +1229,14 @@ function renderSaveDiag(){
         const d=window._saveDiag||{};
         const u=(typeof currentUser!=='undefined'&&currentUser)?currentUser.uid:null;
         const f=t=>t?new Date(t).toLocaleTimeString('ko-KR'):'-';
+        const _tn=(window._userTouchedRoutines||new Set()).size;
+        const _lc=Object.keys(window._localChecks||{}).length;
         el.textContent='🔧 동기화 진단   빌드 '+APP_BUILD
             +'\n계정 '+(u?(u.slice(0,10)+'…'):'(로그인 안 됨)')+'   저장준비 '+((typeof _appReady!=='undefined')?_appReady:'?')
-            +'\n저장 시도 '+(d.tries||0)+'회 / 성공 '+(d.oks||0)+'회   최근 성공 '+f(d.lastOkAt)
-            +(d.lastErr?('\n⚠️ 최근 실패 '+f(d.lastErrAt)+' — '+d.lastErr):'');
+            +'\n① 루틴클릭 '+(d.clicks||0)+'   ② 변경감지 '+(d.changes||0)+'   ③ touched '+_tn+' (local '+_lc+')'
+            +'\n④ 저장호출 '+(d.tries||0)+'   성공 '+(d.oks||0)+'   건너뜀 '+(d.skips||0)+'   최근성공 '+f(d.lastOkAt)
+            +(d.gate?('\n⛔ 차단 사유: '+d.gate):'')
+            +(d.lastErr?('\n⚠️ 실패 '+f(d.lastErrAt)+' — '+d.lastErr):'');
     }catch(e){}
 }
 window.renderSaveDiag=renderSaveDiag;
@@ -1547,7 +1551,8 @@ window._localChecks={};
 window._localRisks={};
 window._localChecksAt={};window._localRisksAt={}; // ★ Sync패치: TTL 타임스탬프 맵
 async function saveDailyToCloud(){
-    if(!currentUser||!_appReady)return;
+    if(!currentUser||!_appReady){try{window._saveDiag.gate=(!currentUser?'로그인 없음(currentUser=null)':'앱 준비 전(_appReady=false)');renderSaveDiag()}catch(_){}return}
+    try{window._saveDiag.gate=null}catch(_){}
     // ★ 2026-07-24: DOM 접근을 널 안전하게. 요소 하나가 없거나 렌더가 어긋나면 여기서
     //   TypeError가 나 저장 전체가 조용히 죽었다(사용자에겐 체크된 것처럼 보이고 새로고침 시 리셋).
     let dateKey=(document.getElementById('target-date')||{}).value||toLocalDateStr();
@@ -3998,6 +4003,7 @@ function openRoutinePopup(i){
 }
 
 function routineDone(i){
+    try{window._saveDiag.clicks++}catch(_){}
     const el=document.getElementById('item-'+i);
     const wasNew=!el.classList.contains('checked');
     window._lastUserToggleAt=Date.now();
@@ -4299,7 +4305,8 @@ function toggleWidgetRisks(){
 
 let _dataChangeTimer=null;
 function onDataChange(){
-    if(!_appReady)return; // Firebase 데이터 로드 전 모든 변경/저장 차단
+    try{window._saveDiag.changes++}catch(_){}
+    if(!_appReady){try{window._saveDiag.gate='앱 준비 전(_appReady=false)';renderSaveDiag()}catch(_){}return} // Firebase 데이터 로드 전 모든 변경/저장 차단
     // UI 렌더 단계에서 예외가 나도 저장 단계까지 도달하도록 try/catch로 격리
     try{fullRefresh()}catch(e){console.error('fullRefresh:',e)}
     try{gamificationOnDataChange()}catch(e){console.error('gamification:',e)}
@@ -4314,6 +4321,9 @@ function onDataChange(){
         if(_t.size>0||_k.size>0||window._weightChanged){
             try{await saveDailyToCloud()}catch(e){console.error('saveDailyToCloud:',e)}
             window._weightChanged=false;
+        }else{
+            // ★ 진단: 클릭했는데 여기로 오면 touched-set이 저장 전에 비워진 것(= 저장 자체가 안 일어남)
+            try{window._saveDiag.skips++;window._saveDiag.gate='디바운스 시점 touched 비어있음(저장 생략)';renderSaveDiag()}catch(_){}
         }
         try{saveProfileToCloud()}catch(e){console.error('saveProfileToCloud:',e)}
     },600);
